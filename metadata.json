@@ -1,7 +1,7 @@
 {
   "uuid": "murmur@roman-16.github.io",
   "name": "Murmur",
-  "description": "Push-to-talk voice dictation. Super+Space opens a centered overlay that records the microphone and streams it to Mistral Voxtral for realtime transcription, then inserts the text into the focused field. For best results install dotool (setup instructions on the GitHub page); Murmur then types arbitrary Unicode into any app, including terminals. Without it, insertion falls back to the compositor's virtual keyboard, which can only type characters from your active keyboard layout.",
+  "description": "Push-to-talk voice dictation. Super+Space opens a centered overlay that records the microphone, transcribes it in realtime with Mistral Voxtral, and inserts the text into the focused field. Typing uses dotool when available (recommended), with the virtual keyboard as fallback.",
   "shell-version": [
     "47",
     "48",

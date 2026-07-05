@@ -22,10 +22,15 @@ dev:
     ext="$XDG_DATA_HOME/gnome-shell/extensions/{{uuid}}"
     mkdir -p "$(dirname "$ext")"
     ln -sfnT '{{src}}' "$ext"
-    key=$(GSETTINGS_SCHEMA_DIR='{{src}}/schemas' gsettings get org.gnome.shell.extensions.murmur mistral-api-key 2>/dev/null || echo "''")
-    cat >"$tmp/init.sh" <<EOF
+    export GSETTINGS_SCHEMA_DIR="$ext/schemas"
+    cat >"$tmp/init.sh" <<'EOF'
     gsettings set org.gnome.shell enabled-extensions "['{{uuid}}']"
-    GSETTINGS_SCHEMA_DIR="$ext/schemas" gsettings set org.gnome.shell.extensions.murmur mistral-api-key $key
+    if [ -n "${MISTRAL_API_KEY:-}" ]; then
+        gsettings set org.gnome.shell.extensions.murmur mistral-api-key "$MISTRAL_API_KEY"
+    fi
+    if [ -n "${RECORDING_SHORTCUT:-}" ]; then
+        gsettings set org.gnome.shell.extensions.murmur toggle-recording "['$RECORDING_SHORTCUT']"
+    fi
     exec gnome-shell --devkit
     EOF
     dbus-run-session -- bash "$tmp/init.sh"

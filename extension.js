@@ -59,6 +59,32 @@ function charToKeyval(ch) {
     return Clutter.unicode_to_keysym(ch.codePointAt(0));
 }
 
+const ACCEL_MODIFIERS = [
+    {re: /<(Super|Mod4)>/i, mask: Clutter.ModifierType.MOD4_MASK, label: 'Super'},
+    {re: /<(Primary|Control|Ctrl)>/i, mask: Clutter.ModifierType.CONTROL_MASK, label: 'Ctrl'},
+    {re: /<(Alt|Mod1)>/i, mask: Clutter.ModifierType.MOD1_MASK, label: 'Alt'},
+    {re: /<Shift>/i, mask: Clutter.ModifierType.SHIFT_MASK, label: 'Shift'},
+];
+const ACCEL_MASK = ACCEL_MODIFIERS.reduce((m, x) => m | x.mask, 0);
+
+// The shell process has no accelerator parser and must not import Gtk, so parse
+// a GSettings accelerator like "<Super>space" into a keyval, modifier mask, and
+// display label by hand.
+function parseAccel(accel) {
+    if (!accel)
+        return null;
+    const name = accel.replace(/<[^>]+>/g, '');
+    const keyval = Clutter[`KEY_${name}`];
+    if (!keyval)
+        return null;
+    const mods = ACCEL_MODIFIERS.filter(m => m.re.test(accel));
+    return {
+        keyval,
+        mods: mods.reduce((m, x) => m | x.mask, 0),
+        label: [...mods.map(m => m.label), name.replace(/^./, c => c.toUpperCase())].join('+'),
+    };
+}
+
 const MurmurOverlay = GObject.registerClass(
 class MurmurOverlay extends ModalDialog.ModalDialog {
     _init() {
@@ -91,18 +117,27 @@ class MurmurOverlay extends ModalDialog.ModalDialog {
             vscrollbar_policy: St.PolicyType.AUTOMATIC,
         });
         this._scroll.child = textBox;
-        this._scroll.vadjustment.connect('changed', adj => {
+        this._scrollChangedId = this._scroll.vadjustment.connect('changed', adj => {
             adj.value = Math.max(0, adj.upper - adj.page_size);
         });
 
-        this._hint = new St.Label({
-            style_class: 'murmur-hint',
-            text: 'Enter / Super+Space: insert     ·     Esc: cancel',
-        });
+        this._hint = new St.Label({style_class: 'murmur-hint', text: ''});
 
         this.contentLayout.add_child(header);
         this.contentLayout.add_child(this._scroll);
         this.contentLayout.add_child(this._hint);
+
+        this.connect('destroy', () => {
+            if (this._scrollChangedId) {
+                this._scroll.vadjustment.disconnect(this._scrollChangedId);
+                this._scrollChangedId = 0;
+            }
+            this._status = null;
+            this._countdown = null;
+            this._text = null;
+            this._scroll = null;
+            this._hint = null;
+        });
     }
 
     open() {
@@ -123,6 +158,12 @@ class MurmurOverlay extends ModalDialog.ModalDialog {
         this._text.text = text;
     }
 
+    setShortcut(shortcut) {
+        this._shortcut = shortcut;
+        const insert = shortcut ? `Enter / ${shortcut.label}` : 'Enter';
+        this._hint.text = `${insert}: insert     ·     Esc: cancel`;
+    }
+
     vfunc_key_press_event(event) {
         const symbol = event.get_key_symbol();
         const state = event.get_state();
@@ -137,8 +178,9 @@ class MurmurOverlay extends ModalDialog.ModalDialog {
             this.onStop?.();
             return Clutter.EVENT_STOP;
         }
-        if (symbol === Clutter.KEY_space && (state & Clutter.ModifierType.MOD4_MASK)) {
-            // Ignore the Super+Space that opened the overlay if it is still held.
+        const shortcut = this._shortcut;
+        if (shortcut && symbol === shortcut.keyval && (state & ACCEL_MASK) === shortcut.mods) {
+            // Ignore the opening shortcut press if it is still held.
             if (GLib.get_monotonic_time() - this._openedAt > STOP_GUARD_US)
                 this.onStop?.();
             return Clutter.EVENT_STOP;
@@ -433,10 +475,11 @@ export default class MurmurExtension extends Extension {
         this._commitDelayId = 0;
         this._deadlineUs = 0;
         this._settings = this.getSettings();
+        this._bound = false;
 
         this._bind();
         this._changedId = this._settings.connect(`changed::${KEYBIND}`, () => {
-            Main.wm.removeKeybinding(KEYBIND);
+            this._unbind();
             this._bind();
         });
     }
@@ -446,7 +489,7 @@ export default class MurmurExtension extends Extension {
             this._settings.disconnect(this._changedId);
             this._changedId = 0;
         }
-        Main.wm.removeKeybinding(KEYBIND);
+        this._unbind();
         this._clearCountdown();
         if (this._commitDelayId) {
             GLib.source_remove(this._commitDelayId);
@@ -461,12 +504,22 @@ export default class MurmurExtension extends Extension {
     }
 
     _bind() {
+        if (this._settings.get_strv(KEYBIND).length === 0)
+            return;
         Main.wm.addKeybinding(
             KEYBIND,
             this._settings,
             Meta.KeyBindingFlags.NONE,
             Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW,
             () => this._toggle());
+        this._bound = true;
+    }
+
+    _unbind() {
+        if (!this._bound)
+            return;
+        Main.wm.removeKeybinding(KEYBIND);
+        this._bound = false;
     }
 
     _toggle() {
@@ -485,6 +538,7 @@ export default class MurmurExtension extends Extension {
         this._overlay = new MurmurOverlay();
         this._overlay.onCancel = () => this._cancel();
         this._overlay.onStop = () => this._stop();
+        this._overlay.setShortcut(parseAccel(this._settings.get_strv(KEYBIND)[0] ?? ''));
         if (!this._overlay.open()) {
             this._overlay.destroy();
             this._overlay = null;

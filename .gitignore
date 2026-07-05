@@ -1,3 +1,4 @@
 .devbox/
+.env
 *.shell-extension.zip
 schemas/gschemas.compiled

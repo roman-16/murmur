@@ -73,6 +73,8 @@ To set up the recommended dotool path on any distribution:
 
 ## Development
 
+Copy `.env.example` to `.env` and set `MISTRAL_API_KEY` (and optionally `RECORDING_SHORTCUT`).
+
 The toolchain is pinned with [devbox](https://www.jetify.com/devbox):
 
 ```bash

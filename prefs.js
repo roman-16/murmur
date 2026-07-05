@@ -10,6 +10,7 @@ import {dotoolCandidates} from './lib/dotool.js';
 
 const KEYBIND = 'toggle-recording';
 const PROBE_TIMEOUT_MS = 1500;
+const STATE_CLASSES = ['success', 'warning', 'error'];
 
 const MODIFIER_KEYVALS = [
     Gdk.KEY_Shift_L, Gdk.KEY_Shift_R,
@@ -21,7 +22,120 @@ const MODIFIER_KEYVALS = [
     Gdk.KEY_ISO_Level3_Shift,
 ];
 
-const STATE_CLASSES = ['success', 'warning', 'error'];
+// Run each dotool tier with empty input; exit 0 means it is usable.
+function probeDotool(candidates, i, done) {
+    if (i >= candidates.length) {
+        done(false);
+        return;
+    }
+    let proc;
+    try {
+        proc = Gio.Subprocess.new(
+            [candidates[i].bin],
+            Gio.SubprocessFlags.STDIN_PIPE | Gio.SubprocessFlags.STDOUT_SILENCE | Gio.SubprocessFlags.STDERR_SILENCE);
+    } catch {
+        probeDotool(candidates, i + 1, done);
+        return;
+    }
+    let timedOut = false;
+    const timer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, PROBE_TIMEOUT_MS, () => {
+        timedOut = true;
+        try {
+            proc.force_exit();
+        } catch {}
+        return GLib.SOURCE_REMOVE;
+    });
+    proc.communicate_utf8_async('', null, (p, res) => {
+        GLib.source_remove(timer);
+        let ok = false;
+        try {
+            p.communicate_utf8_finish(res);
+            ok = !timedOut && p.get_successful();
+        } catch {}
+        if (ok)
+            done(true);
+        else
+            probeDotool(candidates, i + 1, done);
+    });
+}
+
+function sessionGids() {
+    const gids = new Set();
+    try {
+        const [ok, contents] = GLib.file_get_contents('/proc/self/status');
+        if (ok) {
+            for (const raw of new TextDecoder().decode(contents).split('\n')) {
+                const line = raw.trim();
+                if (line.startsWith('Groups:') || line.startsWith('Gid:')) {
+                    for (const tok of line.split(/\s+/).slice(1))
+                        gids.add(Number(tok));
+                }
+            }
+        }
+    } catch {}
+    return gids;
+}
+
+// All dotool tiers failed: distinguish "in the input group but the session has
+// not picked it up yet" (fixable by re-login) from genuine gaps.
+function diagnoseDotool(done) {
+    if (!GLib.file_test('/dev/uinput', GLib.FileTest.EXISTS)) {
+        done({state: 'red', reason: 'nouinput'});
+        return;
+    }
+    let gid;
+    try {
+        gid = Gio.File.new_for_path('/dev/uinput')
+            .query_info('unix::gid', Gio.FileQueryInfoFlags.NONE, null)
+            .get_attribute_uint32('unix::gid');
+    } catch {
+        done({state: 'red', reason: 'generic'});
+        return;
+    }
+    if (sessionGids().has(gid)) {
+        done({state: 'red', reason: 'generic'});
+        return;
+    }
+    const getent = GLib.find_program_in_path('getent');
+    if (!getent) {
+        done({state: 'red', reason: 'generic'});
+        return;
+    }
+    let proc;
+    try {
+        proc = Gio.Subprocess.new(
+            [getent, 'group', String(gid)],
+            Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_SILENCE);
+    } catch {
+        done({state: 'red', reason: 'generic'});
+        return;
+    }
+    proc.communicate_utf8_async(null, null, (p, res) => {
+        let line = '';
+        try {
+            [, line] = p.communicate_utf8_finish(res);
+        } catch {}
+        const [name, , , membersField] = line.trim().split(':');
+        const members = (membersField ?? '').split(',').filter(Boolean);
+        if (members.includes(GLib.get_user_name()))
+            done({state: 'orange', reason: 'relogin', group: name});
+        else
+            done({state: 'red', reason: 'notmember', group: name});
+    });
+}
+
+function redReasonText(reason, group) {
+    switch (reason) {
+    case 'notinstalled':
+        return _('dotool is not installed. Install it for full-Unicode typing (see the README).');
+    case 'nouinput':
+        return _('The uinput device is unavailable (kernel module or udev rule missing; see the README).');
+    case 'notmember':
+        return _('You are not in the “%s” group that grants access to /dev/uinput (see the README).').replace('%s', group);
+    default:
+        return _('dotool is installed but could not be reached (see the README).');
+    }
+}
 
 export default class MurmurPreferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
@@ -44,201 +158,77 @@ export default class MurmurPreferences extends ExtensionPreferences {
 
     _makeStatusGroup() {
         const group = new Adw.PreferencesGroup();
-
-        this._statusIcon = new Gtk.Image({valign: Gtk.Align.CENTER});
-        this._statusRow = new Adw.ActionRow({subtitle_lines: 0});
-        this._statusRow.add_prefix(this._statusIcon);
-
+        const icon = new Gtk.Image({valign: Gtk.Align.CENTER});
+        const row = new Adw.ActionRow({subtitle_lines: 0});
+        row.add_prefix(icon);
         const recheck = new Gtk.Button({
             icon_name: 'view-refresh-symbolic',
             valign: Gtk.Align.CENTER,
             has_frame: false,
             tooltip_text: _('Recheck'),
         });
-        recheck.connect('clicked', () => this._refreshStatus());
-        this._statusRow.add_suffix(recheck);
+        row.add_suffix(recheck);
+        group.add(row);
 
-        group.add(this._statusRow);
-        this._refreshStatus();
-        return group;
-    }
-
-    _refreshStatus() {
-        const seq = (this._probeSeq ?? 0) + 1;
-        this._probeSeq = seq;
-        this._setStatus('checking');
-
-        const candidates = dotoolCandidates();
-        if (candidates.length === 0) {
-            this._setStatus('red', 'notinstalled');
-            return;
-        }
-        this._probe(candidates, 0, ok => {
-            if (this._probeSeq !== seq)
-                return;
-            if (ok)
-                this._setStatus('green');
-            else
-                this._diagnose(diag => this._probeSeq === seq && this._setStatus(diag.state, diag.reason, diag.group));
-        });
-    }
-
-    _probe(candidates, i, done) {
-        if (i >= candidates.length) {
-            done(false);
-            return;
-        }
-        let proc;
-        try {
-            proc = Gio.Subprocess.new(
-                [candidates[i].bin],
-                Gio.SubprocessFlags.STDIN_PIPE | Gio.SubprocessFlags.STDOUT_SILENCE | Gio.SubprocessFlags.STDERR_SILENCE);
-        } catch {
-            this._probe(candidates, i + 1, done);
-            return;
-        }
-        let timedOut = false;
-        const timer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, PROBE_TIMEOUT_MS, () => {
-            timedOut = true;
-            try {
-                proc.force_exit();
-            } catch {}
-            return GLib.SOURCE_REMOVE;
-        });
-        proc.communicate_utf8_async('', null, (p, res) => {
-            GLib.source_remove(timer);
-            let ok = false;
-            try {
-                p.communicate_utf8_finish(res);
-                ok = !timedOut && p.get_successful();
-            } catch {}
-            if (ok)
-                done(true);
-            else
-                this._probe(candidates, i + 1, done);
-        });
-    }
-
-    // All dotool tiers failed. Distinguish "installed but the input group isn't
-    // active in this session yet" (fixable by re-login) from genuine gaps.
-    _diagnose(done) {
-        if (!GLib.file_test('/dev/uinput', GLib.FileTest.EXISTS)) {
-            done({state: 'red', reason: 'nouinput'});
-            return;
-        }
-
-        let gid;
-        try {
-            gid = Gio.File.new_for_path('/dev/uinput')
-                .query_info('unix::gid', Gio.FileQueryInfoFlags.NONE, null)
-                .get_attribute_uint32('unix::gid');
-        } catch {
-            done({state: 'red', reason: 'generic'});
-            return;
-        }
-
-        if (this._sessionGids().has(gid)) {
-            done({state: 'red', reason: 'generic'});
-            return;
-        }
-
-        const getent = GLib.find_program_in_path('getent');
-        if (!getent) {
-            done({state: 'red', reason: 'generic'});
-            return;
-        }
-        let proc;
-        try {
-            proc = Gio.Subprocess.new(
-                [getent, 'group', String(gid)],
-                Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_SILENCE);
-        } catch {
-            done({state: 'red', reason: 'generic'});
-            return;
-        }
-        proc.communicate_utf8_async(null, null, (p, res) => {
-            let line = '';
-            try {
-                [, line] = p.communicate_utf8_finish(res);
-            } catch {}
-            const [name, , , membersField] = line.trim().split(':');
-            const members = (membersField ?? '').split(',').filter(Boolean);
-            const isMember = members.includes(GLib.get_user_name());
-            if (isMember)
-                done({state: 'orange', reason: 'relogin', group: name});
-            else
-                done({state: 'red', reason: 'notmember', group: name});
-        });
-    }
-
-    _sessionGids() {
-        const gids = new Set();
-        try {
-            const [ok, contents] = GLib.file_get_contents('/proc/self/status');
-            if (ok) {
-                for (const raw of new TextDecoder().decode(contents).split('\n')) {
-                    const line = raw.trim();
-                    if (line.startsWith('Groups:') || line.startsWith('Gid:')) {
-                        for (const tok of line.split(/\s+/).slice(1))
-                            gids.add(Number(tok));
-                    }
-                }
-            }
-        } catch {}
-        return gids;
-    }
-
-    _setStatus(state, reason, group) {
-        const grp = group ?? 'input';
         const fallback = _('Murmur is using the virtual keyboard, which types only characters from your current keyboard layout.');
-        let icon, title, subtitle, cls;
+        const setStatus = (state, reason, groupName) => {
+            const grp = groupName ?? 'input';
+            let iconName, title, subtitle, cls;
+            switch (state) {
+            case 'checking':
+                iconName = 'content-loading-symbolic';
+                title = _('Checking dotool…');
+                subtitle = '';
+                break;
+            case 'green':
+                iconName = 'emblem-ok-symbolic';
+                cls = 'success';
+                title = _('dotool is active');
+                subtitle = _('Dictation types via dotool: arbitrary Unicode into any app, including terminals.');
+                break;
+            case 'orange':
+                iconName = 'dialog-warning-symbolic';
+                cls = 'warning';
+                title = _('dotool needs a re-login');
+                subtitle = `${_('You are in the “%s” group, but this session has not picked it up yet. Log out and back in (or reboot) to finish enabling dotool.').replace('%s', grp)} ${fallback}`;
+                break;
+            default:
+                iconName = 'dialog-error-symbolic';
+                cls = 'error';
+                title = _('dotool is not available');
+                subtitle = `${redReasonText(reason, grp)} ${fallback}`;
+                break;
+            }
+            icon.icon_name = iconName;
+            for (const c of STATE_CLASSES)
+                icon.remove_css_class(c);
+            if (cls)
+                icon.add_css_class(cls);
+            row.title = title;
+            row.subtitle = subtitle;
+        };
 
-        switch (state) {
-        case 'checking':
-            icon = 'content-loading-symbolic';
-            title = _('Checking dotool…');
-            subtitle = '';
-            break;
-        case 'green':
-            icon = 'emblem-ok-symbolic';
-            cls = 'success';
-            title = _('dotool is active');
-            subtitle = _('Dictation types via dotool: arbitrary Unicode into any app, including terminals.');
-            break;
-        case 'orange':
-            icon = 'dialog-warning-symbolic';
-            cls = 'warning';
-            title = _('dotool needs a re-login');
-            subtitle = `${_('You are in the “%s” group, but this session has not picked it up yet. Log out and back in (or reboot) to finish enabling dotool.').replace('%s', grp)} ${fallback}`;
-            break;
-        default:
-            icon = 'dialog-error-symbolic';
-            cls = 'error';
-            title = _('dotool is not available');
-            subtitle = `${this._redReason(reason, grp)} ${fallback}`;
-            break;
-        }
-
-        this._statusIcon.icon_name = icon;
-        for (const c of STATE_CLASSES)
-            this._statusIcon.remove_css_class(c);
-        if (cls)
-            this._statusIcon.add_css_class(cls);
-        this._statusRow.title = title;
-        this._statusRow.subtitle = subtitle;
-    }
-
-    _redReason(reason, group) {
-        switch (reason) {
-        case 'notinstalled':
-            return _('dotool is not installed. Install it for full-Unicode typing (see the README).');
-        case 'nouinput':
-            return _('The uinput device is unavailable (kernel module or udev rule missing; see the README).');
-        case 'notmember':
-            return _('You are not in the “%s” group that grants access to /dev/uinput (see the README).').replace('%s', group);
-        default:
-            return _('dotool is installed but could not be reached (see the README).');
-        }
+        let generation = 0;
+        const refresh = () => {
+            const seq = ++generation;
+            setStatus('checking');
+            const candidates = dotoolCandidates();
+            if (candidates.length === 0) {
+                setStatus('red', 'notinstalled');
+                return;
+            }
+            probeDotool(candidates, 0, ok => {
+                if (seq !== generation)
+                    return;
+                if (ok)
+                    setStatus('green');
+                else
+                    diagnoseDotool(diag => seq === generation && setStatus(diag.state, diag.reason, diag.group));
+            });
+        };
+        recheck.connect('clicked', refresh);
+        refresh();
+        return group;
     }
 
     _makeShortcutRow(window, settings) {

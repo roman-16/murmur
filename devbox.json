@@ -9,5 +9,10 @@
     "oxlint": "1.71.0",
     "just": "latest",
     "zip": "latest"
+  },
+  "shell": {
+    "init_hook": [
+      "if [ -f .env ]; then set -a; . ./.env; set +a; fi"
+    ]
   }
 }
