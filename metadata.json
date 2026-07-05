@@ -2,10 +2,15 @@
   "uuid": "murmur@roman-16.github.io",
   "name": "Murmur",
   "description": "Push-to-talk voice dictation. Super+Space opens a centered overlay that records the microphone and streams it to Mistral Voxtral for realtime transcription, then inserts the text into the focused field. For best results install dotool (setup instructions on the GitHub page); Murmur then types arbitrary Unicode into any app, including terminals. Without it, insertion falls back to the compositor's virtual keyboard, which can only type characters from your active keyboard layout.",
-  "shell-version": ["47", "48", "49", "50"],
+  "shell-version": [
+    "47",
+    "48",
+    "49",
+    "50"
+  ],
   "url": "https://github.com/roman-16/murmur",
   "settings-schema": "org.gnome.shell.extensions.murmur",
   "gettext-domain": "murmur",
   "version-name": "1.0.0",
-  "version": 1
+  "version": 2
 }
