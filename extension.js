@@ -73,7 +73,7 @@ const ACCEL_MASK = ACCEL_MODIFIERS.reduce((m, x) => m | x.mask, 0);
 function parseAccel(accel) {
     if (!accel)
         return null;
-    const name = accel.replace(/<[^>]+>/g, '');
+    const name = accel.slice(accel.lastIndexOf('>') + 1);
     const keyval = Clutter[`KEY_${name}`];
     if (!keyval)
         return null;
