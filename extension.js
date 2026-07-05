@@ -127,17 +127,24 @@ class MurmurOverlay extends ModalDialog.ModalDialog {
         this.contentLayout.add_child(this._scroll);
         this.contentLayout.add_child(this._hint);
 
-        this.connect('destroy', () => {
-            if (this._scrollChangedId) {
-                this._scroll.vadjustment.disconnect(this._scrollChangedId);
-                this._scrollChangedId = 0;
-            }
-            this._status = null;
-            this._countdown = null;
-            this._text = null;
-            this._scroll = null;
-            this._hint = null;
-        });
+        this.connect('destroy', this._onDestroy.bind(this));
+    }
+
+    _onDestroy() {
+        if (this._scrollChangedId) {
+            this._scroll.vadjustment.disconnect(this._scrollChangedId);
+            this._scrollChangedId = 0;
+        }
+        this._status.destroy();
+        this._countdown.destroy();
+        this._text.destroy();
+        this._scroll.destroy();
+        this._hint.destroy();
+        this._status = null;
+        this._countdown = null;
+        this._text = null;
+        this._scroll = null;
+        this._hint = null;
     }
 
     open() {

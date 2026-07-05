@@ -1,6 +1,6 @@
 # Murmur
 
-Push-to-talk voice dictation for GNOME Shell. `Super+Space` opens a centered overlay that records your microphone, streams it to [Mistral Voxtral](https://mistral.ai) for realtime transcription, and inserts the result into the focused field.
+Push-to-talk voice dictation for GNOME. A centered overlay records your speech, streams it to [Mistral Voxtral](https://mistral.ai) for realtime transcription, and inserts the result into the focused field.
 
 ![Murmur's overlay showing a live transcription over a document](docs/overlay.png)
 
