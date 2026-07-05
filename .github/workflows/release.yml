@@ -76,8 +76,8 @@ jobs:
             LICENSE
           gettext-domain: murmur
           accept-tos: true
-          username: ${{ secrets.GNOME_USERNAME }}
-          password: ${{ secrets.GNOME_PASSWORD }}
+          username: ${{ secrets.GNOME_EXTENSIONS_USERNAME }}
+          password: ${{ secrets.GNOME_EXTENSIONS_PASSWORD }}
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v3
