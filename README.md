@@ -2,6 +2,8 @@
 
 Push-to-talk voice dictation for GNOME Shell. `Super+Space` opens a centered overlay that records your microphone, streams it to [Mistral Voxtral](https://mistral.ai) for realtime transcription, and inserts the result into the focused field.
 
+![Murmur's overlay showing a live transcription over a document](docs/overlay.png)
+
 ## Contents
 
 - [Features](#features)
@@ -30,7 +32,7 @@ Push-to-talk voice dictation for GNOME Shell. `Super+Space` opens a centered ove
 
 ### From extensions.gnome.org (recommended)
 
-Once approved on [extensions.gnome.org](https://extensions.gnome.org), install Murmur from its page there or via the *Extensions* / *Extension Manager* app. Until then, use the manual install below.
+Install Murmur from its [page on extensions.gnome.org](https://extensions.gnome.org/extension/10343/murmur/).
 
 ### Manual
 
