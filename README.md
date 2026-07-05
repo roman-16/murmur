@@ -11,7 +11,6 @@ Push-to-talk voice dictation for GNOME Shell. `Super+Space` opens a centered ove
 - [How it works](#how-it-works)
 - [Text insertion](#text-insertion)
 - [Development](#development)
-- [License](#license)
 
 ## Features
 
@@ -82,7 +81,3 @@ just install        # symlink into your real extensions dir (log out/in on Wayla
 just prefs          # open the preferences dialog (after the shell knows it)
 just pack           # build a .shell-extension.zip
 ```
-
-## License
-
-[MIT](LICENSE)
