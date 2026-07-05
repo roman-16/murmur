@@ -1,0 +1,87 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release (e.g. 1.0.0)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - name: Validate version
+        run: |
+          if ! echo "${{ inputs.version }}" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$'; then
+            echo "::error::Invalid version format '${{ inputs.version }}'. Expected semver like 1.0.0 or 1.0.0-rc.1"
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Check tag does not exist
+        run: |
+          if git rev-parse "v${{ inputs.version }}" >/dev/null 2>&1; then
+            echo "::error::Tag v${{ inputs.version }} already exists"
+            exit 1
+          fi
+
+      - name: Bump metadata, commit and tag
+        id: tag
+        run: |
+          current=$(jq -r '.version' metadata.json)
+          next=$((current + 1))
+          jq --argjson v "$next" --arg vn "${{ inputs.version }}" \
+            '.version = $v | ."version-name" = $vn' metadata.json > metadata.json.tmp
+          mv metadata.json.tmp metadata.json
+
+          git config user.name "Roman"
+          git config user.email "roman@lerchster.dev"
+          git commit -am "Release v${{ inputs.version }} (extension version $next)"
+          git tag -a "v${{ inputs.version }}" -m "Release v${{ inputs.version }}"
+          git push origin HEAD
+          git push origin "v${{ inputs.version }}"
+          echo "tag=v${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+
+  release:
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.tag }}
+          fetch-depth: 0
+
+      # extensions.gnome.org has no API tokens: upload needs the real account
+      # username and password, stored as repo secrets.
+      - name: Pack and upload to extensions.gnome.org
+        id: pack
+        uses: murar8/gnome-extensions-action@0.1.1
+        with:
+          source-dir: .
+          schema: schemas/org.gnome.shell.extensions.murmur.gschema.xml
+          extra-source: |
+            lib
+            LICENSE
+          gettext-domain: murmur
+          accept-tos: true
+          username: ${{ secrets.GNOME_USERNAME }}
+          password: ${{ secrets.GNOME_PASSWORD }}
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ needs.prepare.outputs.tag }}
+          name: ${{ needs.prepare.outputs.tag }}
+          files: ${{ steps.pack.outputs.zip-file }}

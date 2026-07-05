@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.murmur" path="/org/gnome/shell/extensions/murmur/">
+    <key name="mistral-api-key" type="s">
+      <default>''</default>
+      <summary>Mistral API key</summary>
+      <description>API key used to authenticate with the Mistral Voxtral realtime transcription endpoint.</description>
+    </key>
+    <key name="toggle-recording" type="as">
+      <default><![CDATA[['<Super>space']]]></default>
+      <summary>Toggle recording</summary>
+      <description>Shortcut that opens the recording overlay, then stops recording and inserts the transcription.</description>
+    </key>
+  </schema>
+</schemalist>

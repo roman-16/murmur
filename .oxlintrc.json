@@ -1,0 +1,19 @@
+{
+  "$schema": "https://raw.githubusercontent.com/oxc-project/oxc/main/npm/oxlint/configuration_schema.json",
+  "plugins": ["eslint", "oxc", "unicorn", "import", "promise"],
+  "categories": {
+    "correctness": "error"
+  },
+  "env": {
+    "es2024": true
+  },
+  "globals": {
+    "log": "readonly",
+    "logError": "readonly",
+    "console": "readonly",
+    "TextEncoder": "readonly",
+    "TextDecoder": "readonly",
+    "globalThis": "readonly"
+  },
+  "ignorePatterns": [".devbox", "node_modules"]
+}

@@ -1,0 +1,13 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jetify-com/devbox/0.17.5/.schema/devbox.schema.json",
+  "packages": {
+    "glib": {
+      "version": "latest",
+      "outputs": ["out", "dev"]
+    },
+    "gjs": "latest",
+    "oxlint": "1.71.0",
+    "just": "latest",
+    "zip": "latest"
+  }
+}

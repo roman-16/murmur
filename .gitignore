@@ -1,0 +1,3 @@
+.devbox/
+*.shell-extension.zip
+schemas/gschemas.compiled

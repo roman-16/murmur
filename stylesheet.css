@@ -1,0 +1,29 @@
+.murmur-header {
+  spacing: 12px;
+  width: 34em;
+}
+
+.murmur-status {
+  font-weight: bold;
+}
+
+.murmur-countdown {
+  font-feature-settings: "tnum";
+  font-weight: bold;
+}
+
+.murmur-scroll {
+  width: 34em;
+  max-height: 24em;
+}
+
+.murmur-text {
+  min-height: 3em;
+  font-size: 1.2em;
+  padding: 10px 0;
+}
+
+.murmur-hint {
+  font-size: 0.9em;
+  opacity: 0.7;
+}
