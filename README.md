@@ -1,8 +1,11 @@
-# Murmur
+<h1>
+  <img src="assets/icon.svg" alt="" height="24" align="middle" />
+  &nbsp;Murmur
+</h1>
 
 Push-to-talk voice dictation for GNOME. A centered overlay records your speech, streams it to [Mistral Voxtral](https://mistral.ai) for realtime transcription, and inserts the result into the focused field.
 
-![Murmur's overlay showing a live transcription over a document](docs/overlay.png)
+![Murmur's overlay showing a live transcription over a document](assets/overlay.png)
 
 ## Contents
 

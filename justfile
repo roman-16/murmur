@@ -2,6 +2,10 @@ uuid := "murmur@roman-16.github.io"
 src := justfile_directory()
 ext_dir := env_var_or_default("XDG_DATA_HOME", env_var("HOME") / ".local/share") / "gnome-shell/extensions" / uuid
 
+# Render the extensions.gnome.org page icon (assets/icon.svg -> assets/icon.png)
+icon:
+    rsvg-convert --width 256 --height 256 '{{src}}/assets/icon.svg' --output '{{src}}/assets/icon.png'
+
 # Lint (quality gate)
 lint:
     oxlint
