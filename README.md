@@ -1,5 +1,5 @@
 <h1>
-  <img src="assets/icon.svg" alt="" height="24" align="middle" />
+  <img src="assets/icon.svg" alt="" height="32" />
   &nbsp;Murmur
 </h1>
 
