@@ -1,6 +1,6 @@
 <h1>
   <img src="assets/icon.svg" alt="" height="32" />
-  &nbsp;Murmur
+  Murmur
 </h1>
 
 Push-to-talk voice dictation for GNOME. A centered overlay records your speech, streams it to [Mistral Voxtral](https://mistral.ai) for realtime transcription, and inserts the result into the focused field.
