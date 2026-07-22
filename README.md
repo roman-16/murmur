@@ -72,7 +72,7 @@ To set up the recommended dotool path on any distribution:
 
 1. Install `dotool`.
 2. Grant your user access to `/dev/uinput` (dotool ships a udev rule; typically this means adding yourself to the `input` group).
-3. Optionally run the `dotoold` daemon for faster typing.
+3. Optionally run the `dotoold` daemon for faster typing. Start it with `DOTOOL_XKB_LAYOUT` (and `DOTOOL_XKB_VARIANT`) set to match your layout: in daemon mode dotool reads the layout from the daemon's own environment, not from Murmur.
 
 ## Development
 

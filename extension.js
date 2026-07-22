@@ -12,7 +12,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as ModalDialog from 'resource:///org/gnome/shell/ui/modalDialog.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 
-import {dotoolCandidates} from './lib/dotool.js';
+import {dotoolCandidates, dotoolLayoutEnv} from './lib/dotool.js';
 
 const KEYBIND = 'toggle-recording';
 const MODEL = 'voxtral-mini-transcribe-realtime-2602';
@@ -282,6 +282,7 @@ class Session {
         }
         this._committing = true;
         this._commitDone = onDone;
+        this._dotoolEnv = dotoolLayoutEnv();
         this._typeViaDotool(dotoolCandidates(), text);
     }
 
@@ -398,8 +399,12 @@ class Session {
         const [{bin}, ...rest] = candidates;
         let proc;
         try {
-            proc = Gio.Subprocess.new(
-                [bin], Gio.SubprocessFlags.STDIN_PIPE | Gio.SubprocessFlags.STDERR_SILENCE);
+            const launcher = new Gio.SubprocessLauncher({
+                flags: Gio.SubprocessFlags.STDIN_PIPE | Gio.SubprocessFlags.STDERR_SILENCE,
+            });
+            for (const [name, value] of this._dotoolEnv)
+                launcher.setenv(name, value, true);
+            proc = launcher.spawnv([bin]);
         } catch (e) {
             logError(e, `murmur: ${bin} spawn failed`);
             this._typeViaDotool(rest, text);
