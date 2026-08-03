@@ -2,7 +2,6 @@ import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
 import Shell from 'gi://Shell';
-import Soup from 'gi://Soup?version=3.0';
 
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
@@ -30,8 +29,6 @@ export default class MurmurExtension extends Extension {
     #settingsChangedId = 0;
 
     enable(): void {
-        promisifyAsyncMethods();
-
         const settings = this.getSettings();
         this.#settings = settings;
         this.#bindShortcut();
@@ -181,15 +178,6 @@ export default class MurmurExtension extends Extension {
         GLib.source_remove(this.#countdownId);
         this.#countdownId = 0;
     }
-}
-
-// The typings model these as promise-returning, but GJS only rewrites the
-// prototypes it is asked to. _promisify is idempotent and leaves callback
-// callers working, so repeating it per enable() is harmless.
-function promisifyAsyncMethods(): void {
-    Gio._promisify(Gio.InputStream.prototype, 'read_bytes_async');
-    Gio._promisify(Gio.Subprocess.prototype, 'communicate_utf8_async');
-    Gio._promisify(Soup.Session.prototype, 'websocket_connect_async');
 }
 
 function formatRemaining(seconds: number): string {

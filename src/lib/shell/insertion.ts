@@ -2,6 +2,7 @@ import Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 
+import {fromAsync} from '../async.js';
 import {dotoolLayoutEnv, dotoolTiers} from '../dotool.js';
 import {isCancelled} from '../errors.js';
 
@@ -105,7 +106,9 @@ async function typeWithDotool(
     }
 
     try {
-        await process.communicate_utf8_async(script, cancellable);
+        await fromAsync(
+            callback => process.communicate_utf8_async(script, cancellable, callback),
+            result => process.communicate_utf8_finish(result));
         return process.get_successful();
     } catch (error) {
         if (isCancelled(error))

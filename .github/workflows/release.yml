@@ -39,15 +39,12 @@ jobs:
       - name: Bump metadata, commit and tag
         id: tag
         run: |
-          current=$(jq -r '.version' metadata.json)
-          next=$((current + 1))
-          jq --argjson v "$next" --arg vn "${{ inputs.version }}" \
-            '.version = $v | ."version-name" = $vn' metadata.json > metadata.json.tmp
+          jq --arg vn "${{ inputs.version }}" '."version-name" = $vn' metadata.json > metadata.json.tmp
           mv metadata.json.tmp metadata.json
 
           git config user.name "Roman"
           git config user.email "roman@lerchster.dev"
-          git commit -am "Release v${{ inputs.version }} (extension version $next)"
+          git commit -am "Release v${{ inputs.version }}"
           git tag -a "v${{ inputs.version }}" -m "Release v${{ inputs.version }}"
           git push origin HEAD
           git push origin "v${{ inputs.version }}"

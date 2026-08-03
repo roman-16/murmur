@@ -2,7 +2,7 @@ import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Soup from 'gi://Soup?version=3.0';
 
-import {deferred} from '../async.js';
+import {deferred, fromAsync} from '../async.js';
 import {errorMessage, isCancelled} from '../errors.js';
 import {
     parseServerEvent,
@@ -29,6 +29,7 @@ export class Session {
     readonly #handlers: SessionHandlers;
     readonly #silenceLimitUs: number;
 
+    #cancelledId = 0;
     #connection: Soup.WebsocketConnection | null = null;
     #http: Soup.Session | null = null;
     #recorder: Gio.Subprocess | null = null;
@@ -43,7 +44,7 @@ export class Session {
         this.#config = config;
         this.#handlers = handlers;
         this.#silenceLimitUs = config.silenceSeconds * 1000000;
-        this.#cancellable.connect(() => this.#abort());
+        this.#cancelledId = cancellable.connect(() => this.#abort());
     }
 
     // Records, streams and transcribes until the server is done, then resolves
@@ -77,8 +78,10 @@ export class Session {
 
         const priority = GLib.PRIORITY_DEFAULT;
         try {
-            this.#connection = await http.websocket_connect_async(
-                message, null, null, priority, this.#cancellable);
+            this.#connection = await fromAsync(
+                callback => http.websocket_connect_async(
+                    message, null, null, priority, this.#cancellable, callback),
+                result => http.websocket_connect_finish(result));
         } catch (error) {
             if (isCancelled(error))
                 throw error;
@@ -119,8 +122,10 @@ export class Session {
         for (;;) {
             let bytes: GLib.Bytes;
             try {
-                bytes = await stream.read_bytes_async(
-                    CHUNK_BYTES, GLib.PRIORITY_DEFAULT, cancellable);
+                bytes = await fromAsync(
+                    callback => stream.read_bytes_async(
+                        CHUNK_BYTES, GLib.PRIORITY_DEFAULT, cancellable, callback),
+                    result => stream.read_bytes_finish(result));
             } catch (error) {
                 if (!isCancelled(error))
                     console.error(`murmur: mic read failed: ${errorMessage(error)}`);
@@ -206,6 +211,7 @@ export class Session {
         if (this.#settled)
             return;
         this.#settled = true;
+        this.#stopWatchingCancellation();
         this.#cleanup();
         this.#completion.resolve(this.#text);
     }
@@ -214,16 +220,27 @@ export class Session {
         if (this.#settled)
             return;
         this.#settled = true;
+        this.#stopWatchingCancellation();
         this.#cleanup();
         this.#completion.reject(new Error(reason));
     }
 
+    // Runs from the cancellable's own handler, which must not be disconnected
+    // from inside itself.
     #abort(): void {
         if (this.#settled)
             return;
         this.#settled = true;
+        this.#cancelledId = 0;
         this.#cleanup();
         this.#completion.reject(new Error('cancelled'));
+    }
+
+    #stopWatchingCancellation(): void {
+        if (!this.#cancelledId)
+            return;
+        this.#cancellable.disconnect(this.#cancelledId);
+        this.#cancelledId = 0;
     }
 
     #cleanup(): void {

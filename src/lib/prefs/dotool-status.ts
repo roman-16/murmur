@@ -5,6 +5,7 @@ import Gtk from 'gi://Gtk';
 
 import {gettext as _} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
+import {fromAsync} from '../async.js';
 import {dotoolTiers} from '../dotool.js';
 
 const PROBE_TIMEOUT_MS = 1500;
@@ -99,7 +100,9 @@ async function probeTier(bin: string): Promise<boolean> {
     });
 
     try {
-        await process.communicate_utf8_async('', null);
+        await fromAsync(
+            callback => process.communicate_utf8_async('', null, callback),
+            result => process.communicate_utf8_finish(result));
         return timeoutId !== 0 && process.get_successful();
     } catch {
         return false;
@@ -163,7 +166,9 @@ async function lookupGroup(gid: number): Promise<{members: string[]; name: strin
     const flags = Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_SILENCE;
     try {
         const process = Gio.Subprocess.new([getent, 'group', String(gid)], flags);
-        const [stdout] = await process.communicate_utf8_async(null, null);
+        const [, stdout] = await fromAsync(
+            callback => process.communicate_utf8_async(null, null, callback),
+            result => process.communicate_utf8_finish(result));
         const [name, , , members] = stdout.trim().split(':');
         if (!name)
             return null;

@@ -15,8 +15,6 @@ const TYPING_SPEEDS = [50, 100, 250, 500, 1000];
 
 export default class MurmurPreferences extends ExtensionPreferences {
     override async fillPreferencesWindow(window: Adw.PreferencesWindow): Promise<void> {
-        Gio._promisify(Gio.Subprocess.prototype, 'communicate_utf8_async');
-
         const settings = this.getSettings();
         const page = new Adw.PreferencesPage();
         page.add(transcriptionGroup(settings));
