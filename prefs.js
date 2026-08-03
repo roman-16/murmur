@@ -11,6 +11,7 @@ import {dotoolCandidates} from './lib/dotool.js';
 const KEYBIND = 'toggle-recording';
 const PROBE_TIMEOUT_MS = 1500;
 const STATE_CLASSES = ['success', 'warning', 'error'];
+const TYPING_SPEEDS = [50, 100, 250, 500, 1000];
 
 const MODIFIER_KEYVALS = [
     Gdk.KEY_Shift_L, Gdk.KEY_Shift_R,
@@ -21,6 +22,43 @@ const MODIFIER_KEYVALS = [
     Gdk.KEY_Hyper_L, Gdk.KEY_Hyper_R,
     Gdk.KEY_ISO_Level3_Shift,
 ];
+
+function makeComboRow(settings, key, {title, subtitle, choices}) {
+    const row = new Adw.ComboRow({
+        title,
+        subtitle,
+        model: Gtk.StringList.new(choices.map(c => c.label)),
+    });
+    // Presets over a plain integer key, so a value set outside the ladder still
+    // shows up as the closest one.
+    const closest = value => choices.reduce(
+        (best, c, i) => Math.abs(c.value - value) < Math.abs(choices[best].value - value) ? i : best, 0);
+    const sync = () => {
+        row.selected = closest(settings.get_int(key));
+    };
+    sync();
+
+    row.connect('notify::selected', () => settings.set_int(key, choices[row.selected].value));
+    settings.connect(`changed::${key}`, sync);
+    return row;
+}
+
+function makeSpinRow(settings, key, {title, subtitle, step}) {
+    const schemaKey = settings.settings_schema.get_key(key);
+    const [lower, upper] = schemaKey.get_range().get_child_value(1).get_variant().deep_unpack();
+    const row = new Adw.SpinRow({
+        title,
+        subtitle,
+        adjustment: new Gtk.Adjustment({
+            lower,
+            upper,
+            step_increment: step,
+            page_increment: step * 4,
+        }),
+    });
+    settings.bind(key, row, 'value', Gio.SettingsBindFlags.DEFAULT);
+    return row;
+}
 
 // Run each dotool tier with empty input; exit 0 means it is usable.
 function probeDotool(candidates, i, done) {
@@ -140,24 +178,68 @@ function redReasonText(reason, group) {
 export default class MurmurPreferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
         const settings = this.getSettings();
+        window._settings = settings;
 
         const page = new Adw.PreferencesPage();
-        page.add(this._makeStatusGroup());
+        page.add(this._makeTranscriptionGroup(settings));
+        page.add(this._makeRecordingGroup(window, settings));
+        page.add(this._makeInsertionGroup(settings));
+        window.add(page);
+    }
 
-        const group = new Adw.PreferencesGroup({title: _('Murmur')});
-        page.add(group);
+    _makeTranscriptionGroup(settings) {
+        const group = new Adw.PreferencesGroup({title: _('Transcription')});
 
         const keyRow = new Adw.PasswordEntryRow({title: _('Mistral API key')});
         settings.bind('mistral-api-key', keyRow, 'text', Gio.SettingsBindFlags.DEFAULT);
         group.add(keyRow);
 
-        group.add(this._makeShortcutRow(window, settings));
-
-        window.add(page);
+        group.add(makeComboRow(settings, 'transcription-delay-ms', {
+            title: _('Transcription delay'),
+            subtitle: _('Longer delays give the model more context and better accuracy'),
+            choices: [
+                {value: 240, label: _('Instant (240 ms)')},
+                {value: 500, label: _('Fast (500 ms)')},
+                {value: 1000, label: _('Balanced (1 s)')},
+                {value: 2400, label: _('Accurate (2.4 s)')},
+            ],
+        }));
+        return group;
     }
 
-    _makeStatusGroup() {
-        const group = new Adw.PreferencesGroup();
+    _makeRecordingGroup(window, settings) {
+        const group = new Adw.PreferencesGroup({title: _('Recording')});
+
+        group.add(this._makeShortcutRow(window, settings));
+        group.add(makeSpinRow(settings, 'max-recording-seconds', {
+            title: _('Maximum recording time'),
+            subtitle: _('Seconds after which recording stops on its own'),
+            step: 15,
+        }));
+        group.add(makeSpinRow(settings, 'silence-timeout-seconds', {
+            title: _('Stop after silence'),
+            subtitle: _('Seconds of silence that end the recording, or 0 to keep recording'),
+            step: 1,
+        }));
+        return group;
+    }
+
+    _makeInsertionGroup(settings) {
+        const group = new Adw.PreferencesGroup({title: _('Text insertion')});
+
+        group.add(this._makeStatusRow());
+        group.add(makeComboRow(settings, 'typing-speed', {
+            title: _('Typing speed'),
+            subtitle: _('Lower this if characters get dropped or reordered'),
+            choices: TYPING_SPEEDS.map(value => ({
+                value,
+                label: _('%d chars/s').replace('%d', String(value)),
+            })),
+        }));
+        return group;
+    }
+
+    _makeStatusRow() {
         const icon = new Gtk.Image({valign: Gtk.Align.CENTER});
         const row = new Adw.ActionRow({subtitle_lines: 0});
         row.add_prefix(icon);
@@ -168,7 +250,6 @@ export default class MurmurPreferences extends ExtensionPreferences {
             tooltip_text: _('Recheck'),
         });
         row.add_suffix(recheck);
-        group.add(row);
 
         const fallback = _('Murmur is using the virtual keyboard, which types only characters from your current keyboard layout.');
         const setStatus = (state, reason, groupName) => {
@@ -228,7 +309,7 @@ export default class MurmurPreferences extends ExtensionPreferences {
         };
         recheck.connect('clicked', refresh);
         refresh();
-        return group;
+        return row;
     }
 
     _makeShortcutRow(window, settings) {

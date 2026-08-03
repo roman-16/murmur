@@ -13,51 +13,15 @@ import * as ModalDialog from 'resource:///org/gnome/shell/ui/modalDialog.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 import {dotoolCandidates, dotoolLayoutEnv} from './lib/dotool.js';
+import {buildDotoolScript, charToKeyval, normalizeForKeyval, typingPace} from './lib/typing.js';
 
 const KEYBIND = 'toggle-recording';
 const MODEL = 'voxtral-mini-transcribe-realtime-2602';
 const WS_URL = `wss://api.mistral.ai/v1/audio/transcriptions/realtime?model=${MODEL}`;
 const SAMPLE_RATE = 16000;
-const TARGET_DELAY_MS = 2400;
 const CHUNK_BYTES = (SAMPLE_RATE * 2 * 100) / 1000;
-const MAX_SECONDS = 120;
-const TYPE_INTERVAL_MS = 3;
+const SILENCE_RMS = 0.01;
 const STOP_GUARD_US = 500000;
-
-const NORMALIZE = {
-    '\u2018': "'", '\u2019': "'", '\u201a': "'", '\u201b': "'",
-    '\u201c': '"', '\u201d': '"', '\u201e': '"', '\u201f': '"',
-    '\u00ab': '"', '\u00bb': '"', '\u2039': "'", '\u203a': "'",
-    '\u2013': '-', '\u2014': '-', '\u2015': '-', '\u2212': '-',
-    '\u2026': '...',
-    '\u00a0': ' ', '\u2009': ' ', '\u200a': ' ', '\u202f': ' ',
-};
-
-function buildDotoolScript(text) {
-    const cmds = [];
-    text.split('\n').forEach((line, i) => {
-        if (i > 0)
-            cmds.push('key enter');
-        if (line.length > 0)
-            cmds.push(`type ${line}`);
-    });
-    return `${cmds.join('\n')}\n`;
-}
-
-function normalizeForKeyval(text) {
-    let out = '';
-    for (const ch of text)
-        out += NORMALIZE[ch] ?? ch;
-    return out;
-}
-
-function charToKeyval(ch) {
-    if (ch === '\n' || ch === '\r')
-        return Clutter.KEY_Return;
-    if (ch === '\t')
-        return Clutter.KEY_Tab;
-    return Clutter.unicode_to_keysym(ch.codePointAt(0));
-}
 
 const ACCEL_MODIFIERS = [
     {re: /<(Super|Mod4)>/i, mask: Clutter.ModifierType.MOD4_MASK, label: 'Super'},
@@ -197,11 +161,12 @@ class MurmurOverlay extends ModalDialog.ModalDialog {
 });
 
 class Session {
-    constructor(apiKey, {onUpdate, onComplete, onError}) {
-        this._apiKey = apiKey;
+    constructor(config, {onUpdate, onComplete, onError, onSilence}) {
+        this._config = config;
         this._onUpdate = onUpdate;
         this._onComplete = onComplete;
         this._onError = onError;
+        this._onSilence = onSilence;
 
         this._cancellable = new Gio.Cancellable();
         this._rec = null;
@@ -220,6 +185,9 @@ class Session {
         this._commitDone = null;
         this._typeId = 0;
         this._device = null;
+
+        this._silenceLimitUs = config.silenceSeconds * 1000000;
+        this._silentUs = 0;
     }
 
     start() {
@@ -242,7 +210,7 @@ class Session {
 
         this._httpSession = new Soup.Session();
         const msg = Soup.Message.new_from_uri('GET', GLib.Uri.parse(WS_URL, GLib.UriFlags.NONE));
-        msg.get_request_headers().append('Authorization', `Bearer ${this._apiKey}`);
+        msg.get_request_headers().append('Authorization', `Bearer ${this._config.apiKey}`);
 
         this._httpSession.websocket_connect_async(
             msg, null, null, GLib.PRIORITY_DEFAULT, this._cancellable,
@@ -261,7 +229,7 @@ class Session {
                     type: 'session.update',
                     session: {
                         audio_format: {encoding: 'pcm_s16le', sample_rate: SAMPLE_RATE},
-                        target_streaming_delay_ms: TARGET_DELAY_MS,
+                        target_streaming_delay_ms: this._config.delayMs,
                     },
                 });
                 this._readChunk();
@@ -319,9 +287,36 @@ class Session {
                     this._endAudio();
                     return;
                 }
-                this._send({type: 'input_audio.append', audio: GLib.base64_encode(bytes.get_data())});
+                const data = bytes.get_data();
+                this._send({type: 'input_audio.append', audio: GLib.base64_encode(data)});
+                this._trackSilence(data);
                 this._readChunk();
             });
+    }
+
+    // Measured in audio time, not wall time, so a backlog of buffered chunks
+    // cannot be mistaken for a long silence.
+    _trackSilence(data) {
+        if (!this._silenceLimitUs || !this._recording)
+            return;
+        let sum = 0;
+        let samples = 0;
+        for (let i = 0; i + 1 < data.length; i += 2) {
+            let sample = data[i] | (data[i + 1] << 8);
+            if (sample >= 0x8000)
+                sample -= 0x10000;
+            sum += sample * sample;
+            samples++;
+        }
+        if (samples === 0)
+            return;
+        if (Math.sqrt(sum / samples) / 32768 >= SILENCE_RMS) {
+            this._silentUs = 0;
+            return;
+        }
+        this._silentUs += (samples / SAMPLE_RATE) * 1000000;
+        if (this._silentUs >= this._silenceLimitUs)
+            this._onSilence();
     }
 
     _endAudio() {
@@ -410,7 +405,7 @@ class Session {
             this._typeViaDotool(rest, text);
             return;
         }
-        proc.communicate_utf8_async(buildDotoolScript(text), this._cancellable, (p, res) => {
+        proc.communicate_utf8_async(buildDotoolScript(text, this._config.pace), this._cancellable, (p, res) => {
             if (this._settled)
                 return;
             let ok = false;
@@ -429,25 +424,27 @@ class Session {
         const seat = Clutter.get_default_backend().get_default_seat();
         this._device = seat.create_virtual_device(Clutter.InputDeviceType.KEYBOARD_DEVICE);
         const chars = [...normalizeForKeyval(text)];
+        const {charsPerTick, tickMs} = this._config.pace;
         let i = 0;
 
-        this._typeId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, TYPE_INTERVAL_MS, () => {
+        this._typeId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, tickMs, () => {
             if (this._settled) {
                 this._typeId = 0;
                 return GLib.SOURCE_REMOVE;
             }
-            if (i >= chars.length) {
-                this._typeId = 0;
-                this._finishCommit();
-                return GLib.SOURCE_REMOVE;
-            }
-            const keyval = charToKeyval(chars[i++]);
-            if (keyval) {
+            for (let n = 0; n < charsPerTick && i < chars.length; n++) {
+                const keyval = charToKeyval(chars[i++]);
+                if (!keyval)
+                    continue;
                 const t = GLib.get_monotonic_time();
                 this._device.notify_keyval(t, keyval, Clutter.KeyState.PRESSED);
                 this._device.notify_keyval(t, keyval, Clutter.KeyState.RELEASED);
             }
-            return GLib.SOURCE_CONTINUE;
+            if (i < chars.length)
+                return GLib.SOURCE_CONTINUE;
+            this._typeId = 0;
+            this._finishCommit();
+            return GLib.SOURCE_REMOVE;
         });
     }
 
@@ -540,9 +537,19 @@ export default class MurmurExtension extends Extension {
         this._start();
     }
 
+    _readConfig() {
+        return {
+            apiKey: this._settings.get_string('mistral-api-key'),
+            delayMs: this._settings.get_int('transcription-delay-ms'),
+            maxSeconds: this._settings.get_int('max-recording-seconds'),
+            pace: typingPace(this._settings.get_int('typing-speed')),
+            silenceSeconds: this._settings.get_int('silence-timeout-seconds'),
+        };
+    }
+
     _start() {
-        const apiKey = this._settings.get_string('mistral-api-key');
-        if (!apiKey) {
+        const config = this._readConfig();
+        if (!config.apiKey) {
             Main.notify('Murmur', 'Set your Mistral API key in the extension preferences');
             return;
         }
@@ -558,18 +565,19 @@ export default class MurmurExtension extends Extension {
             return;
         }
 
-        this._session = new Session(apiKey, {
+        this._session = new Session(config, {
             onUpdate: text => this._overlay?.setText(text),
             onComplete: text => this._onComplete(text),
             onError: msg => this._onError(msg),
+            onSilence: () => this._stop(),
         });
         this._recording = true;
         this._session.start();
-        this._startCountdown();
+        this._startCountdown(config.maxSeconds);
     }
 
-    _startCountdown() {
-        this._deadlineUs = GLib.get_monotonic_time() + MAX_SECONDS * 1000000;
+    _startCountdown(maxSeconds) {
+        this._deadlineUs = GLib.get_monotonic_time() + maxSeconds * 1000000;
         this._tick();
     }
 
@@ -621,6 +629,11 @@ export default class MurmurExtension extends Extension {
         const session = this._session;
         if (!session)
             return;
+        if (!finalText.trim()) {
+            session.abort();
+            this._finishSession();
+            return;
+        }
         // Let focus return to the target field after the modal closes, then type.
         this._commitDelayId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 150, () => {
             this._commitDelayId = 0;

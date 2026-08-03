@@ -20,7 +20,7 @@ Push-to-talk voice dictation for GNOME. A centered overlay records your speech, 
 ## Features
 
 - Push-to-talk: one shortcut to start, the same shortcut (or `Enter`) to stop and insert.
-- Live transcription in a centered overlay with a countdown.
+- Live transcription in a centered overlay with a countdown, plus an optional hands-free stop after silence.
 - Realtime streaming to Mistral Voxtral over a WebSocket.
 - Self-contained: pure JavaScript, no build step.
 - Types via [dotool](#text-insertion) for full Unicode in any app including terminals, with a virtual-keyboard fallback.
@@ -52,7 +52,13 @@ On Wayland, log out and back in so GNOME Shell picks up the extension, then enab
 Open Murmur's preferences (*Extensions* app, or `gnome-extensions prefs murmur@roman-16.github.io`):
 
 - **Mistral API key** - your key for the Mistral Voxtral endpoint.
-- **Recording shortcut** - defaults to `Super+Space`.
+- **Transcription delay** (1 s) - more buffered audio is more accurate, less is faster.
+- **Recording shortcut** (`Super+Space`).
+- **Maximum recording time** (120 s) - recording then stops and inserts on its own.
+- **Stop after silence** (off) - seconds of silence that end the recording.
+- **Typing speed** (500 characters/second) - lower it if characters get dropped.
+
+Settings apply to the next dictation.
 
 ## How it works
 

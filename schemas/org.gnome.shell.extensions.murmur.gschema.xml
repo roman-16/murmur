@@ -1,15 +1,39 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <schemalist>
   <schema id="org.gnome.shell.extensions.murmur" path="/org/gnome/shell/extensions/murmur/">
+    <key name="max-recording-seconds" type="i">
+      <default>120</default>
+      <range min="15" max="1800"/>
+      <summary>Maximum recording time</summary>
+      <description>Seconds after which recording stops on its own and the transcription is inserted.</description>
+    </key>
     <key name="mistral-api-key" type="s">
       <default>''</default>
       <summary>Mistral API key</summary>
       <description>API key used to authenticate with the Mistral Voxtral realtime transcription endpoint.</description>
     </key>
+    <key name="silence-timeout-seconds" type="i">
+      <default>0</default>
+      <range min="0" max="30"/>
+      <summary>Stop after silence</summary>
+      <description>Seconds of uninterrupted silence that end the recording. 0 keeps recording until stopped by hand.</description>
+    </key>
     <key name="toggle-recording" type="as">
       <default><![CDATA[['<Super>space']]]></default>
       <summary>Toggle recording</summary>
       <description>Shortcut that opens the recording overlay, then stops recording and inserts the transcription.</description>
+    </key>
+    <key name="transcription-delay-ms" type="i">
+      <default>1000</default>
+      <range min="240" max="2400"/>
+      <summary>Transcription delay</summary>
+      <description>Milliseconds of audio Voxtral buffers before transcribing. Higher values give the model more context and better accuracy, lower values show and insert text sooner.</description>
+    </key>
+    <key name="typing-speed" type="i">
+      <default>500</default>
+      <range min="50" max="1000"/>
+      <summary>Typing speed</summary>
+      <description>Characters per second used to insert the transcription. Lower it if characters get dropped or reordered.</description>
     </key>
   </schema>
 </schemalist>
