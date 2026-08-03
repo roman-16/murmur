@@ -22,7 +22,7 @@ Push-to-talk voice dictation for GNOME. A centered overlay records your speech, 
 - Push-to-talk: one shortcut to start, the same shortcut (or `Enter`) to stop and insert.
 - Live transcription in a centered overlay with a countdown, plus an optional hands-free stop after silence.
 - Realtime streaming to Mistral Voxtral over a WebSocket.
-- Self-contained: pure JavaScript, no build step.
+- Written in TypeScript, type-checked against the GNOME Shell APIs and compiled to plain GJS modules.
 - Types via [dotool](#text-insertion) for full Unicode in any app including terminals, with a virtual-keyboard fallback.
 
 ## Requirements
@@ -42,8 +42,10 @@ Install Murmur from its [page on extensions.gnome.org](https://extensions.gnome.
 ```bash
 git clone https://github.com/roman-16/murmur.git
 cd murmur
-just install   # symlinks into ~/.local/share/gnome-shell/extensions and compiles the schema
+just install   # compiles src/ into dist/, symlinks it into ~/.local/share/gnome-shell/extensions
 ```
+
+This needs the toolchain below. To install without one, use the zip attached to a [release](https://github.com/roman-16/murmur/releases).
 
 On Wayland, log out and back in so GNOME Shell picks up the extension, then enable it (the *Extensions* app, or `gnome-extensions enable murmur@roman-16.github.io`).
 
@@ -84,13 +86,18 @@ To set up the recommended dotool path on any distribution:
 
 Copy `.env.example` to `.env` and set `MISTRAL_API_KEY` (and optionally `RECORDING_SHORTCUT`).
 
-The toolchain is pinned with [devbox](https://www.jetify.com/devbox):
+The sources live in `src/` and are compiled into `dist/`, which is what GNOME Shell loads. System tools are pinned with [devbox](https://www.jetify.com/devbox), the JavaScript toolchain (TypeScript, GNOME type definitions, oxlint) with `bun.lock`:
 
 ```bash
 devbox shell        # or: direnv allow
-just lint           # oxlint (quality gate)
+just build          # compile src/ into dist/ (installs npm dependencies when stale)
+just check          # type-check only
+just lint           # oxlint + type-check (quality gate)
 just dev            # run in a throwaway, isolated nested GNOME Shell
-just install        # symlink into your real extensions dir (log out/in on Wayland)
+just install        # symlink dist/ into your real extensions dir (log out/in on Wayland)
 just prefs          # open the preferences dialog (after the shell knows it)
 just pack           # build a .shell-extension.zip
+just clean          # drop dist/ and node_modules/
 ```
+
+After editing anything in `src/`, rerun `just build` (or `just install`) so the shell picks up the change.

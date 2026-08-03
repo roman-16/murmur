@@ -1,6 +1,6 @@
 {
   "$schema": "https://raw.githubusercontent.com/oxc-project/oxc/main/npm/oxlint/configuration_schema.json",
-  "plugins": ["eslint", "oxc", "unicorn", "import", "promise"],
+  "plugins": ["eslint", "oxc", "unicorn", "import", "promise", "typescript"],
   "categories": {
     "correctness": "error"
   },
@@ -15,5 +15,5 @@
     "TextDecoder": "readonly",
     "globalThis": "readonly"
   },
-  "ignorePatterns": [".devbox", "node_modules"]
+  "ignorePatterns": [".devbox", "dist", "node_modules"]
 }
