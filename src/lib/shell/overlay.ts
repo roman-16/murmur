@@ -11,6 +11,7 @@ import {MODIFIER_MASK, type Shortcut} from './accelerator.js';
 // The shortcut that opens the overlay is typically still held while the overlay
 // takes key focus, so ignore it for a moment instead of stopping right away.
 const STOP_GUARD_US = 500000;
+const TAIL_SLACK_PX = 1;
 
 export class MurmurOverlay extends ModalDialog.ModalDialog {
     static {
@@ -24,6 +25,7 @@ export class MurmurOverlay extends ModalDialog.ModalDialog {
     readonly #hint: St.Label;
     readonly #status: St.Label;
     readonly #transcript: St.Label;
+    readonly #transcriptScroll: St.Adjustment;
     #openedAt = 0;
     #shortcut: Shortcut | null = null;
 
@@ -40,12 +42,12 @@ export class MurmurOverlay extends ModalDialog.ModalDialog {
 
         this.#transcript = new St.Label({style_class: 'murmur-text', text: ''});
         this.#transcript.clutter_text.line_wrap = true;
-        // St.Label ellipsizes by default, which clips the text; disable it so the
-        // ScrollView scrolls instead of showing a trailing "…".
         this.#transcript.clutter_text.ellipsize = Pango.EllipsizeMode.NONE;
 
-        const textBox = new St.BoxLayout({style_class: 'murmur-textbox'});
-        textBox.add_child(this.#transcript);
+        const column = new St.Viewport({
+            layout_manager: new Clutter.BoxLayout({orientation: Clutter.Orientation.VERTICAL}),
+        });
+        column.add_child(this.#transcript);
 
         const scroll = new St.ScrollView({
             style_class: 'murmur-scroll',
@@ -53,13 +55,25 @@ export class MurmurOverlay extends ModalDialog.ModalDialog {
             hscrollbar_policy: St.PolicyType.NEVER,
             vscrollbar_policy: St.PolicyType.AUTOMATIC,
         });
-        scroll.child = textBox;
+        scroll.child = column;
 
         const adjustment = scroll.vadjustment;
+        this.#transcriptScroll = adjustment;
+
+        const atTail = () =>
+            adjustment.value >= adjustment.upper - adjustment.page_size - TAIL_SLACK_PX;
+        let followTail = true;
         const changedId = adjustment.connect('changed', () => {
-            adjustment.value = Math.max(0, adjustment.upper - adjustment.page_size);
+            if (followTail)
+                adjustment.value = adjustment.upper - adjustment.page_size;
         });
-        this.connect('destroy', () => adjustment.disconnect(changedId));
+        const valueId = adjustment.connect('notify::value', () => {
+            followTail = atTail();
+        });
+        this.connect('destroy', () => {
+            adjustment.disconnect(changedId);
+            adjustment.disconnect(valueId);
+        });
 
         this.#hint = new St.Label({style_class: 'murmur-hint', text: ''});
 
@@ -113,6 +127,41 @@ export class MurmurOverlay extends ModalDialog.ModalDialog {
                 this.onStop?.();
             return Clutter.EVENT_STOP;
         }
+        if (this.#scrollTranscript(symbol))
+            return Clutter.EVENT_STOP;
         return super.vfunc_key_press_event(event);
+    }
+
+    #scrollTranscript(symbol: number): boolean {
+        const adjustment = this.#transcriptScroll;
+
+        switch (symbol) {
+            case Clutter.KEY_Down:
+            case Clutter.KEY_KP_Down:
+                adjustment.value += adjustment.step_increment;
+                return true;
+            case Clutter.KEY_End:
+            case Clutter.KEY_KP_End:
+                adjustment.value = adjustment.upper - adjustment.page_size;
+                return true;
+            case Clutter.KEY_Home:
+            case Clutter.KEY_KP_Home:
+                adjustment.value = 0;
+                return true;
+            case Clutter.KEY_Page_Down:
+            case Clutter.KEY_KP_Page_Down:
+                adjustment.value += adjustment.page_increment;
+                return true;
+            case Clutter.KEY_Page_Up:
+            case Clutter.KEY_KP_Page_Up:
+                adjustment.value -= adjustment.page_increment;
+                return true;
+            case Clutter.KEY_Up:
+            case Clutter.KEY_KP_Up:
+                adjustment.value -= adjustment.step_increment;
+                return true;
+            default:
+                return false;
+        }
     }
 }

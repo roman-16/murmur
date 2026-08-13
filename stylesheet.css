@@ -1,3 +1,7 @@
+.murmur-overlay .modal-dialog-content-box {
+  max-width: 34em;
+}
+
 .murmur-header {
   spacing: 12px;
   width: 34em;
@@ -13,12 +17,14 @@
 }
 
 .murmur-scroll {
-  width: 34em;
+  -st-vfade-offset: 2em;
   max-height: 24em;
+  max-width: 34em;
+  min-height: 5em;
+  width: 34em;
 }
 
 .murmur-text {
-  min-height: 3em;
   font-size: 1.2em;
   padding: 10px 0;
 }
