@@ -5,8 +5,8 @@ cd "$(dirname "$0")/../.."
 
 crop_top=${DEMO_CROP_TOP:-32}
 fps=${DEMO_FPS:-20}
-quality=${DEMO_WEBP_QUALITY:-85}
-webp_width=${DEMO_WEBP_WIDTH:-960}
+quality=${DEMO_WEBP_QUALITY:-90}
+webp_width=${DEMO_WEBP_WIDTH:-1280}
 
 export DEMO_FRAMERATE=${DEMO_FRAMERATE:-30}
 if [ "${DEMO_PIPELINE:-}" = default ]; then
