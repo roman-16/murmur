@@ -7,6 +7,7 @@ import St from 'gi://St';
 import * as ModalDialog from 'resource:///org/gnome/shell/ui/modalDialog.js';
 
 import {MODIFIER_MASK, type Shortcut} from './accelerator.js';
+import type {Destination} from './focus.js';
 
 // The shortcut that opens the overlay is typically still held while the overlay
 // takes key focus, so ignore it for a moment instead of stopping right away.
@@ -19,13 +20,15 @@ export class MurmurOverlay extends ModalDialog.ModalDialog {
     }
 
     onCancel: (() => void) | null = null;
-    onStop: (() => void) | null = null;
+    onStop: ((destination: Destination) => void) | null = null;
 
     readonly #countdown: St.Label;
+    readonly #destinationLabel: St.Label;
     readonly #hint: St.Label;
     readonly #status: St.Label;
     readonly #transcript: St.Label;
     readonly #transcriptScroll: St.Adjustment;
+    #destination: Destination = 'field';
     #openedAt = 0;
     #shortcut: Shortcut | null = null;
 
@@ -75,9 +78,14 @@ export class MurmurOverlay extends ModalDialog.ModalDialog {
             adjustment.disconnect(valueId);
         });
 
+        this.#destinationLabel = new St.Label({style_class: 'murmur-destination', text: ''});
+        this.#destinationLabel.clutter_text.line_wrap = true;
+
         this.#hint = new St.Label({style_class: 'murmur-hint', text: ''});
+        this.#updateLabels();
 
         this.contentLayout.add_child(header);
+        this.contentLayout.add_child(this.#destinationLabel);
         this.contentLayout.add_child(scroll);
         this.contentLayout.add_child(this.#hint);
     }
@@ -92,10 +100,14 @@ export class MurmurOverlay extends ModalDialog.ModalDialog {
         this.#countdown.text = text;
     }
 
+    set destination(destination: Destination) {
+        this.#destination = destination;
+        this.#updateLabels();
+    }
+
     set shortcut(shortcut: Shortcut | null) {
         this.#shortcut = shortcut;
-        const insert = shortcut ? `Enter / ${shortcut.label}` : 'Enter';
-        this.#hint.text = `${insert}: insert     ·     Esc: cancel`;
+        this.#updateLabels();
     }
 
     set status(text: string) {
@@ -116,7 +128,8 @@ export class MurmurOverlay extends ModalDialog.ModalDialog {
         if (symbol === Clutter.KEY_Return ||
             symbol === Clutter.KEY_KP_Enter ||
             symbol === Clutter.KEY_ISO_Enter) {
-            this.onStop?.();
+            const control = (event.get_state() & Clutter.ModifierType.CONTROL_MASK) !== 0;
+            this.onStop?.(control ? 'clipboard' : this.#destination);
             return Clutter.EVENT_STOP;
         }
 
@@ -124,12 +137,26 @@ export class MurmurOverlay extends ModalDialog.ModalDialog {
         if (shortcut && symbol === shortcut.keyval &&
             (event.get_state() & MODIFIER_MASK) === shortcut.mods) {
             if (GLib.get_monotonic_time() - this.#openedAt > STOP_GUARD_US)
-                this.onStop?.();
+                this.onStop?.(this.#destination);
             return Clutter.EVENT_STOP;
         }
         if (this.#scrollTranscript(symbol))
             return Clutter.EVENT_STOP;
         return super.vfunc_key_press_event(event);
+    }
+
+    // Copying is what Ctrl+Enter always does, so it is only worth a line when it
+    // differs from what Enter would do anyway.
+    #updateLabels(): void {
+        const insert = this.#destination === 'field';
+        this.#destinationLabel.text = insert
+            ? 'Types into the focused text field'
+            : 'No text field focused · copies to the clipboard';
+
+        const stop = this.#shortcut ? `Enter / ${this.#shortcut.label}` : 'Enter';
+        this.#hint.text = (insert
+            ? [`${stop}: type`, 'Ctrl+Enter: copy', 'Esc: cancel']
+            : [`${stop}: copy`, 'Esc: cancel']).join('     ·     ');
     }
 
     #scrollTranscript(symbol: number): boolean {

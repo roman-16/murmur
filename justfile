@@ -1,17 +1,17 @@
 uuid := "murmur@roman-16.github.io"
-src := justfile_directory()
-dist := src / "dist"
+root := justfile_directory()
+dist := root / "dist"
 ext_dir := env_var_or_default("XDG_DATA_HOME", env_var("HOME") / ".local/share") / "gnome-shell/extensions" / uuid
 
-oxlint := "bun " + src / "node_modules/oxlint/bin/oxlint"
-tsc := "bun " + src / "node_modules/typescript/bin/tsc"
+oxlint := "bun " + root / "node_modules/oxlint/bin/oxlint"
+tsc := "bun " + root / "node_modules/typescript/bin/tsc"
 
 # Install the npm toolchain (type definitions, TypeScript, oxlint) when stale
 [private]
 deps:
     #!/usr/bin/env bash
     set -euo pipefail
-    if [ ! -d '{{src}}/node_modules' ] || [ '{{src}}/package.json' -nt '{{src}}/node_modules' ] || [ '{{src}}/bun.lock' -nt '{{src}}/node_modules' ]; then
+    if [ ! -d '{{root}}/node_modules' ] || [ '{{root}}/package.json' -nt '{{root}}/node_modules' ] || [ '{{root}}/bun.lock' -nt '{{root}}/node_modules' ]; then
         bun install
     fi
 
@@ -19,8 +19,8 @@ deps:
 build: deps
     rm --recursive --force '{{dist}}'
     {{tsc}}
-    cp '{{src}}/LICENSE' '{{src}}/metadata.json' '{{src}}/stylesheet.css' '{{dist}}'
-    cp --recursive '{{src}}/schemas' '{{dist}}'
+    cp '{{root}}/LICENSE' '{{root}}/metadata.json' '{{root}}/src/stylesheet.css' '{{dist}}'
+    cp --recursive '{{root}}/schemas' '{{dist}}'
 
 # Type-check without emitting
 check: deps
@@ -48,18 +48,23 @@ boundaries:
     }
     reject 'preferences code must not reach shell-only APIs' \
         "gi://(Clutter|Meta|Shell|St)|from '[^']*shell/" \
-        '{{src}}/src/prefs.ts' '{{src}}/src/lib/prefs'
+        '{{root}}/src/prefs.ts' '{{root}}/src/lib/prefs'
     reject 'shell code must not reach Gtk-only APIs' \
         "gi://(Adw|Gdk|Gtk)|from '[^']*prefs/" \
-        '{{src}}/src/extension.ts' '{{src}}/src/lib/shell'
+        '{{root}}/src/extension.ts' '{{root}}/src/lib/shell'
     reject 'shared modules must stay loadable in both processes' \
         "gi://(Adw|Clutter|Gdk|Gtk|Meta|Shell|St)|from '[^']*(prefs|shell)/" \
-        {{src}}/src/lib/*.ts
+        {{root}}/src/lib/*.ts
     exit $status
 
-# Render the extensions.gnome.org page icon (assets/icon.svg -> assets/icon.png)
+# Record the README demo in a throwaway nested GNOME Shell (see scripts/demo)
+demo: build
+    glib-compile-schemas '{{dist}}/schemas'
+    bash '{{root}}/scripts/demo/record.sh'
+
+# Render the icon to upload to extensions.gnome.org, which takes no SVG
 icon:
-    rsvg-convert --width 256 --height 256 '{{src}}/assets/icon.svg' --output '{{src}}/assets/icon.png'
+    rsvg-convert --width 256 --height 256 '{{root}}/assets/icon.svg' --output '{{root}}/assets/icon.png'
 
 # Symlink the build output into the extensions dir and compile the schema
 install: build
@@ -73,26 +78,8 @@ prefs:
 
 # Run in a throwaway, isolated nested GNOME Shell (does not touch your session)
 dev: build
-    #!/usr/bin/env bash
-    set -euo pipefail
     glib-compile-schemas '{{dist}}/schemas'
-    tmp=$(mktemp --directory); trap 'rm --recursive --force "$tmp"' EXIT
-    export XDG_DATA_HOME="$tmp/data" XDG_CONFIG_HOME="$tmp/config"
-    ext="$XDG_DATA_HOME/gnome-shell/extensions/{{uuid}}"
-    mkdir --parents "$(dirname "$ext")"
-    ln --symbolic --force --no-dereference --no-target-directory '{{dist}}' "$ext"
-    export GSETTINGS_SCHEMA_DIR="$ext/schemas"
-    cat >"$tmp/init.sh" <<'EOF'
-    gsettings set org.gnome.shell enabled-extensions "['{{uuid}}']"
-    if [ -n "${MISTRAL_API_KEY:-}" ]; then
-        gsettings set org.gnome.shell.extensions.murmur mistral-api-key "$MISTRAL_API_KEY"
-    fi
-    if [ -n "${RECORDING_SHORTCUT:-}" ]; then
-        gsettings set org.gnome.shell.extensions.murmur toggle-recording "['$RECORDING_SHORTCUT']"
-    fi
-    exec gnome-shell --devkit
-    EOF
-    dbus-run-session -- bash "$tmp/init.sh"
+    bash '{{root}}/scripts/nested-shell.sh'
 
 # Build the distributable zip (CI does this on release)
 pack: build
@@ -100,4 +87,4 @@ pack: build
 
 # Remove build output and installed dependencies
 clean:
-    rm --recursive --force '{{dist}}' '{{src}}/node_modules'
+    rm --recursive --force '{{dist}}' '{{root}}/node_modules'

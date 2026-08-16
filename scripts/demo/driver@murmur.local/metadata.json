@@ -1,0 +1,6 @@
+{
+  "uuid": "driver@murmur.local",
+  "name": "Murmur demo driver",
+  "description": "Presses the shortcut and Enter inside the nested session so the demo records itself.",
+  "shell-version": ["47", "48", "49", "50"]
+}

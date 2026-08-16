@@ -10,27 +10,40 @@ import {sleep} from './lib/async.js';
 import {errorMessage} from './lib/errors.js';
 import {Key, readAccelerator, readRecordingConfig} from './lib/settings.js';
 import {parseAccelerator} from './lib/shell/accelerator.js';
-import {insertText, typingPace} from './lib/shell/insertion.js';
+import {copyText} from './lib/shell/clipboard.js';
+import {
+    awaitInputFocus,
+    commitText,
+    FocusTracker,
+    type Destination,
+    type Target
+} from './lib/shell/focus.js';
+import {insertText, typingPace, type Pace} from './lib/shell/insertion.js';
 import {MurmurOverlay} from './lib/shell/overlay.js';
 import {Session} from './lib/shell/session.js';
+import {Toast} from './lib/shell/toast.js';
 
 // Focus only returns to the target field once the modal is gone, so wait for the
-// close animation before typing.
+// close animation before handing the text over.
 const FOCUS_RETURN_MS = 150;
 
 export default class MurmurExtension extends Extension {
     #cancellable: Gio.Cancellable | null = null;
     #countdownId = 0;
     #deadlineUs = 0;
+    #destination: Destination = 'field';
+    #focusTracker: FocusTracker | null = null;
     #keybindingId = 0;
     #overlay: MurmurOverlay | null = null;
     #session: Session | null = null;
     #settings: Gio.Settings | null = null;
     #settingsChangedId = 0;
+    #toast: Toast | null = null;
 
     enable(): void {
         const settings = this.getSettings();
         this.#settings = settings;
+        this.#focusTracker = new FocusTracker();
         this.#bindShortcut();
         this.#settingsChangedId = settings.connect(`changed::${Key.toggleRecording}`, () => {
             this.#unbindShortcut();
@@ -50,6 +63,10 @@ export default class MurmurExtension extends Extension {
         this.#session = null;
         this.#overlay?.destroy();
         this.#overlay = null;
+        this.#toast?.destroy();
+        this.#toast = null;
+        this.#focusTracker?.destroy();
+        this.#focusTracker = null;
         this.#settings = null;
     }
 
@@ -61,7 +78,7 @@ export default class MurmurExtension extends Extension {
         const modes = Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW;
         const flags = Meta.KeyBindingFlags.NONE;
         const dictate = () => {
-            this.#dictate().catch(error => console.error(`murmur: ${errorMessage(error)}`));
+            this.dictate().catch(error => console.error(`murmur: ${errorMessage(error)}`));
         };
         const name = Key.toggleRecording;
         this.#keybindingId = Main.wm.addKeybinding(name, settings, flags, modes, dictate);
@@ -74,9 +91,13 @@ export default class MurmurExtension extends Extension {
         this.#keybindingId = 0;
     }
 
-    async #dictate(): Promise<void> {
+    // Public so anything inside the shell process can start a dictation, the
+    // demo recording included: a virtual keyboard cannot reach a compositor
+    // keybinding while a client window holds the focus.
+    async dictate(): Promise<void> {
         const settings = this.#settings;
-        if (!settings || this.#session)
+        const focusTracker = this.#focusTracker;
+        if (!settings || !focusTracker || this.#session)
             return;
 
         const config = readRecordingConfig(settings);
@@ -85,10 +106,14 @@ export default class MurmurExtension extends Extension {
             return;
         }
 
+        const target = focusTracker.capture();
+        this.#destination = target.destination;
+
         const overlay = new MurmurOverlay();
+        overlay.destination = target.destination;
         overlay.shortcut = parseAccelerator(readAccelerator(settings));
         overlay.onCancel = () => this.#cancel();
-        overlay.onStop = () => this.#stopRecording();
+        overlay.onStop = destination => this.#stopRecording(destination);
         if (!overlay.open()) {
             overlay.destroy();
             Main.notify('Murmur', 'Could not open the overlay');
@@ -112,9 +137,9 @@ export default class MurmurExtension extends Extension {
             this.#closeOverlay();
 
             if (transcript.trim()) {
-                await sleep(FOCUS_RETURN_MS, cancellable);
-                if (!cancellable.is_cancelled())
-                    await insertText(transcript, typingPace(config.typingSpeed), cancellable);
+                const pace = typingPace(config.typingSpeed);
+                const chosen = {destination: this.#destination, inputFocus: target.inputFocus};
+                await this.#deliver(transcript, chosen, pace, cancellable);
             }
         } catch (error) {
             this.#closeOverlay();
@@ -128,9 +153,37 @@ export default class MurmurExtension extends Extension {
         }
     }
 
-    #stopRecording(): void {
+    // Committing hands the whole text to the client that owns the input method
+    // focus; typing reaches the rest, X11 clients above all.
+    async #deliver(
+        transcript: string, target: Target, pace: Pace,
+        cancellable: Gio.Cancellable): Promise<void> {
+        if (target.destination === 'clipboard') {
+            copyText(transcript);
+            this.#showToast('Transcription copied');
+            return;
+        }
+
+        await sleep(FOCUS_RETURN_MS, cancellable);
+        if (cancellable.is_cancelled())
+            return;
+
+        const focus = target.inputFocus;
+        if (focus && await awaitInputFocus(focus, cancellable) && commitText(transcript, focus))
+            return;
+
+        await insertText(transcript, pace, cancellable);
+    }
+
+    #showToast(message: string): void {
+        this.#toast?.destroy();
+        this.#toast = new Toast(message);
+    }
+
+    #stopRecording(destination: Destination = this.#destination): void {
         if (!this.#session)
             return;
+        this.#destination = destination;
         this.#clearCountdown();
         if (this.#overlay) {
             this.#overlay.status = 'Finishing…';

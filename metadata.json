@@ -1,7 +1,7 @@
 {
   "uuid": "murmur@roman-16.github.io",
   "name": "Murmur",
-  "description": "Push-to-talk voice dictation. Super+Space opens a centered overlay that records the microphone, transcribes it in realtime with Mistral Voxtral, and inserts the text into the focused field. Typing uses dotool when available (recommended), with the virtual keyboard as fallback.",
+  "description": "Voice dictation for GNOME. Press Super+Space, talk, and the words land where your cursor is: browsers, editors, terminals.\n\nRealtime transcription with Mistral Voxtral, no companion daemon. Murmur types into the focused field instead of pasting, and copies to the clipboard when there is no field.",
   "shell-version": [
     "47",
     "48",

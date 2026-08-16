@@ -49,9 +49,122 @@
         }
       }
     },
+    "ffmpeg@latest": {
+      "last_modified": "2026-08-10T07:49:06Z",
+      "resolved": "github:NixOS/nixpkgs/d482ef84049d9b7276b83a06e4e4d76983830097#ffmpeg",
+      "source": "devbox-search",
+      "version": "8.1.2",
+      "systems": {
+        "aarch64-darwin": {
+          "outputs": [
+            {
+              "name": "bin",
+              "path": "/nix/store/7v8zx62rpcnr0qz2fj51nz72g65g5dar-ffmpeg-8.1.2-bin",
+              "default": true
+            },
+            {
+              "name": "man",
+              "path": "/nix/store/33ygdwc2i0dbbj8s00f8m0dxpy4wzfap-ffmpeg-8.1.2-man",
+              "default": true
+            },
+            {
+              "name": "lib",
+              "path": "/nix/store/hskqcn39d6vlycl5ajw58qbglg5p1rrf-ffmpeg-8.1.2-lib"
+            },
+            {
+              "name": "out",
+              "path": "/nix/store/lwdywcg4mzg8v19k21l2gnfbgrmm7k18-ffmpeg-8.1.2"
+            },
+            {
+              "name": "data",
+              "path": "/nix/store/41kngjbnj1vr17ga30yam1vajdwg0592-ffmpeg-8.1.2-data"
+            },
+            {
+              "name": "dev",
+              "path": "/nix/store/b3i7r4bfi760xx94swr1c0c8as291say-ffmpeg-8.1.2-dev"
+            },
+            {
+              "name": "doc",
+              "path": "/nix/store/6w3fb9dazdn7k6izgm4jbiv0npsjygwq-ffmpeg-8.1.2-doc"
+            }
+          ],
+          "store_path": "/nix/store/7v8zx62rpcnr0qz2fj51nz72g65g5dar-ffmpeg-8.1.2-bin"
+        },
+        "aarch64-linux": {
+          "outputs": [
+            {
+              "name": "bin",
+              "path": "/nix/store/8mx60n2lphp5b08qqbmydjgd2c54ban8-ffmpeg-8.1.2-bin",
+              "default": true
+            },
+            {
+              "name": "man",
+              "path": "/nix/store/b4mznk890ck7cipmypg5brf7kwbzjz39-ffmpeg-8.1.2-man",
+              "default": true
+            },
+            {
+              "name": "dev",
+              "path": "/nix/store/z1a9sna6xi1lq03rn0swycfvy7rlwdq5-ffmpeg-8.1.2-dev"
+            },
+            {
+              "name": "doc",
+              "path": "/nix/store/s1gwwvycqbh3a4awfcmzr3w0ik5p45a3-ffmpeg-8.1.2-doc"
+            },
+            {
+              "name": "lib",
+              "path": "/nix/store/79d16bdq454ynvn8c1d90wh7fk1h6bvc-ffmpeg-8.1.2-lib"
+            },
+            {
+              "name": "out",
+              "path": "/nix/store/9xbvb84wh7h52iqgfw3jy8b1mlnp5lnw-ffmpeg-8.1.2"
+            },
+            {
+              "name": "data",
+              "path": "/nix/store/nzk0w5azlci8x66jq55iww3jkncp49gx-ffmpeg-8.1.2-data"
+            }
+          ],
+          "store_path": "/nix/store/8mx60n2lphp5b08qqbmydjgd2c54ban8-ffmpeg-8.1.2-bin"
+        },
+        "x86_64-linux": {
+          "outputs": [
+            {
+              "name": "bin",
+              "path": "/nix/store/dxkxkr8jdqzcxy37ja3d6561v5hj86fd-ffmpeg-8.1.2-bin",
+              "default": true
+            },
+            {
+              "name": "man",
+              "path": "/nix/store/hznb91mwz5qcrzkgq7nr12l754hqdr5i-ffmpeg-8.1.2-man",
+              "default": true
+            },
+            {
+              "name": "lib",
+              "path": "/nix/store/bv6srla8j47n8dxbb9fyzhs74xi0qq4x-ffmpeg-8.1.2-lib"
+            },
+            {
+              "name": "out",
+              "path": "/nix/store/8g4d1a44fa330lqqq0zhmdbj0kq50cca-ffmpeg-8.1.2"
+            },
+            {
+              "name": "data",
+              "path": "/nix/store/6x4f9ip0bfs2vd1ilcvmpzaxp48a1p00-ffmpeg-8.1.2-data"
+            },
+            {
+              "name": "dev",
+              "path": "/nix/store/9cfbhvpkxd14blsx852kyq5a5qk64cvn-ffmpeg-8.1.2-dev"
+            },
+            {
+              "name": "doc",
+              "path": "/nix/store/sgch43g2fj5dma1kbhlm61dk01jw3fav-ffmpeg-8.1.2-doc"
+            }
+          ],
+          "store_path": "/nix/store/dxkxkr8jdqzcxy37ja3d6561v5hj86fd-ffmpeg-8.1.2-bin"
+        }
+      }
+    },
     "github:NixOS/nixpkgs/nixpkgs-unstable": {
-      "last_modified": "2026-08-03T09:05:39Z",
-      "resolved": "github:NixOS/nixpkgs/104240a772428cc2e20d8fd86c9ddbb886bbaff2?lastModified=1785747939&narHash=sha256-D740uKsMbgsfK2oaDenJLLPIZfq7W0%2Fg4KN%2FFls8eKs%3D"
+      "last_modified": "2026-08-13T03:55:42Z",
+      "resolved": "github:NixOS/nixpkgs/6b5e5b7a6631f065bf6908986990b37d845f847f?lastModified=1786593342&narHash=sha256-smTKQXMLLStzc8zJevMCckbk3My7SvbbLmPYZUJJKW4%3D"
     },
     "gjs@latest": {
       "last_modified": "2026-08-01T16:34:20Z",

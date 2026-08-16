@@ -1,8 +1,10 @@
-import type GLib from 'gi://GLib';
+import GLib from 'gi://GLib';
 
 const MODEL = 'voxtral-mini-transcribe-realtime-2602';
 
-export const REALTIME_URL =
+// The override exists so the demo recording can drive a scripted endpoint
+// instead of billing a real one; nothing sets it in a normal session.
+export const REALTIME_URL = GLib.getenv('MURMUR_REALTIME_URL') ||
     `wss://api.mistral.ai/v1/audio/transcriptions/realtime?model=${MODEL}`;
 export const SAMPLE_RATE = 16000;
 

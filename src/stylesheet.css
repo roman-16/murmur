@@ -29,6 +29,14 @@
   padding: 10px 0;
 }
 
+.murmur-destination {
+  font-size: 0.9em;
+  font-weight: bold;
+  opacity: 0.85;
+  padding-top: 4px;
+  width: 34em;
+}
+
 .murmur-hint {
   font-size: 0.9em;
   opacity: 0.7;
