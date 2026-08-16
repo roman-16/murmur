@@ -11,5 +11,5 @@
   "url": "https://github.com/roman-16/murmur",
   "settings-schema": "org.gnome.shell.extensions.murmur",
   "gettext-domain": "murmur",
-  "version-name": "1.2.2"
+  "version-name": "1.3.0"
 }
