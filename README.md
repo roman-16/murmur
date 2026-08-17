@@ -15,17 +15,15 @@
 
 Press `Super+Space`, say what you mean, and the words appear where your cursor already is: in a browser, an editor, a chat box or a terminal. No window to switch to, no daemon in the background, and nothing to paste afterwards.
 
-- **It lands where you are looking.** The transcription is typed into the focused field, in any application, terminals included, and your clipboard is left exactly as you had it.
+- **It lands where you are looking.** Where there is a field, the transcription is typed into it, in any application, terminals included, with nothing pasted and your clipboard untouched.
 - **You watch it happen.** Audio streams to [Mistral Voxtral](https://mistral.ai) over a WebSocket while you speak, and the text appears in the overlay as it arrives, with a countdown and an optional hands-free stop after silence.
 - **Nothing is ever lost.** If no text field is focused, Murmur says so before you speak and copies the transcription to the clipboard instead of firing a sentence worth of keystrokes at whatever happens to be in front.
 
 ## Install
 
-| Route | How |
-| --- | --- |
-| **Release zip** | `gnome-extensions install --force murmur@roman-16.github.io.shell-extension.zip` from the [latest release](https://github.com/roman-16/murmur/releases/latest) |
-| **From source** | `git clone https://github.com/roman-16/murmur.git && cd murmur && just install` |
-| **extensions.gnome.org** | The listing is in review. Once it is live, it installs in one click and updates itself |
+```bash
+curl -fLo /tmp/murmur.zip https://github.com/roman-16/murmur/releases/latest/download/murmur@roman-16.github.io.shell-extension.zip && gnome-extensions install -f /tmp/murmur.zip && rm /tmp/murmur.zip
+```
 
 Then log out and back in, which Wayland requires for a new extension, and enable it:
 
@@ -33,7 +31,7 @@ Then log out and back in, which Wayland requires for a new extension, and enable
 gnome-extensions enable murmur@roman-16.github.io
 ```
 
-You need **GNOME Shell 47 to 50 on Wayland**, **`pw-record`** from PipeWire, and a **Mistral API key**. → [Installation](docs/installation.md)
+You need **GNOME Shell 47 to 50 on Wayland**, **`pw-record`** from PipeWire, and a **Mistral API key**. Installing from source, from extensions.gnome.org once the listing is approved, updating and uninstalling: → [Installation](docs/installation.md)
 
 ## Get started
 

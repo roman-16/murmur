@@ -1,7 +1,7 @@
 {
   "uuid": "murmur@roman-16.github.io",
   "name": "Murmur",
-  "description": "Voice dictation for GNOME. Press Super+Space, talk, and the words land where your cursor is: browsers, editors, terminals.\n\nRealtime transcription with Mistral Voxtral, no companion daemon. Murmur types into the focused field instead of pasting, and copies to the clipboard when there is no field.",
+  "description": "Voice dictation for GNOME. Press Super+Space, talk, and the words land where your cursor is: browsers, editors, terminals.\n\nRealtime transcription with Mistral Voxtral, no companion daemon. Murmur types into the focused field instead of pasting.\n\nClipboard: when no text field is focused, Murmur writes the transcription to the clipboard so the words are not lost.",
   "shell-version": [
     "47",
     "48",

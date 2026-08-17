@@ -13,10 +13,10 @@ Check your session with `echo $XDG_SESSION_TYPE`; it has to say `wayland`.
 
 ## From a release
 
-Download `murmur@roman-16.github.io.shell-extension.zip` from the [latest release](https://github.com/roman-16/murmur/releases/latest) and install it:
+Download the [latest release](https://github.com/roman-16/murmur/releases/latest), install it, and clean up after it:
 
 ```bash
-gnome-extensions install --force murmur@roman-16.github.io.shell-extension.zip
+curl -fLo /tmp/murmur.zip https://github.com/roman-16/murmur/releases/latest/download/murmur@roman-16.github.io.shell-extension.zip && gnome-extensions install -f /tmp/murmur.zip && rm /tmp/murmur.zip
 ```
 
 Log out and back in, then enable it:
@@ -48,7 +48,7 @@ Because it is a symlink, `just build` is enough to pick up later changes, follow
 
 | Installed from | How to update |
 | --- | --- |
-| Release zip | Install the new zip the same way, then log out and back in |
+| Release zip | Run the install command again, then log out and back in |
 | extensions.gnome.org | The *Extensions* app offers the update |
 | Source | `git pull && just install`, then log out and back in |
 
