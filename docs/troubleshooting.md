@@ -35,9 +35,7 @@ The destination is decided when you press the shortcut, and the text is delivere
 
 ## Characters are dropped, doubled or reordered
 
-This only affects the typing path, which is used for XWayland applications. Lower **Typing speed** in the preferences; some Electron and Java applications cannot keep up with fast synthetic input.
-
-Wayland applications receive the text in one commit and are immune to this.
+Lower **Typing speed** in the preferences; some Electron and Java applications cannot keep up with fast synthetic input.
 
 ## Emoji or accented characters come out wrong
 

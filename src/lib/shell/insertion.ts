@@ -34,7 +34,11 @@ export type Pace = {
 // emits a batch of characters per timer tick.
 export function typingPace(charsPerSecond: number): Pace {
     const periodMs = 1000 / charsPerSecond;
-    const holdMs = Math.min(40, Math.max(1, Math.round(periodMs * 0.4)));
+    // dotool counts a hold in whole milliseconds, so above a thousand characters
+    // a second the only way left to go faster is not to hold at all.
+    const holdMs = periodMs < 1
+        ? 0
+        : Math.min(40, Math.max(1, Math.round(periodMs * 0.4)));
     const tickMs = Math.max(TICK_MS, Math.round(periodMs));
     return {
         charsPerTick: Math.max(1, Math.round((charsPerSecond * tickMs) / 1000)),

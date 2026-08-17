@@ -15,7 +15,7 @@
 
 Press `Super+Space`, say what you mean, and the words appear where your cursor already is: in a browser, an editor, a chat box or a terminal. No window to switch to, no daemon in the background, and nothing to paste afterwards.
 
-- **It lands where you are looking.** The transcription goes into the focused field through the compositor's own input method, in one commit. Any Unicode, any application, terminals included, and your clipboard is left exactly as you had it.
+- **It lands where you are looking.** The transcription is typed into the focused field, in any application, terminals included, and your clipboard is left exactly as you had it.
 - **You watch it happen.** Audio streams to [Mistral Voxtral](https://mistral.ai) over a WebSocket while you speak, and the text appears in the overlay as it arrives, with a countdown and an optional hands-free stop after silence.
 - **Nothing is ever lost.** If no text field is focused, Murmur says so before you speak and copies the transcription to the clipboard instead of firing a sentence worth of keystrokes at whatever happens to be in front.
 
@@ -60,8 +60,7 @@ Murmur checks whether anything can actually receive text **before** it starts re
 
 | What Murmur sees | What it does |
 | --- | --- |
-| A Wayland application with a focused field | Commits the whole transcription through the input method: instant, layout-independent, full Unicode |
-| An X11 application with a focused field | Types it with [dotool](docs/text-insertion.md#dotool), since the shell cannot commit to an X11 client |
+| An application with a focused field | Types the transcription into it with [dotool](docs/text-insertion.md#dotool), or the shell's virtual keyboard when dotool is unavailable |
 | Nothing that can take text | Copies it to the clipboard and says so, rather than turning your sentence into keyboard shortcuts |
 
 The overlay says which it will be for the whole recording, so it is never a surprise at the end. `Ctrl+Enter` copies instead, whatever it says, for when the words belong somewhere other than the field in front of you.
@@ -92,7 +91,7 @@ The transcription is never written to disk and the audio never touches it either
 - **A terminal is one big text field.** It tells the compositor it accepts text whenever it is focused and nothing finer, so Murmur will happily deliver a sentence to vim in normal mode.
 - **Dictation is billed to your key.** Murmur sends only what it records, and the two-minute cap keeps a forgotten recording from running away.
 - **Wayland only.** XWayland applications inside a Wayland session are fine; an X11 session is not.
-- **dotool is optional.** It is only needed for XWayland applications; Wayland ones never touch it.
+- **dotool is recommended.** Without it the fallback keyboard can only produce characters from your current layout, so emoji and other scripts are dropped.
 - **Passwords are typed, never copied.** A password field is still a text field, so nothing lands on the clipboard.
 
 ## Contributing

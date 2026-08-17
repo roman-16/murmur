@@ -4,7 +4,7 @@ Some of these are deliberate, some are the platform, and some are simply not bui
 
 ## Wayland only
 
-Murmur delivers text through the compositor's input method and reads focus from it. An X11 session has neither, so the extension is useless there. XWayland *applications* inside a Wayland session are fine; an X11 session is not.
+Murmur reads which client holds a focused text field from the compositor, and it is a GNOME Shell extension besides. An X11 session offers neither, so the extension is useless there. XWayland *applications* inside a Wayland session are fine; an X11 session is not.
 
 ## GNOME Shell 47 to 50
 
@@ -22,9 +22,9 @@ A terminal tells the compositor that it accepts text whenever it is focused, and
 
 Detection is positive evidence only. Murmur can prove a text field exists, never that one does not, so an application that keeps its focus to itself is treated as having nowhere to put text and gets the clipboard path, which leaves the transcription one paste away. In practice this is limited to older Electron builds and toolkits without Wayland text-input support.
 
-## X11 applications cannot be committed to
+## An X11 field is only recognised after you have used it once
 
-The shell is the input method for Wayland clients only. An XWayland application therefore gets synthesized keystrokes rather than a single commit, which is slower and subject to typing speed and layout. See [Where the text goes](text-insertion.md).
+X11 applications report their fields through ibus, which Murmur learns about from events rather than by asking. Until the first focus change after the extension starts, it has heard nothing, so a field that already had focus reads as no field and the transcription goes to the clipboard. Clicking into the field once settles it for the rest of the session.
 
 ## The virtual keyboard is limited to your layout
 

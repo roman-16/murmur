@@ -65,9 +65,9 @@ The two halves run in **different processes** that load different libraries. Imp
 
 There is no automated suite; the surface is the compositor, and the interesting failures are all in the interaction. Before opening a pull request that touches recording or insertion, try it in `just dev` and then in a real session against, at minimum:
 
-- a GTK application, for the input-method path,
+- a GTK application, for an ordinary field,
 - a terminal, for a client that reports one big text field,
-- an XWayland application, for the typing path,
+- a web-based terminal such as the one in VS Code, which only reads key events,
 - the desktop with nothing focused, for the clipboard path,
 - `Esc` mid-recording, and both `Enter` and `Ctrl+Enter`.
 

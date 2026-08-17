@@ -49,13 +49,13 @@ Silence is measured in audio time rather than wall-clock time, so a slow network
 
 ### dotool status
 
-Not a setting but a live check, with a refresh button. It reports whether Murmur can type into XWayland applications, and names the reason when it cannot: dotool missing, `/dev/uinput` missing, your user not in the right group, or a group membership that needs a fresh login. See [Where the text goes](text-insertion.md).
+Not a setting but a live check, with a refresh button. It reports whether Murmur can type with dotool, and names the reason when it cannot: dotool missing, `/dev/uinput` missing, your user not in the right group, or a group membership that needs a fresh login. See [Where the text goes](text-insertion.md).
 
-Wayland applications do not need dotool at all.
+Without it Murmur falls back to the shell's virtual keyboard, which reaches every application too but only with characters from your current keyboard layout.
 
 ### Typing speed
 
-Characters per second for the typing path, 500 by default. It has no effect when text is inserted through the input method, which happens in one go.
+Characters per second, 500 by default: a sentence lands in about a tenth of a second. The fastest setting holds no key at all and goes as fast as dotool can push the characters through.
 
 Lower it if characters get dropped or reordered in a particular application, which some Electron and Java applications do under fast synthetic input.
 
@@ -79,7 +79,7 @@ gsettings set org.gnome.shell.extensions.murmur typing-speed 500
 | `silence-timeout-seconds` | integer | 0 | 0 to 30 |
 | `toggle-recording` | string list | `['<Super>space']` | |
 | `transcription-delay-ms` | integer | 1000 | 240 to 2400 |
-| `typing-speed` | integer | 500 | 50 to 1000 |
+| `typing-speed` | integer | 500 | 50 to 2500 |
 
 A source install has to point `gsettings` at the schema it built, since it is not in the system directory:
 

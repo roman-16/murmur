@@ -31,7 +31,7 @@
     </key>
     <key name="typing-speed" type="i">
       <default>500</default>
-      <range min="50" max="1000"/>
+      <range min="50" max="2500"/>
       <summary>Typing speed</summary>
       <description>Characters per second used to insert the transcription. Lower it if characters get dropped or reordered.</description>
     </key>

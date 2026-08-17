@@ -16,13 +16,14 @@ The check runs when you press the shortcut, before the overlay opens. It has to:
 
 **A quick way to check any application yourself:** turn on *Settings → Accessibility → Screen Keyboard* and click into the field. If GNOME's on-screen keyboard appears, that field is one Murmur recognises, because both read the same signal.
 
-## The three paths
+## The two paths
 
 | Path | When | What happens |
 | --- | --- | --- |
-| **Input method** | A Wayland client has a focused field | The whole transcription is handed to the client in one commit, the way an input method delivers composed text. No synthetic keystrokes, any Unicode, no dependency on your keyboard layout, nothing to drop or reorder |
-| **Typing** | An X11 client has a focused field | Keystrokes are synthesized with [dotool](#dotool), or with the shell's virtual keyboard if dotool is unavailable. The shell is not an X11 client's input method, so it cannot commit to one |
+| **Typing** | Something has a focused field | Keystrokes are synthesized with [dotool](#dotool), or with the shell's virtual keyboard if dotool is unavailable |
 | **Clipboard** | Nothing has a focused field | The text is copied to the clipboard and a message says so. Nothing is typed, so a stray transcription cannot trigger shortcuts in whatever happens to be focused |
+
+Text arrives as keystrokes because that is the one thing every application that accepts a keyboard understands. Handing the whole transcription over through the compositor's input method instead would be faster and exact, but a client is free to accept it and do nothing with it, and nothing in the protocol reports back: web-based terminals such as the one in VS Code read only key events, so a transcription delivered that way disappears without a trace. Keystrokes cannot go missing that quietly.
 
 The clipboard path is the reason the feature exists. Typing into an application with no text field does not lose the words quietly, it presses keys: in Files that starts a search, on a web page it fires single-key shortcuts, in a mail client it can archive or delete. Murmur refuses to gamble and hands you the text instead.
 
@@ -38,7 +39,7 @@ The clipboard path is the reason the feature exists. Typing into an application 
 | Firefox | Yes | Per focused field |
 | Chromium, Chrome, Brave, Edge | Yes, from Chromium 136 | Text input is enabled by default from that version; older builds need `--enable-wayland-ime` |
 | Electron apps running on Wayland | Yes, with a recent Chromium | Includes editors and chat apps. On NixOS this needs `NIXOS_OZONE_WL=1` |
-| Electron and other apps under XWayland | Yes, through ibus | Typed rather than committed |
+| Electron and other apps under XWayland | Yes, through ibus | Recognised as a field like any other |
 | Qt 6 apps | Yes | Qt uses the same Wayland text-input protocol |
 | Games, video players, anything without a text field | No | Clipboard, which is the point |
 

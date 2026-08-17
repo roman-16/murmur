@@ -1,20 +1,9 @@
 import type Clutter from 'gi://Clutter';
-import type Gio from 'gi://Gio';
 
 import {getIBusManager} from 'resource:///org/gnome/shell/misc/ibusManager.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-import {sleep} from '../async.js';
-
-const FOCUS_POLL_MS = 50;
-const FOCUS_WAIT_MS = 600;
-
 export type Destination = 'clipboard' | 'field';
-
-export type Target = {
-    destination: Destination;
-    inputFocus: Clutter.InputFocus | null;
-};
 
 // Main.inputMethod is the shell's Clutter.InputMethod plus the focus the
 // current client has, which the type definitions do not carry.
@@ -52,42 +41,13 @@ export class FocusTracker {
 
     // Sample before the overlay opens: a modal grab takes the keyboard away
     // from the client, which ends its text-input focus along with it.
-    capture(): Target {
-        const inputFocus = currentInputFocus();
-        const field = inputFocus !== null || this.#ibusFocused;
-        return {destination: field ? 'field' : 'clipboard', inputFocus};
+    capture(): Destination {
+        const field = focusedInputMethod() || this.#ibusFocused;
+        return field ? 'field' : 'clipboard';
     }
 }
 
-// The client takes its text-input focus back once the overlay is gone, a
-// handful of frames after the close animation starts.
-export async function awaitInputFocus(
-    focus: Clutter.InputFocus, cancellable: Gio.Cancellable): Promise<boolean> {
-    for (let waited = 0; waited < FOCUS_WAIT_MS; waited += FOCUS_POLL_MS) {
-        if (currentInputFocus() === focus)
-            return true;
-        await sleep(FOCUS_POLL_MS, cancellable);
-        if (cancellable.is_cancelled())
-            return false;
-    }
-    return currentInputFocus() === focus;
-}
-
-// Hands the whole transcription to the client through the input method, the way
-// the on-screen keyboard commits its keys: no synthesized keystrokes, so any
-// Unicode arrives at once and the keyboard layout is irrelevant.
-export function commitText(text: string, focus: Clutter.InputFocus): boolean {
-    if (currentInputFocus() !== focus)
-        return false;
-    inputMethod().commit(text);
-    return true;
-}
-
-function inputMethod(): InputMethod {
-    return Main.inputMethod as InputMethod;
-}
-
-function currentInputFocus(): Clutter.InputFocus | null {
-    const focus = inputMethod().currentFocus;
-    return focus?.is_focused() ? focus : null;
+function focusedInputMethod(): boolean {
+    const focus = (Main.inputMethod as InputMethod).currentFocus;
+    return focus?.is_focused() ?? false;
 }

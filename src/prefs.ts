@@ -11,7 +11,7 @@ import {makeComboRow, makeSpinRow} from './lib/prefs/rows.js';
 import {makeShortcutRow} from './lib/prefs/shortcut.js';
 import {Key} from './lib/settings.js';
 
-const TYPING_SPEEDS = [50, 100, 250, 500, 1000];
+const TYPING_SPEEDS = [50, 100, 250, 500, 1000, 2500];
 
 export default class MurmurPreferences extends ExtensionPreferences {
     override async fillPreferencesWindow(window: Adw.PreferencesWindow): Promise<void> {

@@ -11,13 +11,7 @@ import {errorMessage} from './lib/errors.js';
 import {Key, readAccelerator, readRecordingConfig} from './lib/settings.js';
 import {parseAccelerator} from './lib/shell/accelerator.js';
 import {copyText} from './lib/shell/clipboard.js';
-import {
-    awaitInputFocus,
-    commitText,
-    FocusTracker,
-    type Destination,
-    type Target
-} from './lib/shell/focus.js';
+import {FocusTracker, type Destination} from './lib/shell/focus.js';
 import {insertText, typingPace, type Pace} from './lib/shell/insertion.js';
 import {MurmurOverlay} from './lib/shell/overlay.js';
 import {Session} from './lib/shell/session.js';
@@ -106,11 +100,11 @@ export default class MurmurExtension extends Extension {
             return;
         }
 
-        const target = focusTracker.capture();
-        this.#destination = target.destination;
+        const destination = focusTracker.capture();
+        this.#destination = destination;
 
         const overlay = new MurmurOverlay();
-        overlay.destination = target.destination;
+        overlay.destination = destination;
         overlay.shortcut = parseAccelerator(readAccelerator(settings));
         overlay.onCancel = () => this.#cancel();
         overlay.onStop = destination => this.#stopRecording(destination);
@@ -138,8 +132,7 @@ export default class MurmurExtension extends Extension {
 
             if (transcript.trim()) {
                 const pace = typingPace(config.typingSpeed);
-                const chosen = {destination: this.#destination, inputFocus: target.inputFocus};
-                await this.#deliver(transcript, chosen, pace, cancellable);
+                await this.#deliver(transcript, this.#destination, pace, cancellable);
             }
         } catch (error) {
             this.#closeOverlay();
@@ -153,26 +146,18 @@ export default class MurmurExtension extends Extension {
         }
     }
 
-    // Committing hands the whole text to the client that owns the input method
-    // focus; typing reaches the rest, X11 clients above all.
     async #deliver(
-        transcript: string, target: Target, pace: Pace,
+        transcript: string, destination: Destination, pace: Pace,
         cancellable: Gio.Cancellable): Promise<void> {
-        if (target.destination === 'clipboard') {
+        if (destination === 'clipboard') {
             copyText(transcript);
             this.#showToast('Transcription copied');
             return;
         }
 
         await sleep(FOCUS_RETURN_MS, cancellable);
-        if (cancellable.is_cancelled())
-            return;
-
-        const focus = target.inputFocus;
-        if (focus && await awaitInputFocus(focus, cancellable) && commitText(transcript, focus))
-            return;
-
-        await insertText(transcript, pace, cancellable);
+        if (!cancellable.is_cancelled())
+            await insertText(transcript, pace, cancellable);
     }
 
     #showToast(message: string): void {

@@ -12,7 +12,7 @@ Murmur is a GNOME Shell extension, which means it runs inside the compositor its
 6. **Audio streams up** as it is recorded, each chunk base64-encoded in a JSON message. Nothing is buffered to disk.
 7. **Text streams down** as `transcription.text.delta` events and appears in the overlay immediately.
 8. **You stop**, or silence or the time limit stops it for you. The microphone is released at once, and the connection stays open just long enough to collect the tail of the transcription.
-9. **The overlay closes** and the text is delivered: committed through the input method, typed, or copied to the clipboard.
+9. **The overlay closes** and the text is delivered: typed into the focused field, or copied to the clipboard when there is none.
 
 `Esc` cancels at any point. The subprocess is signalled, the socket is closed, and nothing is inserted or copied.
 
