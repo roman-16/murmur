@@ -29,6 +29,37 @@ gnome-extensions enable murmur@roman-16.github.io
 
 Murmur's [listing](https://extensions.gnome.org/extension/10343/murmur/) is awaiting review. Once it is approved, the page installs it in one click, and updates arrive through the *Extensions* app like any other extension.
 
+## With Nix
+
+The repository is a flake, so a Home Manager or NixOS configuration installs Murmur declaratively and pins it like everything else:
+
+```nix
+inputs.murmur.url = "github:roman-16/murmur";
+```
+
+With Home Manager, which enables the extension for you:
+
+```nix
+programs.gnome-shell = {
+  enable = true;
+  extensions = [ { package = inputs.murmur.packages.${pkgs.system}.default; } ];
+};
+```
+
+On NixOS, where enabling stays a one-off:
+
+```nix
+environment.systemPackages = [ inputs.murmur.packages.x86_64-linux.default ];
+```
+
+```bash
+gnome-extensions enable murmur@roman-16.github.io
+```
+
+Either way, log out and back in afterwards. `pw-record` comes with `services.pipewire.enable`, and dotool is `pkgs.dotool` plus membership in the group that owns `/dev/uinput`.
+
+On its own, `nix build` writes the extension to `result/share/gnome-shell/extensions/murmur@roman-16.github.io`.
+
 ## From source
 
 Needs [devbox](https://www.jetify.com/devbox) (or Bun, GJS, glib and just installed yourself):
@@ -50,6 +81,7 @@ Because it is a symlink, `just build` is enough to pick up later changes, follow
 | --- | --- |
 | Release zip | Run the install command again, then log out and back in |
 | extensions.gnome.org | The *Extensions* app offers the update |
+| Nix | `nix flake update murmur` in your configuration, rebuild, then log out and back in |
 | Source | `git pull && just install`, then log out and back in |
 
 Wayland cannot restart GNOME Shell in place, so every update needs a log out and back in. There is no way around it.
@@ -66,6 +98,8 @@ A source install is a symlink, so remove it by hand:
 ```bash
 rm ~/.local/share/gnome-shell/extensions/murmur@roman-16.github.io
 ```
+
+A Nix install goes away with the entry in your configuration and the next rebuild.
 
 Your settings, including the API key, live in dconf and outlive the extension. Clear them with:
 

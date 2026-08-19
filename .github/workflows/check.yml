@@ -1,0 +1,41 @@
+name: Check
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Set up just
+        uses: extractions/setup-just@v3
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Lint, type-check and check the process boundary
+        run: just lint
+
+  nix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Nix
+        uses: cachix/install-nix-action@v31
+
+      - name: Build the extension
+        run: nix build --no-link --print-build-logs
+
+      - name: Evaluate every flake output
+        run: nix flake check --all-systems

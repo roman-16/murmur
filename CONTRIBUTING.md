@@ -33,7 +33,11 @@ just prefs        # open the preferences dialog
 just pack         # build the .shell-extension.zip
 ```
 
-`just lint` has to pass with no findings. It is the quality gate, and CI runs the same recipe.
+`just lint` has to pass with no findings. It is the quality gate, and CI runs the same recipe on every push and pull request, alongside `nix build`.
+
+```bash
+nix build         # build the extension through the flake, as a Nix install does
+```
 
 `just dev` boots a nested GNOME Shell with its own `XDG_DATA_HOME`, picks up `MISTRAL_API_KEY` from `.env`, and touches nothing in your real session. It is the fastest way to try a change; a real session needs a log out and back in for every reload, because Wayland cannot restart the shell in place.
 

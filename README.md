@@ -31,7 +31,7 @@ Then log out and back in, which Wayland requires for a new extension, and enable
 gnome-extensions enable murmur@roman-16.github.io
 ```
 
-You need **GNOME Shell 47 to 50 on Wayland**, **`pw-record`** from PipeWire, and a **Mistral API key**. Installing from source, from extensions.gnome.org once the listing is approved, updating and uninstalling: → [Installation](docs/installation.md)
+You need **GNOME Shell 47 to 50 on Wayland**, **`pw-record`** from PipeWire, and a **Mistral API key**. Installing with Nix, from source, from extensions.gnome.org once the listing is approved, updating and uninstalling: → [Installation](docs/installation.md)
 
 ## Get started
 
