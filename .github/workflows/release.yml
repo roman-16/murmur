@@ -118,7 +118,7 @@ jobs:
         uses: oven-sh/setup-bun@v2
 
       - name: Set up just
-        uses: extractions/setup-just@v3
+        uses: extractions/setup-just@v4
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -199,7 +199,7 @@ jobs:
         uses: oven-sh/setup-bun@v2
 
       - name: Set up just
-        uses: extractions/setup-just@v3
+        uses: extractions/setup-just@v4
 
       - name: Install dependencies
         run: bun install --frozen-lockfile

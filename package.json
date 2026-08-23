@@ -6,7 +6,7 @@
     "@girs/gjs": "4.1.0",
     "@girs/gnome-shell": "50.0.4",
     "@girs/soup-3.0": "4.1.0",
-    "oxlint": "1.71.0",
+    "oxlint": "1.79.0",
     "typescript": "7.0.2"
   }
 }
