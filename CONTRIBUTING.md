@@ -26,14 +26,16 @@ Without devbox you need Bun, GJS, GLib's tools, `just`, `librsvg` and `zip` on y
 ```bash
 just build        # compile src/ into dist/
 just check        # type-check only
-just lint         # oxlint, type-check and the process boundary; run before every commit
+just lint         # oxlint, type-check, the process boundary and the changelog; run before every commit
+just test         # check the changelog parser
 just dev          # run in a throwaway, isolated nested GNOME Shell
 just install      # symlink dist/ into your extensions dir
+just notes        # print the version and the notes CHANGELOG.md would publish
 just prefs        # open the preferences dialog
 just pack         # build the .shell-extension.zip
 ```
 
-`just lint` has to pass with no findings. It is the quality gate, and CI runs the same recipe on every push and pull request, alongside `nix build`.
+`just lint` has to pass with no findings. It is the quality gate, and CI runs the same recipe on every push and pull request, alongside `just test` and `nix build`.
 
 ```bash
 nix build         # build the extension through the flake, as a Nix install does
@@ -54,7 +56,7 @@ src/lib/shell/       shell-only: overlay, insertion, focus, clipboard, toast, se
 src/lib/prefs/       preferences-only: rows, shortcut capture, dotool diagnostics
 ```
 
-`just build` compiles the TypeScript into `dist/` and copies `src/stylesheet.css`, `metadata.json` and `schemas/` alongside it, which is the layout GNOME Shell loads.
+`just build` compiles the TypeScript into `dist/`, copies `src/stylesheet.css` and `schemas/` alongside it, and writes `metadata.json` with the `version-name` [`CHANGELOG.md`](CHANGELOG.md) declares. That is the layout GNOME Shell loads.
 
 The two halves run in **different processes** that load different libraries. Importing `Clutter`, `Meta`, `Shell` or `St` into the preferences, or `Adw`, `Gdk` or `Gtk` into the shell, fails at load time. `just lint` greps for it and fails the build, so the boundary is checked rather than remembered.
 
@@ -67,7 +69,7 @@ The two halves run in **different processes** that load different libraries. Imp
 
 ## Testing a change
 
-There is no automated suite; the surface is the compositor, and the interesting failures are all in the interaction. Before opening a pull request that touches recording or insertion, try it in `just dev` and then in a real session against, at minimum:
+`just test` covers the changelog parser, because that one decides what gets published. Everything else is the compositor, and the interesting failures are all in the interaction. Before opening a pull request that touches recording or insertion, try it in `just dev` and then in a real session against, at minimum:
 
 - a GTK application, for an ordinary field,
 - a terminal, for a client that reports one big text field,
@@ -89,6 +91,14 @@ It runs a dictation in the isolated nested shell against a scripted transcriptio
 
 ## Releasing
 
-Releases are cut by the **Release** workflow, dispatched by hand with a semantic version. It bumps `version-name` in `metadata.json`, commits, tags, builds, packs the zip, uploads it to extensions.gnome.org, and creates the GitHub release.
+[`CHANGELOG.md`](CHANGELOG.md) is the release button. Add a version section to it in [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) form and push it to `main`; that is the whole of it. The version, the tag, the release notes and the `version-name` the extension reports all come from that one section, so shipping is a decision made once, in a diff, rather than a version typed into a form afterwards.
 
-Two things it cannot do, because extensions.gnome.org has no API for them: uploading the listing's icon and screenshot. Both are edited by hand on the extension's page after a release that changes them.
+The section is written when the release is cut, from the commits since the last tag, so there is no `[Unreleased]` heading accumulating between releases and a push that is not a release leaves the file untouched. `just notes` prints the version and the notes the file would publish.
+
+The **Release** workflow runs when **Check** passes on `main`, reads the newest section, and stops there when a release for it is already published, which is what nearly every push does, in seconds. Otherwise it builds, packs, tags, and publishes the GitHub release with that section as its notes. The tag is pushed last on purpose: it is fetched by users and it names the release, so nothing that outlives a failed run happens until everything that can fail has passed.
+
+The upload to extensions.gnome.org is a job of its own, after the release, because the site has no API tokens and no idea of a repeated version: uploading one version twice becomes two submissions in the review queue. When it is the part that failed, re-run that job alone, or upload the release's zip by hand on the site; re-running the whole workflow sees the release as published and does nothing.
+
+Because the file decides and not the run, a release that failed partway through is finished by re-running it: an existing tag is reused and its own commit released rather than whatever `main` has become. `just lint` holds the file to its format, which is what keeps the button safe: versions move one step at a time, so after 1.3.2 the file may say 1.3.3, 1.4.0 or 2.0.0 and nothing else, and a pre-release is refused outright, since extensions.gnome.org allows only letters, digits, spaces and dots in a version name.
+
+Two things the workflow cannot do, because extensions.gnome.org has no API for them: uploading the listing's icon and screenshot. Both are edited by hand on the extension's page after a release that changes them.

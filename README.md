@@ -94,7 +94,7 @@ The transcription is never written to disk and the audio never touches it either
 
 ## Contributing
 
-Issues, ideas and pull requests are welcome. [`CONTRIBUTING.md`](CONTRIBUTING.md) has the setup and the everyday commands, and [`SECURITY.md`](SECURITY.md) has the private channel for security reports.
+Issues, ideas and pull requests are welcome. [`CONTRIBUTING.md`](CONTRIBUTING.md) has the setup and the everyday commands, [`CHANGELOG.md`](CHANGELOG.md) records what each version changed, and [`SECURITY.md`](SECURITY.md) has the private channel for security reports.
 
 ## License
 

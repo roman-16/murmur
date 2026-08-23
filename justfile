@@ -19,17 +19,19 @@ deps:
 build: deps
     rm --recursive --force '{{dist}}'
     {{tsc}}
-    cp '{{root}}/LICENSE' '{{root}}/metadata.json' '{{root}}/src/stylesheet.css' '{{dist}}'
+    bun '{{root}}/scripts/metadata.ts' > '{{dist}}/metadata.json'
+    cp '{{root}}/LICENSE' '{{root}}/src/stylesheet.css' '{{dist}}'
     cp --recursive '{{root}}/schemas' '{{dist}}'
 
 # Type-check without emitting
 check: deps
     {{tsc}} --noEmit
 
-# Lint, type-check and check the process boundary (quality gate)
+# Lint, type-check, check the process boundary and the changelog (quality gate)
 lint: deps boundaries
     {{oxlint}}
     {{tsc}} --noEmit
+    bun '{{root}}/scripts/changelog.ts' > /dev/null
 
 # The shell process and the preferences process load disjoint libraries, so
 # lib/shell, lib/prefs and the modules shared by both must stay apart.
@@ -56,6 +58,15 @@ boundaries:
         "gi://(Adw|Clutter|Gdk|Gtk|Meta|Shell|St)|from '[^']*(prefs|shell)/" \
         {{root}}/src/lib/*.ts
     exit $status
+
+# Check the changelog parser, which decides what gets published
+test:
+    bun test '{{root}}/scripts'
+
+# Print the version and the release notes CHANGELOG.md would publish
+notes:
+    bun '{{root}}/scripts/changelog.ts'
+    bun '{{root}}/scripts/changelog.ts' --notes
 
 # Record the README demo in a throwaway nested GNOME Shell (see scripts/demo)
 demo: build

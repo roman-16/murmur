@@ -1,64 +1,118 @@
 name: Release
 
+# CHANGELOG.md is the release button. A version section in it that has no
+# published release is a release request, and this workflow's only job is to make
+# that true. So every run is a function of the tree rather than of the event that
+# started it: a release that died halfway through finishes by being re-run, and a
+# push that adds no version is a no-op costing seconds.
+#
+# It follows Check rather than repeating it. The release is the continuation of
+# the checks that just passed on that commit, which is what makes "nothing is
+# published from a commit that failed the checks" structural instead of a job
+# somebody has to remember to keep in front of the build.
 on:
-  workflow_dispatch:
-    inputs:
-      version:
-        description: "Version to release (e.g. 1.0.0)"
-        required: true
-        type: string
+  workflow_run:
+    workflows: [Check]
+    types: [completed]
+    branches:
+      - main
 
 permissions:
   contents: write
 
-jobs:
-  prepare:
-    runs-on: ubuntu-latest
-    outputs:
-      tag: ${{ steps.tag.outputs.tag }}
-    steps:
-      - name: Validate version
-        run: |
-          if ! echo "${{ inputs.version }}" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$'; then
-            echo "::error::Invalid version format '${{ inputs.version }}'. Expected semver like 1.0.0 or 1.0.0-rc.1"
-            exit 1
-          fi
+# A release is queued rather than cancelled: two runs publishing the same tag
+# would race each other through the tag, the release and the upload.
+concurrency:
+  group: release
+  cancel-in-progress: false
 
+jobs:
+  resolve:
+    # workflow_run is a privileged trigger: it carries this repository's write
+    # token whatever the run that finished. A fork's pull request can come from a
+    # branch named `main` and would pass the branch filter on its own, so the
+    # release only ever follows a push to this repository's own main.
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      release: ${{ steps.decide.outputs.release }}
+      sha: ${{ steps.decide.outputs.sha }}
+      tag: ${{ steps.decide.outputs.tag }}
+      version: ${{ steps.decide.outputs.version }}
+    steps:
       - name: Checkout
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          ref: ${{ github.event.workflow_run.head_sha }}
 
-      - name: Check tag does not exist
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Decide what to release
+        id: decide
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
-          if git rev-parse "v${{ inputs.version }}" >/dev/null 2>&1; then
-            echo "::error::Tag v${{ inputs.version }} already exists"
-            exit 1
+          nothing() {
+            echo "release=false" >> "$GITHUB_OUTPUT"
+            echo "$1" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          }
+
+          version=$(bun scripts/changelog.ts)
+          if [ -z "$version" ]; then
+            nothing "CHANGELOG.md names no version to release."
+          fi
+          tag="v$version"
+
+          # A published release is the record of a version having shipped; a
+          # draft or a missing one is a release that still has to happen. Asking
+          # GitHub rather than remembering is what makes a re-run finish the job.
+          state=$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft' 2>/dev/null || echo missing)
+          if [ "$state" = "false" ]; then
+            nothing "$tag is already published; CHANGELOG.md asks for nothing new."
           fi
 
-      - name: Bump metadata, commit and tag
-        id: tag
-        run: |
-          jq --arg vn "${{ inputs.version }}" '."version-name" = $vn' metadata.json > metadata.json.tmp
-          mv metadata.json.tmp metadata.json
+          # A tag outlives the run that pushed it, so a resumed release is the
+          # tag's own commit - the one the checks and the build ran against - and
+          # not whatever main has become since.
+          if git rev-parse --verify --quiet "refs/tags/$tag" >/dev/null; then
+            sha=$(git rev-parse "$tag^{commit}")
+            echo "Tag $tag exists; resuming the release from $sha."
+          else
+            sha="$HEAD_SHA"
+          fi
 
-          git config user.name "Roman"
-          git config user.email "roman@lerchster.dev"
-          git commit -am "Release v${{ inputs.version }}"
-          git tag -a "v${{ inputs.version }}" -m "Release v${{ inputs.version }}"
-          git push origin HEAD
-          git push origin "v${{ inputs.version }}"
-          echo "tag=v${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          {
+            echo "release=true"
+            echo "sha=$sha"
+            echo "tag=$tag"
+            echo "version=$version"
+          } >> "$GITHUB_OUTPUT"
+
+          {
+            echo "## Releasing $tag"
+            echo
+            bun scripts/changelog.ts --notes
+          } >> "$GITHUB_STEP_SUMMARY"
 
   release:
-    needs: prepare
+    needs: resolve
+    if: needs.resolve.outputs.release == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          ref: ${{ needs.prepare.outputs.tag }}
           fetch-depth: 0
+          ref: ${{ needs.resolve.outputs.sha }}
 
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
@@ -72,10 +126,90 @@ jobs:
       - name: Compile TypeScript into dist/
         run: just build
 
-      # extensions.gnome.org has no API tokens: upload needs the real account
-      # username and password, stored as repo secrets.
-      - name: Pack and upload to extensions.gnome.org
+      # `gnome-extensions pack` comes with GNOME Shell, which a runner does not
+      # have, so the packing happens in the action's own image.
+      - name: Pack the extension
         id: pack
+        uses: murar8/gnome-extensions-action@0.1.1
+        with:
+          source-dir: dist
+          schema: schemas/org.gnome.shell.extensions.murmur.gschema.xml
+          extra-source: |
+            lib
+            LICENSE
+          gettext-domain: murmur
+
+      - name: Tag the release
+        # The tag is the one thing here that outlives a failed run: it is fetched
+        # by users and it names the release. So it is pushed only once everything
+        # that can fail has passed, and it names the exact commit the checks and
+        # the build ran against.
+        env:
+          SHA: ${{ needs.resolve.outputs.sha }}
+          TAG: ${{ needs.resolve.outputs.tag }}
+        run: |
+          if git rev-parse --verify --quiet "refs/tags/$TAG" >/dev/null; then
+            echo "Reusing existing tag $TAG."
+            exit 0
+          fi
+          git config user.name "Roman"
+          git config user.email "roman@lerchster.dev"
+          git tag --annotate "$TAG" "$SHA" --message "Release $TAG"
+          git push origin "$TAG"
+
+      - name: Write the release notes
+        # Which release came before this one is a fact about the repository's
+        # tags, so the compare link is read from git rather than written by hand
+        # into a file that would then have to be kept true.
+        env:
+          TAG: ${{ needs.resolve.outputs.tag }}
+        run: |
+          notes="$RUNNER_TEMP/release-notes.md"
+          bun scripts/changelog.ts --notes > "$notes"
+          previous=$(git describe --tags --abbrev=0 "$TAG^" 2>/dev/null || true)
+          if [ -n "$previous" ]; then
+            printf '\n**Full Changelog**: %s/%s/compare/%s...%s\n' \
+              "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$previous" "$TAG" >> "$notes"
+          fi
+          cat "$notes"
+
+      - name: Create the GitHub release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ needs.resolve.outputs.tag }}
+          name: ${{ needs.resolve.outputs.tag }}
+          body_path: ${{ runner.temp }}/release-notes.md
+          files: ${{ steps.pack.outputs.zip-file }}
+
+  # extensions.gnome.org has no API tokens, so the upload needs the real account
+  # username and password, and it has no idea of a repeated version: uploading
+  # one version-name twice becomes two submissions in the review queue. So it
+  # runs last, on its own, after the release users install from is published.
+  # When it is the part that failed, re-run this job alone.
+  extensions-website:
+    needs: [resolve, release]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Set up just
+        uses: extractions/setup-just@v3
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Compile TypeScript into dist/
+        run: just build
+
+      - name: Pack and upload to extensions.gnome.org
         uses: murar8/gnome-extensions-action@0.1.1
         with:
           source-dir: dist
@@ -87,10 +221,3 @@ jobs:
           accept-tos: true
           username: ${{ secrets.GNOME_EXTENSIONS_USERNAME }}
           password: ${{ secrets.GNOME_EXTENSIONS_PASSWORD }}
-
-      - name: Create GitHub release
-        uses: softprops/action-gh-release@v3
-        with:
-          tag_name: ${{ needs.prepare.outputs.tag }}
-          name: ${{ needs.prepare.outputs.tag }}
-          files: ${{ steps.pack.outputs.zip-file }}

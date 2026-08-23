@@ -25,6 +25,9 @@ jobs:
       - name: Lint, type-check and check the process boundary
         run: just lint
 
+      - name: Check the changelog parser
+        run: just test
+
   nix:
     runs-on: ubuntu-latest
     steps:
