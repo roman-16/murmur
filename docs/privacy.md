@@ -35,4 +35,4 @@ The microphone is opened when a recording starts and released the moment it ends
 
 ## What it costs
 
-Transcription is billed to your Mistral account by the audio you send. Murmur sends only what it records, which is your speech between pressing the shortcut and stopping. **Maximum recording time**, two minutes by default, caps what a forgotten recording can spend, and **Stop after silence** ends a recording you walked away from.
+Transcription is billed to your Mistral account by the audio you send. Murmur sends only what it records, which is your speech between pressing the shortcut and stopping. **Maximum recording time**, ten minutes by default, caps what a forgotten recording can spend, and **Stop after silence** ends a recording you walked away from.

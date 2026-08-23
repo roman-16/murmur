@@ -12,6 +12,10 @@ Push-to-talk dictation for GNOME on Wayland: TypeScript in `src/`, compiled to p
 
 Fix every finding before the work counts as done.
 
+## The demo is the user's to run
+
+**Never run `just demo`.** It films a nested GNOME Shell, and a window that is covered while it films paints only rarely, which the take records as frozen frames, so a run started from this session comes out truncated. Say that `assets/demo.webp` needs re-recording and ask the user to run `just demo` with the nested window left visible. Then check what came back: around 60 frames or more, the overlay's countdown starting at the current **Maximum recording time**, and a last frame with the sentence typed into the editor.
+
 ## The changelog is the release button
 
 [`CHANGELOG.md`](CHANGELOG.md) is not documentation about releases, it is what causes them. A version section reaching `main` is a release request: Check passes, the Release workflow reads the newest section, and that version's tag, release notes and the `version-name` the extension reports all follow from it. Nearly every push adds no section and releases nothing.

@@ -24,8 +24,8 @@ How much audio Voxtral buffers before it transcribes. More context means better 
 | --- | --- | --- |
 | Instant | 240 ms | Words appear almost as you say them, with more corrections |
 | Fast | 500 ms | |
-| Balanced | 1 s | The default |
-| Accurate | 2.4 s | Noticeably behind your voice, and the steadiest result |
+| Balanced | 1 s | |
+| Accurate | 2.4 s | The default: noticeably behind your voice, and the steadiest result |
 
 The delay does not slow down the finish: when you stop, Murmur waits for the tail of the transcription and inserts the whole thing.
 
@@ -37,7 +37,7 @@ Opens the overlay and starts recording, then stops and delivers, the same as `En
 
 ### Maximum recording time
 
-Seconds after which a recording ends on its own and delivers what it has. 120 by default, between 15 and 1800. This is a safety net for a recording you walked away from, not a way to keep dictations short.
+Seconds after which a recording ends on its own and delivers what it has. 600 by default, between 15 and 1800. This is a safety net for a recording you walked away from, not a way to keep dictations short.
 
 ### Stop after silence
 
@@ -55,7 +55,7 @@ Without it Murmur falls back to the shell's virtual keyboard, which reaches ever
 
 ### Typing speed
 
-Characters per second, 500 by default: a sentence lands in about a tenth of a second. The fastest setting holds no key at all and goes as fast as dotool can push the characters through.
+Characters per second, 2500 by default: a sentence lands in a few hundredths of a second. At that speed no key is held at all, so the text goes in as fast as dotool can push it through.
 
 Lower it if characters get dropped or reordered in a particular application, which some Electron and Java applications do under fast synthetic input.
 
@@ -74,12 +74,12 @@ gsettings set org.gnome.shell.extensions.murmur typing-speed 500
 
 | Key | Type | Default | Range |
 | --- | --- | --- | --- |
-| `max-recording-seconds` | integer | 120 | 15 to 1800 |
+| `max-recording-seconds` | integer | 600 | 15 to 1800 |
 | `mistral-api-key` | string | empty | |
 | `silence-timeout-seconds` | integer | 0 | 0 to 30 |
 | `toggle-recording` | string list | `['<Super>space']` | |
-| `transcription-delay-ms` | integer | 1000 | 240 to 2400 |
-| `typing-speed` | integer | 500 | 50 to 2500 |
+| `transcription-delay-ms` | integer | 2400 | 240 to 2400 |
+| `typing-speed` | integer | 2500 | 50 to 2500 |
 
 A source install has to point `gsettings` at the schema it built, since it is not in the system directory:
 

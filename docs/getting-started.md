@@ -46,6 +46,6 @@ In the preferences, click the shortcut next to **Recording shortcut**, press the
 Two settings end a recording without you pressing anything:
 
 - **Stop after silence** ends it after a number of seconds without speech. Off by default.
-- **Maximum recording time** ends it after two minutes, so a forgotten recording cannot run forever.
+- **Maximum recording time** ends it after ten minutes, so a forgotten recording cannot run forever.
 
 Both deliver the transcription exactly as `Enter` would. See [Configuration](configuration.md).

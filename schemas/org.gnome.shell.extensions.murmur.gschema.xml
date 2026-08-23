@@ -2,7 +2,7 @@
 <schemalist>
   <schema id="org.gnome.shell.extensions.murmur" path="/org/gnome/shell/extensions/murmur/">
     <key name="max-recording-seconds" type="i">
-      <default>120</default>
+      <default>600</default>
       <range min="15" max="1800"/>
       <summary>Maximum recording time</summary>
       <description>Seconds after which recording stops on its own and the transcription is inserted.</description>
@@ -24,13 +24,13 @@
       <description>Shortcut that opens the recording overlay, then stops recording and inserts the transcription.</description>
     </key>
     <key name="transcription-delay-ms" type="i">
-      <default>1000</default>
+      <default>2400</default>
       <range min="240" max="2400"/>
       <summary>Transcription delay</summary>
       <description>Milliseconds of audio Voxtral buffers before transcribing. Higher values give the model more context and better accuracy, lower values show and insert text sooner.</description>
     </key>
     <key name="typing-speed" type="i">
-      <default>500</default>
+      <default>2500</default>
       <range min="50" max="2500"/>
       <summary>Typing speed</summary>
       <description>Characters per second used to insert the transcription. Lower it if characters get dropped or reordered.</description>

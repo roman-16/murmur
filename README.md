@@ -87,7 +87,7 @@ The transcription is never written to disk and the audio never touches it either
 ## Good to know
 
 - **A terminal is one big text field.** It tells the compositor it accepts text whenever it is focused and nothing finer, so Murmur will happily deliver a sentence to vim in normal mode.
-- **Dictation is billed to your key.** Murmur sends only what it records, and the two-minute cap keeps a forgotten recording from running away.
+- **Dictation is billed to your key.** Murmur sends only what it records, and the ten-minute cap keeps a forgotten recording from running away.
 - **Wayland only.** XWayland applications inside a Wayland session are fine; an X11 session is not.
 - **dotool is recommended.** Without it the fallback keyboard can only produce characters from your current layout, so emoji and other scripts are dropped.
 - **Passwords are typed, never copied.** A password field is still a text field, so nothing lands on the clipboard.

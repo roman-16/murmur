@@ -50,7 +50,7 @@ Wayland applications do not need dotool at all, so this row can be safely ignore
 ## The recording stops on its own
 
 - **Stop after silence** is set and the room is quiet enough to trigger it. Raise it, or set it to 0.
-- **Maximum recording time** was reached. Two minutes by default.
+- **Maximum recording time** was reached. Ten minutes by default.
 
 Both deliver what was transcribed so far; nothing is thrown away.
 
