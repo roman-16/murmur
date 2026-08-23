@@ -18,7 +18,7 @@ on:
       - main
 
 permissions:
-  contents: write
+  contents: read
 
 # A release is queued rather than cancelled: two runs publishing the same tag
 # would race each other through the tag, the release and the upload.
@@ -37,8 +37,6 @@ jobs:
       github.event.workflow_run.event == 'push' &&
       github.event.workflow_run.head_repository.full_name == github.repository
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     outputs:
       release: ${{ steps.decide.outputs.release }}
       sha: ${{ steps.decide.outputs.sha }}
@@ -107,6 +105,8 @@ jobs:
     needs: resolve
     if: needs.resolve.outputs.release == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -189,8 +189,6 @@ jobs:
   extensions-website:
     needs: [resolve, release]
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v7
