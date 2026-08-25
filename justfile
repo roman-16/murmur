@@ -63,6 +63,11 @@ boundaries:
 test:
     bun test '{{root}}/scripts'
 
+# Drive the panel with a real pointer in a throwaway nested GNOME Shell
+test-shell: build
+    glib-compile-schemas '{{dist}}/schemas'
+    bash '{{root}}/scripts/shell-test/run.sh'
+
 # Print the version and the release notes CHANGELOG.md would publish
 notes:
     bun '{{root}}/scripts/changelog.ts'

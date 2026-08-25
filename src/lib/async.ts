@@ -1,5 +1,4 @@
 import type Gio from 'gi://Gio';
-import GLib from 'gi://GLib';
 
 // GIO's async methods take a callback and a matching *_finish call. Wrapping
 // them here keeps the call sites awaitable without patching prototypes that the
@@ -33,32 +32,4 @@ export function deferred<T>(): Deferred<T> {
         resolve = resolveFn;
     });
     return {promise, reject, resolve};
-}
-
-// Resolves after the delay, or right away once cancelled. Either path removes
-// the timer, so no source outlives the extension.
-export function sleep(milliseconds: number, cancellable: Gio.Cancellable): Promise<void> {
-    return new Promise(resolve => {
-        let cancelledId = 0;
-        let sourceId = 0;
-
-        const finish = () => {
-            if (sourceId) {
-                GLib.source_remove(sourceId);
-                sourceId = 0;
-            }
-            if (cancelledId) {
-                cancellable.disconnect(cancelledId);
-                cancelledId = 0;
-            }
-            resolve();
-        };
-
-        sourceId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, milliseconds, () => {
-            sourceId = 0;
-            finish();
-            return GLib.SOURCE_REMOVE;
-        });
-        cancelledId = cancellable.connect(finish);
-    });
 }

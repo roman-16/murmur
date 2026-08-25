@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 Adding a version section here is what publishes a release, so this file is the one place a version is decided: see [Releasing](CONTRIBUTING.md#releasing). Versions that shipped before this file existed are on the [releases page](https://github.com/roman-16/murmur/releases).
 
+## [1.4.0] - 2026-08-25
+
+### Added
+
+- A recording indicator in the top bar shows the countdown while Murmur listens, and opens or closes the panel when you click it.
+- **Show the panel when recording starts**, on by default. Turn it off and a recording begins with nothing over your work, just the top-bar indicator.
+
+### Changed
+
+- Recording no longer takes over the screen. Click into another window, scroll a page and keep typing while Murmur listens; the panel collapses to the top-bar indicator whenever you look elsewhere, and `Super+Space` still stops from anywhere.
+- The transcription goes wherever a text field is focused when you stop, rather than where one was when you started, so you can begin talking and then click into the field the words belong in. The panel names the destination the whole time.
+- `Enter`, `Ctrl+Enter` and `Esc` control the panel only while it is on screen, which is exactly while it holds the keyboard. Click anywhere else and the keyboard is your application's again.
+- The panel looks like one of GNOME's own popovers, taking its colours, corners and shadow from your theme, accent colour and contrast setting, including a custom shell theme.
+
 ## [1.3.3] - 2026-08-23
 
 ### Changed

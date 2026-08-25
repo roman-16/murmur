@@ -1,0 +1,6 @@
+{
+  "uuid": "probe@murmur.local",
+  "name": "Murmur shell probe",
+  "description": "Drives Murmur's recording panel with a real pointer inside a throwaway shell and reports what worked.",
+  "shell-version": ["47", "48", "49", "50"]
+}

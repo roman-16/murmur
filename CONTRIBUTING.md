@@ -4,7 +4,9 @@ Thanks for helping out. Issues, ideas and pull requests are all welcome.
 
 ## Scope
 
-Murmur is push-to-talk dictation for GNOME on Wayland: one shortcut, one overlay, text into the focused field. Things that fit are better transcription, better insertion, fewer surprises. Things that do not: other desktops, other session types, a local model bundled into the extension, and anything that needs a background service, since running entirely inside the shell is the point.
+Murmur is push-to-talk dictation for GNOME on Wayland: one shortcut, one panel, text into the focused field. Things that fit are better transcription, better insertion, fewer surprises. Things that do not: other desktops, other session types, a local model bundled into the extension, and anything that needs a background service, since running entirely inside the shell is the point.
+
+That last one is also why the recording panel is shell chrome rather than a window: a window would need a second process, and everything a window would give it (alt-tab, minimise, stacking) is worth less than the panel appearing the instant you press the shortcut.
 
 ## Getting set up
 
@@ -28,6 +30,7 @@ just build        # compile src/ into dist/
 just check        # type-check only
 just lint         # oxlint, type-check, the process boundary and the changelog; run before every commit
 just test         # check the changelog parser
+just test-shell   # drive the panel with a real pointer in a throwaway nested shell
 just dev          # run in a throwaway, isolated nested GNOME Shell
 just install      # symlink dist/ into your extensions dir
 just notes        # print the version and the notes CHANGELOG.md would publish
@@ -41,18 +44,18 @@ just pack         # build the .shell-extension.zip
 nix build         # build the extension through the flake, as a Nix install does
 ```
 
-`just dev` boots a nested GNOME Shell with its own `XDG_DATA_HOME`, picks up `MISTRAL_API_KEY` from `.env`, and touches nothing in your real session. It is the fastest way to try a change; a real session needs a log out and back in for every reload, because Wayland cannot restart the shell in place.
+`just dev` boots a nested GNOME Shell with its own `XDG_DATA_HOME`, picks up `MISTRAL_API_KEY` from `.env`, and touches nothing in your real session. It also unsets `GTK_IM_MODULE`, because the desktop session points clients at ibus and the nested one runs none: a GTK client that cannot reach its input method never enables the Wayland text-input protocol, so every field in the nested session would look like no field and every dictation would go to the clipboard. It is the fastest way to try a change; a real session needs a log out and back in for every reload, because Wayland cannot restart the shell in place.
 
 Inside that session the shortcut is **`Super+M`**, set by `RECORDING_SHORTCUT` in `.env`, because a key combination belongs to one compositor: your own session matches `Super+Space` first and the nested shell never sees it. When a run does need the real combination, as the demo does, `scripts/nested-shell.sh` borrows it from your session and gives it back on exit.
 
 ## How the code is arranged
 
 ```
-src/extension.ts     the shell half: shortcut, overlay, session, delivery
+src/extension.ts     the shell half: shortcut, panel, session, delivery
 src/prefs.ts         the preferences half
-src/stylesheet.css   styling for the overlay and the toast
+src/stylesheet.css   geometry for the panel; its colours come from the shell theme
 src/lib/             shared by both, Gio and GLib only
-src/lib/shell/       shell-only: overlay, insertion, focus, clipboard, toast, session
+src/lib/shell/       shell-only: panel, indicator, insertion, focus, clipboard, session
 src/lib/prefs/       preferences-only: rows, shortcut capture, dotool diagnostics
 ```
 
@@ -66,16 +69,24 @@ The two halves run in **different processes** that load different libraries. Imp
 - **No comments** unless the reason genuinely cannot live in the code, usually an external constraint such as a protocol quirk or a shell API that changed shape between versions.
 - **Alphabetical order** for fields, imports, keys and options where the order carries no meaning.
 - **Full-length flags** in shell code and recipes: `--recursive`, not `-r`.
+- **The panel is a GNOME popover.** `.popup-menu-content`, `.button`, `.icon-button` and `.screen-recording-indicator` make it follow whatever theme, accent colour and contrast setting the user has, including a User Theme, and it should be indistinguishable from the shell's own popovers. Set size and spacing in `src/stylesheet.css`; never a colour, a corner, a border or a shadow, and never override padding the theme sets.
+- **The `@girs` types lag the shell.** They describe an API that may no longer exist, so a shell API change type-checks and then throws at runtime: `addChrome`'s `affectsInputRegion` is declared for GNOME 50 and was removed from it. Check anything shell-side against the shell's own JavaScript, and run it.
 
 ## Testing a change
 
-`just test` covers the changelog parser, because that one decides what gets published. Everything else is the compositor, and the interesting failures are all in the interaction. Before opening a pull request that touches recording or insertion, try it in `just dev` and then in a real session against, at minimum:
+`just test` covers the changelog parser, because that one decides what gets published.
+
+`just test-shell` covers the panel, by building it inside a throwaway headless GNOME Shell and clicking it with a real pointer. Run it after anything under `src/lib/shell/`; [`scripts/shell-test/README.md`](scripts/shell-test/README.md) explains why it needs a whole compositor, and why a synthetic click that never lands makes for a test that cannot fail. It is not in CI, because a runner has no GNOME Shell.
+
+Everything past that is the compositor, and the interesting failures are all in the interaction. Before opening a pull request that touches recording or insertion, try it in `just dev` and then in a real session against, at minimum:
 
 - a GTK application, for an ordinary field,
 - a terminal, for a client that reports one big text field,
 - a web-based terminal such as the one in VS Code, which only reads key events,
 - the desktop with nothing focused, for the clipboard path,
-- `Esc` mid-recording, and both `Enter` and `Ctrl+Enter`.
+- `Esc` mid-recording, and both `Enter` and `Ctrl+Enter`,
+- clicking anywhere outside the panel mid-recording, which must collapse it and hand the keyboard back, whether or not you changed application,
+- a fullscreen window, which the panel has to be visible over.
 
 `journalctl --user --follow /usr/bin/gnome-shell | grep --ignore-case murmur` shows what the extension reports.
 

@@ -21,7 +21,7 @@ export function makeShortcutRow(
     window: Adw.PreferencesWindow, settings: Gio.Settings): Adw.ActionRow {
     const row = new Adw.ActionRow({
         title: _('Recording shortcut'),
-        subtitle: _('Opens the overlay, then stops and inserts the transcription'),
+        subtitle: _('Opens the recording panel, then stops and inserts the transcription'),
     });
 
     const label = new Gtk.ShortcutLabel({

@@ -33,11 +33,22 @@ The delay does not slow down the finish: when you stop, Murmur waits for the tai
 
 ### Recording shortcut
 
-Opens the overlay and starts recording, then stops and delivers, the same as `Enter`. `Super+Space` by default.
+Opens the panel and starts recording, then stops and delivers, the same as `Enter`. `Super+Space` by default. It is a system shortcut, so it works whatever is focused, including while the panel is collapsed.
+
+### Show the panel when recording starts
+
+Whether a recording opens the panel or begins collapsed. On by default.
+
+| | |
+| --- | --- |
+| **On** | The panel opens at the bottom of the screen and holds the keyboard, so `Enter`, `Ctrl+Enter`, `Esc` and the scrolling keys control the recording straight away |
+| **Off** | Nothing is drawn over your work. Only the recording indicator appears in the top bar; click it when you want to see the transcription |
+
+Either way the rule is the same once a recording is running: the panel is on screen exactly while it holds the keyboard. Looking anywhere else collapses it to the top-bar indicator, and clicking that indicator brings it back with the keyboard.
 
 ### Maximum recording time
 
-Seconds after which a recording ends on its own and delivers what it has. 600 by default, between 15 and 1800. This is a safety net for a recording you walked away from, not a way to keep dictations short.
+Seconds after which a recording ends on its own and delivers what it has. 600 by default, between 15 and 1800. This is a safety net for a recording you walked away from, not a way to keep dictations short. The countdown shows in the panel and in the top-bar indicator.
 
 ### Stop after silence
 
@@ -66,6 +77,7 @@ Every setting is a GSettings key under `org.gnome.shell.extensions.murmur`, whic
 ```bash
 gsettings set org.gnome.shell.extensions.murmur mistral-api-key "$(cat ~/.secrets/mistral)"
 gsettings set org.gnome.shell.extensions.murmur toggle-recording "['<Super>space']"
+gsettings set org.gnome.shell.extensions.murmur show-panel-on-start false
 gsettings set org.gnome.shell.extensions.murmur transcription-delay-ms 500
 gsettings set org.gnome.shell.extensions.murmur max-recording-seconds 120
 gsettings set org.gnome.shell.extensions.murmur silence-timeout-seconds 3
@@ -76,6 +88,7 @@ gsettings set org.gnome.shell.extensions.murmur typing-speed 500
 | --- | --- | --- | --- |
 | `max-recording-seconds` | integer | 600 | 15 to 1800 |
 | `mistral-api-key` | string | empty | |
+| `show-panel-on-start` | boolean | `true` | |
 | `silence-timeout-seconds` | integer | 0 | 0 to 30 |
 | `toggle-recording` | string list | `['<Super>space']` | |
 | `transcription-delay-ms` | integer | 2400 | 240 to 2400 |

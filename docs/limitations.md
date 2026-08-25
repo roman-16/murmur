@@ -26,13 +26,15 @@ Detection is positive evidence only. Murmur can prove a text field exists, never
 
 X11 applications report their fields through ibus, which Murmur learns about from events rather than by asking. Until the first focus change after the extension starts, it has heard nothing, so a field that already had focus reads as no field and the transcription goes to the clipboard. Clicking into the field once settles it for the rest of the session.
 
+## The panel is not a window
+
+A GNOME Shell extension runs inside the compositor, so it has no client to hand the window manager and everything it draws is shell chrome. The recording panel therefore cannot be alt-tabbed to, minimised, dragged, or pushed behind an application: chrome is always drawn above windows.
+
+What it does instead is get out of the way. Clicking anything else collapses the panel, leaving the recording indicator and its countdown in the top bar, and clicking that indicator brings the panel back. A window pushed behind a maximised application would show you nothing at all; the top bar keeps the recording in sight.
+
 ## The virtual keyboard is limited to your layout
 
 Without dotool, the typing path can only produce characters that exist on your current keyboard layout. Typographic quotes, dashes and non-breaking spaces are rewritten to plain equivalents; emoji and other scripts are dropped. dotool removes the limit entirely.
-
-## The destination is decided once
-
-Murmur decides where the text goes when you press the shortcut, announces it, and honours that decision. It does not re-check afterwards, because the overlay's promise should hold and because an application can be slow to take its focus back. If something steals focus mid-recording, press `Esc`.
 
 ## No editing, no commands, no punctuation by voice
 
@@ -42,6 +44,6 @@ Murmur transcribes and inserts. It has no vocabulary for "delete that", no dicta
 
 There is no language setting. Voxtral detects the language from what it hears, which works well for a single language and less well when you switch mid-sentence.
 
-## The overlay takes over the keyboard
+## Only one key is guaranteed to reach Murmur
 
-While recording, the overlay is modal: your keystrokes go to it, not to the application underneath. That is what makes `Enter`, `Ctrl+Enter` and `Esc` work without stealing them from anything, and it is why you cannot click into a different field while a recording is running.
+`Enter`, `Ctrl+Enter` and `Esc` reach the panel only while it is on screen, and looking anywhere else collapses it. That is the point, but it means the recording shortcut is the only key that always works. To cancel a recording you have clicked away from, click the top-bar indicator to bring the panel back, then `Esc` or its ✕.

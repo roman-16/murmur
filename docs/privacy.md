@@ -4,7 +4,7 @@ Murmur transcribes in the cloud. That is a real trade-off, and this page states 
 
 ## What leaves your machine
 
-**Your voice, while you are recording.** From the moment the overlay opens until the recording ends, raw audio is streamed to `api.mistral.ai` over an encrypted WebSocket, along with your API key in the `Authorization` header. That is the only network connection Murmur makes.
+**Your voice, while you are recording.** From the moment the panel opens until the recording ends, raw audio is streamed to `api.mistral.ai` over an encrypted WebSocket, along with your API key in the `Authorization` header. That is the only network connection Murmur makes.
 
 That is also everything. No usage statistics, no crash reports, no analytics, no update checks. Murmur contacts one host, and only while you are speaking to it.
 
@@ -19,13 +19,13 @@ What happens to that audio afterwards is Mistral's business, governed by their t
 | The transcription | Nowhere | It exists in memory, is delivered, and is gone |
 | The audio | Nowhere | It is streamed from the microphone to the socket and never written to disk |
 
-There is no history, no cache and no log of what you dictated. Closing the overlay is the end of it.
+There is no history, no cache and no log of what you dictated. Closing the panel is the end of it.
 
 An API key in dconf is the same protection GNOME gives every other setting, which is to say it protects you from other users on the machine and not from software running as you. GNOME extensions have no access to the system keyring, so this is the honest limit rather than a choice.
 
 ## The clipboard
 
-When there is no text field to insert into, the transcription is placed on the clipboard, which replaces whatever was there. This only happens on the path the overlay announced, and a message confirms it. If you use a clipboard manager, the transcription lands in its history like anything else you copy.
+When there is no text field to insert into, the transcription is placed on the clipboard, which replaces whatever was there. The panel names that destination while you speak and confirms it before closing. If you use a clipboard manager, the transcription lands in its history like anything else you copy.
 
 Passwords dictated into a password field are typed, never copied. See [Where the text goes](text-insertion.md).
 

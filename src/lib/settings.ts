@@ -3,6 +3,7 @@ import type Gio from 'gi://Gio';
 export const Key = {
     apiKey: 'mistral-api-key',
     maxRecordingSeconds: 'max-recording-seconds',
+    showPanelOnStart: 'show-panel-on-start',
     silenceSeconds: 'silence-timeout-seconds',
     toggleRecording: 'toggle-recording',
     transcriptionDelayMs: 'transcription-delay-ms',
@@ -13,6 +14,7 @@ export type RecordingConfig = {
     apiKey: string;
     delayMs: number;
     maxSeconds: number;
+    showPanel: boolean;
     silenceSeconds: number;
     typingSpeed: number;
 };
@@ -22,6 +24,7 @@ export function readRecordingConfig(settings: Gio.Settings): RecordingConfig {
         apiKey: settings.get_string(Key.apiKey),
         delayMs: settings.get_int(Key.transcriptionDelayMs),
         maxSeconds: settings.get_int(Key.maxRecordingSeconds),
+        showPanel: settings.get_boolean(Key.showPanelOnStart),
         silenceSeconds: settings.get_int(Key.silenceSeconds),
         typingSpeed: settings.get_int(Key.typingSpeed),
     };

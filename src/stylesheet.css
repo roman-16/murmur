@@ -1,10 +1,18 @@
-.murmur-overlay .modal-dialog-content-box {
-  max-width: 34em;
+/* The card, its buttons and the top bar indicator wear GNOME's own style
+   classes, so their colours, corners, borders, shadows and padding are
+   whichever theme is installed: the panel is a GNOME popover that happens to
+   contain a transcription. Only size, spacing and the red that means
+   "recording" are set here. Dimming is opacity rather than a colour, so it
+   holds in a light theme as well as a dark one. */
+
+.murmur-panel {
+  margin-bottom: 3em;
+  width: 30em;
 }
 
-.murmur-header {
-  spacing: 12px;
-  width: 34em;
+.murmur-head {
+  padding: 0 10px 2px 10px;
+  spacing: 9px;
 }
 
 .murmur-status {
@@ -13,31 +21,50 @@
 
 .murmur-countdown {
   font-feature-settings: "tnum";
-  font-weight: bold;
+  opacity: 0.7;
+}
+
+.murmur-recording-dot {
+  background-color: #c01c28;
+  border-radius: 99px;
+  height: 9px;
+  width: 9px;
 }
 
 .murmur-scroll {
-  -st-vfade-offset: 2em;
-  max-height: 24em;
-  max-width: 34em;
-  min-height: 5em;
-  width: 34em;
+  -st-vfade-offset: 1em;
+  max-height: 8em;
+  min-height: 4.2em;
+  padding: 2px 10px 4px 10px;
 }
 
 .murmur-text {
-  font-size: 1.2em;
-  padding: 10px 0;
+  font-size: 1.05em;
 }
 
 .murmur-destination {
   font-size: 0.9em;
-  font-weight: bold;
-  opacity: 0.85;
-  padding-top: 4px;
-  width: 34em;
+  opacity: 0.75;
+  padding: 0 10px 2px 10px;
+  spacing: 7px;
+}
+
+.murmur-separator {
+  margin: 4px 10px 2px 10px;
+}
+
+.murmur-actions {
+  padding: 4px 4px 0 4px;
+  spacing: 6px;
 }
 
 .murmur-hint {
-  font-size: 0.9em;
-  opacity: 0.7;
+  font-size: 0.85em;
+  opacity: 0.55;
+  padding: 6px 10px 2px 10px;
+}
+
+.murmur-result {
+  padding: 4px 10px;
+  spacing: 9px;
 }

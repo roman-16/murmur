@@ -15,9 +15,10 @@
 
 Press `Super+Space`, say what you mean, and the words appear where your cursor already is: in a browser, an editor, a chat box or a terminal. No window to switch to, no daemon in the background, and nothing to paste afterwards.
 
-- **It lands where you are looking.** Where there is a field, the transcription is typed into it, in any application, terminals included, with nothing pasted and your clipboard untouched.
-- **You watch it happen.** Audio streams to [Mistral Voxtral](https://mistral.ai) over a WebSocket while you speak, and the text appears in the overlay as it arrives, with a countdown and an optional hands-free stop after silence.
-- **Nothing is ever lost.** If no text field is focused, Murmur says so before you speak and copies the transcription to the clipboard instead of firing a sentence worth of keystrokes at whatever happens to be in front.
+- **You keep working while it listens.** A small panel appears at the bottom of the screen; it takes nothing over. Look anywhere else - another window, the overview, the window you were already in - and it collapses by itself, leaving a recording indicator with the countdown in the top bar. It is on screen exactly while it has your keyboard, so it is never in the way and never swallowing keys.
+- **It lands where you are looking.** Where there is a field, the transcription is typed into it, in any application, terminals included, with nothing pasted and your clipboard untouched. Which field is decided when you stop, so you can go and find it while you talk.
+- **You watch it happen.** Audio streams to [Mistral Voxtral](https://mistral.ai) over a WebSocket while you speak, and the text appears in the panel as it arrives, with a countdown and an optional hands-free stop after silence.
+- **Nothing is ever lost.** If no text field is focused when you stop, Murmur copies the transcription to the clipboard instead of firing a sentence worth of keystrokes at whatever happens to be in front.
 
 ## Install
 
@@ -45,23 +46,25 @@ That is the whole setup. Put the cursor where the words belong, press `Super+Spa
 
 | Key | What it does |
 | --- | --- |
-| `Super+Space` | Start recording, and stop it the same way `Enter` does |
+| `Super+Space` | Start recording, and stop it the same way `Enter` does. Works from anywhere, always |
 | `Enter` | Stop and deliver the transcription |
 | `Ctrl+Enter` | Stop and copy to the clipboard |
 | `Esc` | Cancel, insert nothing, copy nothing |
+
+`Enter`, `Ctrl+Enter` and `Esc` reach the panel while it is on screen, which is exactly while it holds the keyboard. Look anywhere else and both go at once: the keyboard is yours again and the panel collapses to the top bar. `Super+Space` is a system shortcut and works either way.
 
 → [Getting started](docs/getting-started.md)
 
 ## Where your text goes
 
-Murmur checks whether anything can actually receive text **before** it starts recording, and the overlay says so for the whole recording, so the destination is never a surprise at the end.
+Murmur asks where the words go **at the moment you stop**, and the panel names the destination the whole time you are speaking, so it is never a surprise at the end.
 
-| What Murmur sees | What it does |
+| What Murmur sees when you stop | What it does |
 | --- | --- |
 | An application with a focused field | Types the transcription into it with [dotool](docs/text-insertion.md#dotool), or the shell's virtual keyboard when dotool is unavailable |
 | Nothing that can take text | Copies it to the clipboard and says so, rather than turning your sentence into keyboard shortcuts |
 
-The overlay says which it will be for the whole recording, so it is never a surprise at the end. `Ctrl+Enter` copies instead, whatever it says, for when the words belong somewhere other than the field in front of you.
+Because the question is asked at the end, you can start talking anywhere and click into the right field while you speak. `Ctrl+Enter` copies instead, whatever the panel says, for when the words belong somewhere other than the field in front of you.
 
 Want to know whether an application is recognised? Turn on GNOME's on-screen keyboard and click into the field. If it pops up, Murmur sees that field too, because both read the same signal. → [Where the text goes](docs/text-insertion.md)
 
@@ -88,6 +91,7 @@ The transcription is never written to disk and the audio never touches it either
 
 - **A terminal is one big text field.** It tells the compositor it accepts text whenever it is focused and nothing finer, so Murmur will happily deliver a sentence to vim in normal mode.
 - **Dictation is billed to your key.** Murmur sends only what it records, and the ten-minute cap keeps a forgotten recording from running away.
+- **The panel is not a window.** It cannot be alt-tabbed or pushed behind an application, because a GNOME Shell extension draws inside the compositor rather than opening a window. Clicking anything else collapses it to the top bar instead, which a window behind a maximised application could not do.
 - **Wayland only.** XWayland applications inside a Wayland session are fine; an X11 session is not.
 - **dotool is recommended.** Without it the fallback keyboard can only produce characters from your current layout, so emoji and other scripts are dropped.
 - **Passwords are typed, never copied.** A password field is still a text field, so nothing lands on the clipboard.

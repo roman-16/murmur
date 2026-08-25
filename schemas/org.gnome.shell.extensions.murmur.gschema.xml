@@ -12,6 +12,11 @@
       <summary>Mistral API key</summary>
       <description>API key used to authenticate with the Mistral Voxtral realtime transcription endpoint.</description>
     </key>
+    <key name="show-panel-on-start" type="b">
+      <default>true</default>
+      <summary>Show the panel when recording starts</summary>
+      <description>Whether a recording opens the panel, which then holds the keyboard so that Enter, Ctrl+Enter and Esc control it. When off, a recording starts collapsed to the indicator in the top bar and nothing is drawn over your work.</description>
+    </key>
     <key name="silence-timeout-seconds" type="i">
       <default>0</default>
       <range min="0" max="30"/>
@@ -21,7 +26,7 @@
     <key name="toggle-recording" type="as">
       <default><![CDATA[['<Super>space']]]></default>
       <summary>Toggle recording</summary>
-      <description>Shortcut that opens the recording overlay, then stops recording and inserts the transcription.</description>
+      <description>Shortcut that opens the recording panel, then stops recording and inserts the transcription.</description>
     </key>
     <key name="transcription-delay-ms" type="i">
       <default>2400</default>

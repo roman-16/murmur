@@ -14,7 +14,7 @@ There is no key in the settings. See [Getting started](getting-started.md).
 
 Murmur records with `pw-record`, which ships with PipeWire. Install your distribution's PipeWire tools package (`pipewire` on most, `pipewire-utils` or similar on some) and try again.
 
-## The overlay opens but no text appears
+## The panel opens but no text appears
 
 - **Check the microphone.** *Settings → Sound → Input* should show the level moving while you speak. Murmur records from the default input device.
 - **Check the key.** An invalid or expired key surfaces as an error notification when the socket closes.
@@ -22,7 +22,9 @@ Murmur records with `pw-record`, which ships with PipeWire. Install your distrib
 
 ## It copied to the clipboard when I expected typing
 
-Murmur did not see a focused text field. Either nothing was focused, or the application does not report its fields to the compositor.
+Murmur did not see a focused text field **at the moment you stopped**. Either nothing was focused, or the application does not report its fields to the compositor. The panel names the destination while you speak, so this is visible before you stop.
+
+One case worth knowing: if you left the recording panel holding the keyboard and never clicked into a field, whatever was focused when you pressed the shortcut is still the destination. Clicking the desktop, or closing the window you were in, leaves nothing to type into.
 
 - To find out whether the application reports at all, turn on *Settings → Accessibility → Screen Keyboard* and click into the field. If GNOME's own keyboard does not appear either, the application is not reporting, and Murmur cannot know.
 - Electron applications under XWayland are the usual case. On NixOS, `NIXOS_OZONE_WL=1` moves them to Wayland; elsewhere `--ozone-platform-hint=auto` does the same.
@@ -31,7 +33,13 @@ See [Where the text goes](text-insertion.md).
 
 ## It typed into the wrong place
 
-The destination is decided when you press the shortcut, and the text is delivered to whatever holds the focus when the overlay closes. Clicking into another window during a recording is not possible, since the overlay is modal, but an application that steals focus by itself can move the target. Press `Esc` and dictate again.
+The text goes wherever a text field is focused **when you stop**, which is what lets you click into the right field while speaking. It also means an application that takes focus by itself near the end can take the transcription. The panel names the destination the whole time; if it says the wrong thing, click into the field you want before stopping, or use `Ctrl+Enter` to copy instead.
+
+## The panel disappeared while I was still recording
+
+It collapsed, which it does the moment you look anywhere else: another window, the window you were already in, the overview, alt-tab. The panel is on screen exactly while it holds your keyboard, so that it is never both visible and ignoring you.
+
+The recording is still running. The indicator with the countdown is in the top bar; click it to bring the panel back, or press the recording shortcut to stop and deliver.
 
 ## Characters are dropped, doubled or reordered
 

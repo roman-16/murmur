@@ -1,6 +1,6 @@
 # Where the text goes
 
-Murmur asks one question before it starts recording: **can anything on screen receive text right now?** The answer decides where the transcription goes, and the overlay states it for the whole recording.
+Murmur asks one question the moment you stop: **can anything on screen receive text right now?** The answer decides where the transcription goes, and the panel states the current answer for the whole recording.
 
 ## The decision
 
@@ -12,7 +12,9 @@ Applications tell the compositor when a text field takes focus, because that is 
 | An X11 client focused an ibus input context | A field is focused, and it has to be typed into |
 | Nothing at all | There is nowhere to put text |
 
-The check runs when you press the shortcut, before the overlay opens. It has to: the overlay takes the keyboard from the application, which ends the application's text-input focus for as long as it is up. Deciding early also means the overlay can tell you the destination before you speak.
+The check runs when the recording ends, and the panel shows the current answer while you speak, updating as you click around. It can, because the panel never takes an application's text-input focus away: it borrows the keyboard from the compositor's stage rather than from the window, so the window stays focused as far as the application is concerned.
+
+So you can press the shortcut anywhere, start talking, and go and click into the field the words belong in while you are still speaking.
 
 **A quick way to check any application yourself:** turn on *Settings → Accessibility → Screen Keyboard* and click into the field. If GNOME's on-screen keyboard appears, that field is one Murmur recognises, because both read the same signal.
 
@@ -20,14 +22,14 @@ The check runs when you press the shortcut, before the overlay opens. It has to:
 
 | Path | When | What happens |
 | --- | --- | --- |
-| **Typing** | Something has a focused field | Keystrokes are synthesized with [dotool](#dotool), or with the shell's virtual keyboard if dotool is unavailable |
-| **Clipboard** | Nothing has a focused field | The text is copied to the clipboard and a message says so. Nothing is typed, so a stray transcription cannot trigger shortcuts in whatever happens to be focused |
+| **Typing** | Something has a focused field when you stop | Keystrokes are synthesized with [dotool](#dotool), or with the shell's virtual keyboard if dotool is unavailable |
+| **Clipboard** | Nothing has a focused field when you stop | The text is copied to the clipboard and the panel says so before closing. Nothing is typed, so a stray transcription cannot trigger shortcuts in whatever happens to be focused |
 
 Text arrives as keystrokes because that is the one thing every application that accepts a keyboard understands. Handing the whole transcription over through the compositor's input method instead would be faster and exact, but a client is free to accept it and do nothing with it, and nothing in the protocol reports back: web-based terminals such as the one in VS Code read only key events, so a transcription delivered that way disappears without a trace. Keystrokes cannot go missing that quietly.
 
 The clipboard path is the reason the feature exists. Typing into an application with no text field does not lose the words quietly, it presses keys: in Files that starts a search, on a web page it fires single-key shortcuts, in a mail client it can archive or delete. Murmur refuses to gamble and hands you the text instead.
 
-**`Ctrl+Enter` always copies**, whatever the overlay says it would do. Use it when the words are meant for somewhere other than the field in front of you, or when you want to keep them rather than place them.
+**`Ctrl+Enter` always copies**, whatever the panel says it would do, as does the panel's **Copy** button. Use it when the words are meant for somewhere other than the field in front of you, or when you want to keep them rather than place them.
 
 ## Which applications are recognised
 
@@ -61,7 +63,7 @@ The preferences show a live status row with a refresh button, which names exactl
 
 Optionally run the `dotoold` daemon, which makes typing faster. In daemon mode dotool reads the keyboard layout from the daemon's own environment rather than from Murmur, so start it with `DOTOOL_XKB_LAYOUT` (and `DOTOOL_XKB_VARIANT`) set to match your layout.
 
-Without dotool, typing falls back to the shell's virtual keyboard, which can only produce characters that exist on your **current keyboard layout**. Murmur rewrites typographic quotes, dashes and non-breaking spaces to plain equivalents for that path; anything else outside your layout, such as emoji or another script, is dropped. This is the one path where the text you get can differ from the text you saw in the overlay.
+Without dotool, typing falls back to the shell's virtual keyboard, which can only produce characters that exist on your **current keyboard layout**. Murmur rewrites typographic quotes, dashes and non-breaking spaces to plain equivalents for that path; anything else outside your layout, such as emoji or another script, is dropped. This is the one path where the text you get can differ from the text you saw in the panel.
 
 ## Passwords
 

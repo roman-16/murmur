@@ -7,14 +7,17 @@ Push-to-talk dictation for GNOME on Wayland: TypeScript in `src/`, compiled to p
 | After a change to | Run | What it covers |
 | --- | --- | --- |
 | anything under `src/` | `just lint` | `oxlint`, `tsc --noEmit` against the GNOME Shell type definitions, the process boundary between the shell and the preferences, and the changelog |
+| anything under `src/lib/shell/` | `just test-shell` | The panel, built inside a throwaway headless GNOME Shell and clicked with a real pointer. Takes about half a minute and touches nothing in the session |
 | `CHANGELOG.md`, or anything under `scripts/` | `just test` | The parser that decides what gets published, over its rules and the repository's own changelog |
 | the packaging, or the files the extension ships | `nix build` | The extension builds from the flake and installs the layout GNOME Shell loads |
 
 Fix every finding before the work counts as done.
 
+The shell half is only really checked by running it. `tsc` type-checks against definitions that lag the shell, so an API that no longer exists still passes; and a synthetic click that never lands makes a test that cannot fail. When adding a check to `scripts/shell-test/`, break the code on purpose first and watch it fail.
+
 ## The demo is the user's to run
 
-**Never run `just demo`.** It films a nested GNOME Shell, and a window that is covered while it films paints only rarely, which the take records as frozen frames, so a run started from this session comes out truncated. Say that `assets/demo.webp` needs re-recording and ask the user to run `just demo` with the nested window left visible. Then check what came back: around 60 frames or more, the overlay's countdown starting at the current **Maximum recording time**, and a last frame with the sentence typed into the editor.
+**Never run `just demo`.** It films a nested GNOME Shell, and a window that is covered while it films paints only rarely, which the take records as frozen frames, so a run started from this session comes out truncated. Say that `assets/demo.webp` needs re-recording and ask the user to run `just demo` with the nested window left visible. Then check what came back: around 60 frames or more, the panel's countdown starting at the current **Maximum recording time**, and a last frame with the sentence typed into the editor.
 
 ## The changelog is the release button
 

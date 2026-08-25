@@ -31,6 +31,6 @@ Murmur runs **inside the GNOME Shell process**, so a flaw here is a flaw in the 
 
 - **The API key is stored unencrypted in dconf.** This is documented in [Privacy](docs/privacy.md). GNOME extensions have no access to the system keyring, so every setting, including this one, is readable by anything running as your user. That is the platform, not a defect.
 - **Audio is sent to Mistral.** That is what the extension does. Their handling of it is governed by your agreement with them.
-- **The transcription is placed on the clipboard** when no text field is focused, where a clipboard manager may keep it. This path is announced in the overlay before you speak, and `Ctrl+Enter` takes it deliberately.
+- **The transcription is placed on the clipboard** when no text field is focused, where a clipboard manager may keep it. The panel names that destination while you speak, and `Ctrl+Enter` takes it deliberately.
 - **`/dev/uinput` access for dotool.** Granting it is a deliberate local decision, and its consequences belong to dotool.
 - Vulnerabilities in GNOME Shell, mutter, PipeWire, dotool or the Mistral API themselves. Report those upstream; if Murmur can mitigate one, say so here as well.

@@ -6,33 +6,28 @@ import Shell from 'gi://Shell';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-import {sleep} from './lib/async.js';
 import {errorMessage} from './lib/errors.js';
 import {Key, readAccelerator, readRecordingConfig} from './lib/settings.js';
-import {parseAccelerator} from './lib/shell/accelerator.js';
+import {acceleratorLabel} from './lib/shell/accelerator.js';
 import {copyText} from './lib/shell/clipboard.js';
 import {FocusTracker, type Destination} from './lib/shell/focus.js';
+import {RecordingIndicator} from './lib/shell/indicator.js';
 import {insertText, typingPace, type Pace} from './lib/shell/insertion.js';
-import {MurmurOverlay} from './lib/shell/overlay.js';
+import {MurmurPanel, type PanelAction} from './lib/shell/panel.js';
 import {Session} from './lib/shell/session.js';
-import {Toast} from './lib/shell/toast.js';
-
-// Focus only returns to the target field once the modal is gone, so wait for the
-// close animation before handing the text over.
-const FOCUS_RETURN_MS = 150;
 
 export default class MurmurExtension extends Extension {
     #cancellable: Gio.Cancellable | null = null;
+    #copyRequested = false;
     #countdownId = 0;
     #deadlineUs = 0;
-    #destination: Destination = 'field';
     #focusTracker: FocusTracker | null = null;
+    #indicator: RecordingIndicator | null = null;
     #keybindingId = 0;
-    #overlay: MurmurOverlay | null = null;
+    #panel: MurmurPanel | null = null;
     #session: Session | null = null;
     #settings: Gio.Settings | null = null;
     #settingsChangedId = 0;
-    #toast: Toast | null = null;
 
     enable(): void {
         const settings = this.getSettings();
@@ -55,10 +50,7 @@ export default class MurmurExtension extends Extension {
         this.#cancellable?.cancel();
         this.#cancellable = null;
         this.#session = null;
-        this.#overlay?.destroy();
-        this.#overlay = null;
-        this.#toast?.destroy();
-        this.#toast = null;
+        this.#closeUi();
         this.#focusTracker?.destroy();
         this.#focusTracker = null;
         this.#settings = null;
@@ -91,8 +83,12 @@ export default class MurmurExtension extends Extension {
     async dictate(): Promise<void> {
         const settings = this.#settings;
         const focusTracker = this.#focusTracker;
-        if (!settings || !focusTracker || this.#session)
+        if (!settings || !focusTracker)
             return;
+        if (this.#session) {
+            this.#stopRecording();
+            return;
+        }
 
         const config = readRecordingConfig(settings);
         if (!config.apiKey) {
@@ -100,26 +96,27 @@ export default class MurmurExtension extends Extension {
             return;
         }
 
-        const destination = focusTracker.capture();
-        this.#destination = destination;
+        this.#copyRequested = false;
 
-        const overlay = new MurmurOverlay();
-        overlay.destination = destination;
-        overlay.shortcut = parseAccelerator(readAccelerator(settings));
-        overlay.onCancel = () => this.#cancel();
-        overlay.onStop = destination => this.#stopRecording(destination);
-        if (!overlay.open()) {
-            overlay.destroy();
-            Main.notify('Murmur', 'Could not open the overlay');
-            return;
-        }
-        this.#overlay = overlay;
+        const panel = new MurmurPanel({collapsed: !config.showPanel});
+        panel.destination = focusTracker.current();
+        panel.shortcut = acceleratorLabel(readAccelerator(settings));
+        panel.onAction = action => this.#onPanelAction(action);
+        this.#panel = panel;
+
+        const indicator = new RecordingIndicator();
+        indicator.onToggle = () => panel.toggle();
+        this.#indicator = indicator;
+
+        focusTracker.onChanged = () => {
+            panel.destination = focusTracker.current();
+        };
 
         const cancellable = new Gio.Cancellable();
         this.#cancellable = cancellable;
         const session = new Session(config, {
             onPartial: text => {
-                overlay.transcript = text;
+                panel.transcript = text;
             },
             onSilence: () => this.#stopRecording(),
         }, cancellable);
@@ -128,20 +125,19 @@ export default class MurmurExtension extends Extension {
 
         try {
             const transcript = await session.run();
-            this.#closeOverlay();
-
-            if (transcript.trim()) {
-                const pace = typingPace(config.typingSpeed);
-                await this.#deliver(transcript, this.#destination, pace, cancellable);
-            }
+            const destination: Destination =
+                this.#copyRequested ? {kind: 'clipboard'} : focusTracker.current();
+            await this.#deliver(transcript, destination, typingPace(config.typingSpeed),
+                cancellable);
         } catch (error) {
-            this.#closeOverlay();
+            this.#closeUi();
             if (!cancellable.is_cancelled())
                 Main.notify('Murmur', `Error: ${errorMessage(error)}`);
         } finally {
             if (this.#session === session) {
                 this.#session = null;
                 this.#cancellable = null;
+                focusTracker.onChanged = null;
             }
         }
     }
@@ -149,43 +145,61 @@ export default class MurmurExtension extends Extension {
     async #deliver(
         transcript: string, destination: Destination, pace: Pace,
         cancellable: Gio.Cancellable): Promise<void> {
-        if (destination === 'clipboard') {
-            copyText(transcript);
-            this.#showToast('Transcription copied');
+        this.#clearCountdown();
+        this.#indicator?.destroy();
+        this.#indicator = null;
+        this.#panel?.releaseKeyboard();
+
+        if (!transcript.trim()) {
+            this.#closeUi();
             return;
         }
 
-        await sleep(FOCUS_RETURN_MS, cancellable);
+        if (destination.kind === 'clipboard') {
+            copyText(transcript);
+            // The panel fades itself out once the message has been read; the
+            // reference stays so that disabling the extension still tears it
+            // down, and destroying it twice is harmless.
+            this.#panel?.showResult('Copied to the clipboard');
+            return;
+        }
+
+        this.#closeUi();
         if (!cancellable.is_cancelled())
             await insertText(transcript, pace, cancellable);
     }
 
-    #showToast(message: string): void {
-        this.#toast?.destroy();
-        this.#toast = new Toast(message);
+    #onPanelAction(action: PanelAction): void {
+        if (action === 'cancel') {
+            this.#cancel();
+            return;
+        }
+        this.#copyRequested = action === 'copy';
+        this.#stopRecording();
     }
 
-    #stopRecording(destination: Destination = this.#destination): void {
+    #stopRecording(): void {
         if (!this.#session)
             return;
-        this.#destination = destination;
         this.#clearCountdown();
-        if (this.#overlay) {
-            this.#overlay.status = 'Finishing…';
-            this.#overlay.countdown = '';
+        if (this.#panel) {
+            this.#panel.status = 'Finishing…';
+            this.#panel.countdown = '';
         }
         this.#session.stop();
     }
 
     #cancel(): void {
         this.#cancellable?.cancel();
-        this.#closeOverlay();
+        this.#closeUi();
     }
 
-    #closeOverlay(): void {
+    #closeUi(): void {
         this.#clearCountdown();
-        this.#overlay?.close();
-        this.#overlay = null;
+        this.#indicator?.destroy();
+        this.#indicator = null;
+        this.#panel?.destroy();
+        this.#panel = null;
     }
 
     #startCountdown(maxSeconds: number): void {
@@ -196,8 +210,11 @@ export default class MurmurExtension extends Extension {
     #tick(): void {
         const remainingUs = this.#deadlineUs - GLib.get_monotonic_time();
         const remaining = Math.max(0, Math.ceil(remainingUs / 1000000));
-        if (this.#overlay)
-            this.#overlay.countdown = formatRemaining(remaining);
+        const text = formatRemaining(remaining);
+        if (this.#panel)
+            this.#panel.countdown = text;
+        if (this.#indicator)
+            this.#indicator.countdown = text;
 
         if (remaining <= 0) {
             this.#stopRecording();

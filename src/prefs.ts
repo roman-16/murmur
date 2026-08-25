@@ -49,6 +49,15 @@ function recordingGroup(
     const group = new Adw.PreferencesGroup({title: _('Recording')});
 
     group.add(makeShortcutRow(window, settings));
+
+    const panelRow = new Adw.SwitchRow({
+        title: _('Show the panel when recording starts'),
+        subtitle: _(
+            'Turn this off to start with only the recording indicator in the top bar, over nothing. Click the indicator to open the panel'),
+    });
+    settings.bind(Key.showPanelOnStart, panelRow, 'active', Gio.SettingsBindFlags.DEFAULT);
+    group.add(panelRow);
+
     group.add(makeSpinRow(settings, Key.maxRecordingSeconds, {
         title: _('Maximum recording time'),
         subtitle: _('Seconds after which recording stops on its own'),

@@ -95,6 +95,13 @@ tmp=$(mktemp --directory)
 # into the directory as it goes away, and that must not become the exit status.
 trap 'restore; rm --recursive --force "$tmp" 2>/dev/null || true' EXIT INT TERM
 
+# The desktop session runs ibus and tells its clients so; this one does not run
+# anything. A GTK client that cannot reach the input method it was pointed at
+# never enables the Wayland text-input protocol, so the compositor sees no text
+# field anywhere and Murmur believes there is nowhere to type. Unset, GTK speaks
+# text-input to the nested compositor directly.
+unset GTK_IM_MODULE QT_IM_MODULE QT_IM_MODULES XMODIFIERS
+
 export XDG_CACHE_HOME="$tmp/cache" XDG_CONFIG_HOME="$tmp/config" XDG_DATA_HOME="$tmp/data"
 extensions="$XDG_DATA_HOME/gnome-shell/extensions"
 mkdir --parents "$extensions"
