@@ -5,7 +5,7 @@ Murmur is a GNOME Shell extension, which means it runs inside the compositor its
 ## One dictation, start to finish
 
 1. **The shortcut fires.** `Super+Space` is a shell keybinding, active in the normal session and in the overview.
-2. **The panel opens** at the bottom of the screen, showing the status, a countdown, the destination, and the transcription as it arrives, alongside an indicator in the top bar. Nothing is grabbed: the panel is drawn as shell chrome and, unless it holds the keyboard, every click and keystroke goes where it would have anyway.
+2. **The panel opens** at the bottom of the monitor holding the focused window - the pointer's monitor when nothing is focused - clear of anything docked there, showing the status, a countdown, the destination, and the transcription as it arrives, alongside an indicator in the top bar. Nothing is grabbed: the panel is drawn as shell chrome and, unless it holds the keyboard, every click and keystroke goes where it would have anyway.
 3. **The microphone opens.** `pw-record` is spawned and writes raw audio to a pipe: 16 kHz, mono, signed 16-bit little-endian, read in 100 ms chunks.
 4. **A WebSocket opens** to `wss://api.mistral.ai/v1/audio/transcriptions/realtime`, authenticated with your API key, and the session announces the audio format and the transcription delay.
 5. **Audio streams up** as it is recorded, each chunk base64-encoded in a JSON message. Nothing is buffered to disk.

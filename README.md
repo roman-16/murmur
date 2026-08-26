@@ -15,7 +15,7 @@
 
 Press `Super+Space`, say what you mean, and the words appear where your cursor already is: in a browser, an editor, a chat box or a terminal. No window to switch to, no daemon in the background, and nothing to paste afterwards.
 
-- **You keep working while it listens.** A small panel appears at the bottom of the screen; it takes nothing over. Look anywhere else - another window, the overview, the window you were already in - and it collapses by itself, leaving a recording indicator with the countdown in the top bar. It is on screen exactly while it has your keyboard, so it is never in the way and never swallowing keys.
+- **You keep working while it listens.** A small panel appears at the bottom of the screen you are working on; it takes nothing over. Look anywhere else - another window, the overview, the window you were already in - and it collapses by itself, leaving a recording indicator with the countdown in the top bar. It is on screen exactly while it has your keyboard, so it is never in the way and never swallowing keys.
 - **It lands where you are looking.** Where there is a field, the transcription is typed into it, in any application, terminals included, with nothing pasted and your clipboard untouched. Which field is decided when you stop, so you can go and find it while you talk.
 - **You watch it happen.** Audio streams to [Mistral Voxtral](https://mistral.ai) over a WebSocket while you speak, and the text appears in the panel as it arrives, with a countdown and an optional hands-free stop after silence.
 - **Nothing is ever lost.** If no text field is focused when you stop, Murmur copies the transcription to the clipboard instead of firing a sentence worth of keystrokes at whatever happens to be in front.

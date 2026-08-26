@@ -19,7 +19,7 @@ export type PanelAction = 'cancel' | 'copy' | 'stop';
 // clears the moment any window is focused or anything in the shell takes over.
 // The panel is on screen exactly while it holds that focus, so every way of
 // looking somewhere else already collapses it and none of them is handled here.
-class Card extends St.Widget {
+class Card extends St.BoxLayout {
     static {
         GObject.registerClass({GTypeName: 'MurmurCard'}, this);
     }
@@ -29,7 +29,7 @@ class Card extends St.Widget {
     constructor() {
         super({
             can_focus: true,
-            layout_manager: new Clutter.BoxLayout({orientation: Clutter.Orientation.VERTICAL}),
+            orientation: Clutter.Orientation.VERTICAL,
             reactive: true,
             style_class: 'popup-menu-content murmur-panel',
         });
@@ -46,6 +46,7 @@ export class MurmurPanel {
     onAction: ((action: PanelAction) => void) | null = null;
 
     readonly #card: Card;
+    readonly #constraint: Layout.MonitorConstraint;
     readonly #container: St.Widget;
     readonly #countdown: St.Label;
     readonly #destinationIcon: St.Icon;
@@ -67,8 +68,8 @@ export class MurmurPanel {
         this.#card = new Card();
         this.#card.onKeyPress = event => this.#onKeyPress(event);
 
-        const head = new St.BoxLayout({style_class: 'murmur-head', x_expand: true});
-        head.add_child(new St.Widget({
+        const header = new St.BoxLayout({style_class: 'murmur-header', x_expand: true});
+        header.add_child(new St.Widget({
             style_class: 'murmur-recording-dot',
             y_align: Clutter.ActorAlign.CENTER,
         }));
@@ -77,17 +78,20 @@ export class MurmurPanel {
             text: 'Listening…',
             y_align: Clutter.ActorAlign.CENTER,
         });
-        head.add_child(this.#status);
-        head.add_child(new St.Widget({x_expand: true}));
+        header.add_child(this.#status);
+        header.add_child(new St.Widget({x_expand: true}));
         this.#countdown = new St.Label({
             style_class: 'murmur-countdown',
             text: '',
             y_align: Clutter.ActorAlign.CENTER,
         });
-        head.add_child(this.#countdown);
-        this.#card.add_child(head);
+        header.add_child(this.#countdown);
+        header.add_child(iconButton('go-down-symbolic', 'Collapse', () => this.collapse()));
+        header.add_child(
+            iconButton('window-close-symbolic', 'Cancel', () => this.onAction?.('cancel')));
+        this.#card.add_child(header);
 
-        this.#transcript = new St.Label({style_class: 'murmur-text', text: ''});
+        this.#transcript = new St.Label({text: ''});
         this.#transcript.clutter_text.line_wrap = true;
         this.#transcript.clutter_text.ellipsize = Pango.EllipsizeMode.NONE;
         const viewport = new St.Viewport({
@@ -106,17 +110,13 @@ export class MurmurPanel {
         this.#card.add_child(scroll);
 
         const destination = new St.BoxLayout({style_class: 'murmur-destination', x_expand: true});
-        this.#destinationIcon = new St.Icon({
-            icon_size: 14,
-            y_align: Clutter.ActorAlign.CENTER,
-        });
+        this.#destinationIcon = new St.Icon({y_align: Clutter.ActorAlign.CENTER});
         this.#destinationLabel = new St.Label({y_align: Clutter.ActorAlign.CENTER});
         this.#destinationLabel.clutter_text.line_wrap = true;
         destination.add_child(this.#destinationIcon);
         destination.add_child(this.#destinationLabel);
         this.#card.add_child(destination);
 
-        this.#card.add_child(separator());
         this.#card.add_child(this.#actions());
 
         this.#hint = new St.Label({style_class: 'murmur-hint'});
@@ -124,6 +124,10 @@ export class MurmurPanel {
         this.#card.add_child(this.#hint);
         this.#syncHint();
 
+        this.#constraint = new Layout.MonitorConstraint({
+            index: workingMonitorIndex(),
+            workArea: true,
+        });
         this.#container = new St.Widget({
             layout_manager: new Clutter.BinLayout(),
             opacity: 0,
@@ -132,7 +136,7 @@ export class MurmurPanel {
             y_align: Clutter.ActorAlign.END,
             y_expand: true,
         });
-        this.#container.add_constraint(new Layout.MonitorConstraint({primary: true}));
+        this.#container.add_constraint(this.#constraint);
         this.#container.add_child(this.#card);
 
         // Chrome sits above every window, so the input region has to be the card
@@ -216,7 +220,7 @@ export class MurmurPanel {
         if (!this.#collapsed)
             return;
         this.#collapsed = false;
-        this.#container.show();
+        this.#reveal();
         this.#card.grab_key_focus();
     }
 
@@ -242,14 +246,13 @@ export class MurmurPanel {
         this.#finished = true;
         this.releaseKeyboard();
         this.#collapsed = false;
-        this.#container.show();
+        this.#reveal();
         for (const child of this.#card.get_children())
             child.hide();
 
         const row = new St.BoxLayout({style_class: 'murmur-result', x_expand: true});
         row.add_child(new St.Icon({
             icon_name: 'object-select-symbolic',
-            icon_size: 15,
             y_align: Clutter.ActorAlign.CENTER,
         }));
         row.add_child(new St.Label({text: message, y_align: Clutter.ActorAlign.CENTER}));
@@ -267,38 +270,28 @@ export class MurmurPanel {
         });
     }
 
+    // The panel belongs on the screen being worked on, which is a question with
+    // a different answer every time it comes back.
+    #reveal(): void {
+        this.#constraint.index = workingMonitorIndex();
+        this.#container.show();
+    }
+
     #actions(): St.BoxLayout {
         const row = new St.BoxLayout({style_class: 'murmur-actions', x_expand: true});
-        row.add_child(this.#button('stop', {label: 'Stop', styleClass: 'button default'}));
-        row.add_child(this.#button('copy', {label: 'Copy', styleClass: 'button'}));
-        row.add_child(new St.Widget({x_expand: true}));
-        row.add_child(this.#button('cancel', {icon: 'window-close-symbolic', label: 'Cancel'}));
-        const collapse = new St.Button({
-            accessible_name: 'Collapse',
-            can_focus: true,
-            child: new St.Icon({icon_name: 'go-down-symbolic', icon_size: 14}),
-            style_class: 'icon-button',
-            y_align: Clutter.ActorAlign.CENTER,
-        });
-        collapse.connect('clicked', () => this.collapse());
-        row.add_child(collapse);
+        row.layout_manager.homogeneous = true;
+        row.add_child(this.#button('copy', 'Copy', 'button'));
+        row.add_child(this.#button('stop', 'Stop', 'button default'));
         return row;
     }
 
-    #button(
-        action: PanelAction,
-        options: {icon?: string; label: string; styleClass?: string}): St.Button {
+    #button(action: PanelAction, label: string, styleClass: string): St.Button {
         const button = new St.Button({
             can_focus: true,
-            style_class: options.styleClass ?? 'icon-button',
-            y_align: Clutter.ActorAlign.CENTER,
+            label,
+            style_class: styleClass,
+            x_expand: true,
         });
-        if (options.icon) {
-            button.accessible_name = options.label;
-            button.child = new St.Icon({icon_name: options.icon, icon_size: 14});
-        } else {
-            button.label = options.label;
-        }
         button.connect('clicked', () => this.onAction?.(action));
         return button;
     }
@@ -399,6 +392,25 @@ export class MurmurPanel {
     }
 }
 
+function iconButton(icon: string, label: string, onClick: () => void): St.Button {
+    const button = new St.Button({
+        accessible_name: label,
+        can_focus: true,
+        child: new St.Icon({icon_name: icon}),
+        style_class: 'icon-button',
+        y_align: Clutter.ActorAlign.CENTER,
+    });
+    button.connect('clicked', onClick);
+    return button;
+}
+
+// Read from mutter rather than from the stage's key focus the shell tracks,
+// which the panel itself takes: that answer would be the panel's own monitor.
+function workingMonitorIndex(): number {
+    const focused = global.display.focus_window?.get_monitor() ?? -1;
+    return focused >= 0 ? focused : global.display.get_current_monitor();
+}
+
 function hintText(shortcut: string): string {
     const keys = ['Enter types', 'Ctrl+Enter copies', 'Esc cancels'];
     if (shortcut)
@@ -410,18 +422,4 @@ function destinationText(destination: Destination): string {
     if (destination.kind === 'clipboard')
         return 'No text field focused · copies to the clipboard';
     return destination.app ? `Types into ${destination.app}` : 'Types into the focused text field';
-}
-
-// The shell's own menu separator, so its colour is the theme's rather than one
-// chosen here that would be wrong in half of them.
-function separator(): St.Bin {
-    const bin = new St.Bin({
-        style_class: 'popup-separator-menu-item murmur-separator',
-        x_expand: true,
-    });
-    bin.child = new St.Widget({
-        style_class: 'popup-separator-menu-item-separator',
-        x_expand: true,
-    });
-    return bin;
 }

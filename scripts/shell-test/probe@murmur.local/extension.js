@@ -259,6 +259,7 @@ export default class Probe extends Extension {
         await this.#checkKeyboard();
         await this.#checkCollapse();
         await this.#checkDestination(FocusTracker, MurmurPanel);
+        await this.#checkPlacement(MurmurPanel);
         await this.#checkCollapsedStart(MurmurPanel);
         await this.#checkTeardown(RecordingIndicator);
         this.#checkExtensionCycle(murmur);
@@ -358,6 +359,65 @@ export default class Probe extends Extension {
             !this.#holdsKeyboard());
         this.#ok('clicking the already focused window collapses the panel',
             this.#panel.collapsed);
+    }
+
+    // The panel opens on the screen being worked on, and above whatever that
+    // screen reserves. Both are invisible on one monitor with nothing docked to
+    // it, so the session runs two screens and this puts a dock on the second.
+    async #checkPlacement(MurmurPanel) {
+        const STRUT_HEIGHT = 40;
+        const MARGIN_FLOOR = 40;
+        const monitor = Main.layoutManager.monitors[1];
+        if (!monitor || !this.#client) {
+            this.#fail('a second monitor and a client are available',
+                `monitors=${Main.layoutManager.monitors.length} client=${!!this.#client}`);
+            return;
+        }
+
+        this.#client.move_to_monitor(1);
+        this.#client.activate(global.get_current_time());
+        await this.#settle(800);
+        this.#ok('the window moved to the second monitor',
+            this.#client.get_monitor() === 1, `on ${this.#client.get_monitor()}`);
+
+        const dock = new St.Widget({
+            height: STRUT_HEIGHT,
+            width: monitor.width,
+            x: monitor.x,
+            y: monitor.y + monitor.height - STRUT_HEIGHT,
+        });
+        Main.layoutManager.addChrome(dock, {affectsStruts: true});
+        await this.#settle(800);
+
+        try {
+            const workArea = Main.layoutManager.getWorkAreaForMonitor(1);
+            this.#ok('the dock reserves space on the second monitor',
+                workArea.height === monitor.height - STRUT_HEIGHT,
+                `work area ${workArea.height} of ${monitor.height}`);
+
+            this.#panel?.destroy();
+            this.#panel = new MurmurPanel();
+            this.#panel.transcript = 'placed where the work is';
+            await this.#settle(600);
+
+            const card = this.#card();
+            const [x, y] = card?.get_transformed_position() ?? [-1, -1];
+            const [, height] = card?.get_transformed_size() ?? [0, 0];
+
+            this.#ok('the panel opens on the focused window\'s monitor',
+                x >= monitor.x && x < monitor.x + monitor.width,
+                `card at x=${x}, monitor spans ${monitor.x}..${monitor.x + monitor.width}`);
+
+            // Placed against the monitor instead of its work area, the card
+            // would end up inside the dock's 40 pixels rather than above them.
+            const gap = workArea.y + workArea.height - (y + height);
+            this.#ok('the panel clears what the second monitor reserves',
+                gap >= MARGIN_FLOOR, `${gap}px above the work area's bottom`);
+        } finally {
+            Main.layoutManager.removeChrome(dock);
+            dock.destroy();
+            await this.#settle(400);
+        }
     }
 
     // What "Show the panel when recording starts" turns off: a recording that

@@ -41,7 +41,7 @@ Whether a recording opens the panel or begins collapsed. On by default.
 
 | | |
 | --- | --- |
-| **On** | The panel opens at the bottom of the screen and holds the keyboard, so `Enter`, `Ctrl+Enter`, `Esc` and the scrolling keys control the recording straight away |
+| **On** | The panel opens at the bottom of the screen you are working on and holds the keyboard, so `Enter`, `Ctrl+Enter`, `Esc` and the scrolling keys control the recording straight away |
 | **Off** | Nothing is drawn over your work. Only the recording indicator appears in the top bar; click it when you want to see the transcription |
 
 Either way the rule is the same once a recording is running: the panel is on screen exactly while it holds the keyboard. Looking anywhere else collapses it to the top-bar indicator, and clicking that indicator brings it back with the keyboard.

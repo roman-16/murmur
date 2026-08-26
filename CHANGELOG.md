@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 Adding a version section here is what publishes a release, so this file is the one place a version is decided: see [Releasing](CONTRIBUTING.md#releasing). Versions that shipped before this file existed are on the [releases page](https://github.com/roman-16/murmur/releases).
 
+## [1.5.0] - 2026-08-26
+
+### Changed
+
+- The panel opens on the screen you are working on - the one whose window has focus, or the pointer's when nothing is focused - rather than always the primary monitor.
+- The panel keeps clear of a dock or panel along the bottom of the screen, sitting above the space they reserve instead of against the screen edge.
+- The panel's controls moved: collapse and cancel are the two buttons in its header, and Copy and Stop sit side by side along the bottom, with Stop, the one Enter presses, on the right.
+- The panel is roomier - a wider card, more space around everything in it and about four lines of transcription in view - and its spacing follows your text size rather than staying at fixed pixels.
+
 ## [1.4.0] - 2026-08-25
 
 ### Added

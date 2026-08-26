@@ -13,7 +13,7 @@ Paste the key into **Mistral API key**. That is the whole setup. Nothing else ha
 ## Dictate
 
 1. Put the cursor where the words should land, in any application.
-2. Press **Super+Space**. A panel appears at the bottom of the screen and recording starts.
+2. Press **Super+Space**. A panel appears at the bottom of the screen you are working on and recording starts.
 3. Speak. The transcription appears in the panel while you are still talking.
 4. Press **Enter** (or Super+Space again). The panel closes and the text is inserted.
 
@@ -37,6 +37,7 @@ The panel takes nothing over. While it is recording you can click into another w
 There is one rule, and everything else follows from it: **the panel is on screen exactly while it has your keyboard.**
 
 - **It opens with the keyboard**, so `Enter`, `Ctrl+Enter` and `Esc` work straight away.
+- **It opens where you are.** With more than one monitor, the panel appears on the one whose window has focus, and on the pointer's when nothing is focused. Move screens and bring it back, and it comes back on the new one.
 - **Look anywhere else and it collapses.** Click another window, click the window you were already in, press `Super` for the overview, alt-tab: the keyboard goes back where you sent it and the panel gets out of the way rather than sitting there swallowing keys.
 - **The recording carries on.** A red indicator with the countdown stays in the top bar; click it to bring the panel back, keyboard and all.
 - **Super+Space always stops**, collapsed or not.

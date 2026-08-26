@@ -46,7 +46,7 @@ nix build         # build the extension through the flake, as a Nix install does
 
 `just dev` boots a nested GNOME Shell with its own `XDG_DATA_HOME`, picks up `MISTRAL_API_KEY` from `.env`, and touches nothing in your real session. It also unsets `GTK_IM_MODULE`, because the desktop session points clients at ibus and the nested one runs none: a GTK client that cannot reach its input method never enables the Wayland text-input protocol, so every field in the nested session would look like no field and every dictation would go to the clipboard. It is the fastest way to try a change; a real session needs a log out and back in for every reload, because Wayland cannot restart the shell in place.
 
-Inside that session the shortcut is **`Super+M`**, set by `RECORDING_SHORTCUT` in `.env`, because a key combination belongs to one compositor: your own session matches `Super+Space` first and the nested shell never sees it. When a run does need the real combination, as the demo does, `scripts/nested-shell.sh` borrows it from your session and gives it back on exit.
+Inside that session the shortcut is **`Super+J`**, set by `RECORDING_SHORTCUT` in `.env`, because a key combination belongs to one compositor: your own session matches `Super+Space` first and the nested shell never sees it. When a run does need the real combination, as the demo does, `scripts/nested-shell.sh` borrows it from your session and gives it back on exit.
 
 ## How the code is arranged
 

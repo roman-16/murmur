@@ -4,7 +4,7 @@
 just test-shell
 ```
 
-Boots a throwaway, headless GNOME Shell, builds the recording panel inside it, clicks it with a real pointer, and reports what worked. It takes about half a minute, touches nothing in your session, and needs no key, no network and no microphone.
+Boots a throwaway, headless GNOME Shell with two screens, builds the recording panel inside it, clicks it with a real pointer, and reports what worked. It takes about half a minute, touches nothing in your session, and needs no key, no network and no microphone.
 
 `just test` covers the changelog parser, which is pure and fast. This covers the half of Murmur that only exists inside a compositor, where the interesting failures are: an actor that is drawn but cannot be clicked, a keyboard that is taken and never given back, chrome that outlives the recording.
 
@@ -34,6 +34,7 @@ The probe reaches Murmur's modules through `Main.extensionManager.lookup()`, so 
 - All four controls are hit-testable, and **clicking each one does something**.
 - Taking and releasing the keyboard shows on the panel, and clicking the panel takes it back.
 - The panel collapses both ways it should: when an application comes forward, and when it loses the keyboard it was holding.
+- The panel opens on the monitor holding the focused window, and above a dock that reserves space there. The session has a second screen for exactly this: on one monitor with nothing docked to it, placing the panel where the work is and always placing it on the primary are the same rule.
 - Destroying the panel leaves no chrome and no top-bar indicator, and destroying it twice is safe.
 - The extension survives being disabled and enabled.
 

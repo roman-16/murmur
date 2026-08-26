@@ -6,7 +6,7 @@ cd "$(dirname "$0")/.."
 uuid="murmur@roman-16.github.io"
 payload=${1:-}
 [ -z "$payload" ] || payload=$(realpath "$payload")
-shortcut=${RECORDING_SHORTCUT:-<Super>m}
+shortcut=${RECORDING_SHORTCUT:-<Super>j}
 
 # A devbox shell trims XDG_DATA_DIRS to its own profile, which leaves the nested
 # session unable to find, or D-Bus activate, any installed application. Take the
@@ -78,9 +78,12 @@ if [ -n "$schemas" ]; then
 fi
 
 # Headless has no window to occlude, and a compositor whose window is covered
-# stops painting, which a recording would capture as frozen frames.
+# stops painting, which a recording would capture as frozen frames. It gets two
+# screens, because a rule that places chrome on the screen being worked on and
+# one that always answers "the primary" are the same rule on a single monitor.
 if [ -n "${NESTED_HEADLESS:-}" ]; then
-    nested="gnome-shell --headless --virtual-monitor ${NESTED_SIZE:-1280x800}"
+    size=${NESTED_SIZE:-1280x800}
+    nested="gnome-shell --headless --virtual-monitor $size --virtual-monitor $size"
 elif gnome-shell --help-all 2>/dev/null | grep --quiet -- '--devkit'; then
     # The development kit replaced the nested mode in GNOME 49 and sizes its
     # own screen; the nested mode takes the size from the environment.
