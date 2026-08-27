@@ -7,9 +7,9 @@ Murmur is a GNOME Shell extension, which means it runs inside the compositor its
 1. **The shortcut fires.** `Super+Space` is a shell keybinding, active in the normal session and in the overview.
 2. **The panel opens** at the bottom of the monitor holding the focused window - the pointer's monitor when nothing is focused - clear of anything docked there, showing the status, a countdown, the destination, and the transcription as it arrives, alongside an indicator in the top bar. Nothing is grabbed: the panel is drawn as shell chrome and, unless it holds the keyboard, every click and keystroke goes where it would have anyway.
 3. **The microphone opens.** `pw-record` is spawned and writes raw audio to a pipe: 16 kHz, mono, signed 16-bit little-endian, read in 100 ms chunks.
-4. **A WebSocket opens** to `wss://api.mistral.ai/v1/audio/transcriptions/realtime`, authenticated with your API key, and the session announces the audio format and the transcription delay.
-5. **Audio streams up** as it is recorded, each chunk base64-encoded in a JSON message. Nothing is buffered to disk.
-6. **Text streams down** as `transcription.text.delta` events and appears in the panel immediately.
+4. **A WebSocket opens** to the service you chose, authenticated with your API key in a request header, and the session announces the audio format and whatever that service takes: the transcription delay, or the language and formatting mode.
+5. **Audio streams up** as it is recorded, each chunk base64-encoded in a JSON message. Nothing is buffered to disk. A service that has to finish its own setup first gets the chunks the moment it says it is ready, so no words are lost to the handshake.
+6. **Text streams down** and appears in the panel immediately.
 7. **You stop**, or silence or the time limit stops it for you. The microphone is released at once, and the connection stays open just long enough to collect the tail of the transcription.
 8. **The destination is read**, now rather than at the start: whichever client holds a focused text field at this moment. See [Where the text goes](text-insertion.md).
 9. **The panel releases the keyboard and closes**, and the text is delivered: typed into the focused field, or copied to the clipboard when there is none, which the panel says before it goes.
@@ -44,9 +44,11 @@ A GNOME extension runs in two places, and they share nothing but files on disk:
 
 Importing a shell type into the preferences, or a GTK type into the shell, crashes at load. `just lint` greps for exactly that and fails the build, so the boundary is enforced rather than remembered.
 
-## The realtime protocol
+## The realtime protocols
 
-Murmur speaks Mistral's realtime transcription protocol over a single WebSocket, with `voxtral-mini-transcribe-realtime-2602`.
+A transcription service is a WebSocket that eats raw audio and emits text, so each one is a single module that speaks its own protocol; everything else in Murmur - the microphone, the panel, the destination, the insertion - is the same either way.
+
+Mistral, with `voxtral-mini-transcribe-realtime-2602`, streams text to append:
 
 | Direction | Message | Meaning |
 | --- | --- | --- |
@@ -56,6 +58,28 @@ Murmur speaks Mistral's realtime transcription protocol over a single WebSocket,
 | Down | `transcription.text.delta` | More text, appended live |
 | Down | `transcription.done` | The final transcription |
 | Down | `error` | Reported to you as a notification |
+
+Gemini, with `gemini-3.5-transcribe-live`, streams guesses it later replaces:
+
+| Direction | Message | Meaning |
+| --- | --- | --- |
+| Up | `setup` | The model, text output, automatic language detection, whether to tidy up, and that the turns are Murmur's to declare |
+| Up | `realtimeInput.activityStart` | A dictation begins, sent with the first chunk of audio |
+| Up | `realtimeInput.audio` | One base64 chunk of PCM |
+| Up | `realtimeInput.activityEnd` | The microphone is done, so the turn is over |
+| Down | `setupComplete` | Audio may start |
+| Down | `serverContent.interimInputTranscription` | A guess at what is being said, revised as you carry on |
+| Down | `serverContent.inputTranscription` | A finalised segment, which supersedes the guess |
+| Down | `serverContent.generationComplete` | Generation finished; after the turn was closed, that is the transcription |
+
+Four details of that one are worth writing down, because every one of them is invisible until it bites.
+
+- **The turns are declared, not detected.** The service can find the edges of speech itself, and that is the arrangement its documentation recommends - but with its own detection left on, this endpoint accepts an entire dictation and transcribes none of it. Murmur knows when a dictation starts and stops anyway, so it says so: `activityStart` with the first chunk and `activityEnd` when the microphone closes.
+- **Half a sample is a fatal argument.** A read from the microphone can end between the two bytes of a 16-bit sample, and a chunk carrying that half closes the connection with `1007 Request contains an invalid argument`, however small or large the chunks otherwise are. The odd byte waits for the one that completes it.
+- **The JSON arrives in binary frames** as readily as in text ones, so the frame type says nothing about whether a message is for us.
+- **The handshake succeeds whatever the key is.** A key the service rejects arrives as a socket closing with `1007` and a reason of its own words, which is why a close before the microphone was released is reported as an error rather than an empty transcription.
+
+Both ends of a dictation are bounded, so neither the panel nor the microphone can wait on a service forever: the audio waits ten seconds for a session to be opened for it, and the transcription's tail five seconds after the microphone closes.
 
 ## Built from TypeScript
 

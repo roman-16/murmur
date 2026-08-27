@@ -7,9 +7,10 @@ import {
 } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
 import {makeDotoolStatusRow} from './lib/prefs/dotool-status.js';
-import {makeComboRow, makeSpinRow} from './lib/prefs/rows.js';
+import {makeChoiceRow, makePresetRow, makeSpinRow} from './lib/prefs/rows.js';
 import {makeShortcutRow} from './lib/prefs/shortcut.js';
-import {Key} from './lib/settings.js';
+import {Key, readProvider} from './lib/settings.js';
+import {PROVIDER_IDS, PROVIDERS, type ProviderId} from './lib/transcription/provider.js';
 
 const TYPING_SPEEDS = [50, 100, 250, 500, 1000, 2500];
 
@@ -18,6 +19,8 @@ export default class MurmurPreferences extends ExtensionPreferences {
         const settings = this.getSettings();
         const page = new Adw.PreferencesPage();
         page.add(transcriptionGroup(settings));
+        page.add(geminiGroup(settings));
+        page.add(mistralGroup(settings));
         page.add(recordingGroup(window, settings));
         page.add(insertionGroup(settings));
         window.add(page);
@@ -26,15 +29,35 @@ export default class MurmurPreferences extends ExtensionPreferences {
 
 function transcriptionGroup(settings: Gio.Settings): Adw.PreferencesGroup {
     const group = new Adw.PreferencesGroup({title: _('Transcription')});
+    group.add(makeChoiceRow(settings, Key.transcriptionProvider, {
+        title: _('Service'),
+        subtitle: _('Where Murmur sends your voice while you speak'),
+        choices: PROVIDER_IDS.map(id => ({label: PROVIDERS[id].label, value: id})),
+    }));
+    return group;
+}
 
-    const keyRow = new Adw.PasswordEntryRow({title: _('Mistral API key')});
-    settings.bind(Key.apiKey, keyRow, 'text', Gio.SettingsBindFlags.DEFAULT);
-    group.add(keyRow);
+function geminiGroup(settings: Gio.Settings): Adw.PreferencesGroup {
+    const group = providerGroup(settings, 'gemini');
+    group.add(apiKeyRow(settings, Key.geminiApiKey));
 
-    group.add(makeComboRow(settings, Key.transcriptionDelayMs, {
+    const smart = new Adw.SwitchRow({
+        title: _('Tidy up what I say'),
+        subtitle: _(
+            'Drops filler words, resolves spoken corrections, and formats lists and numbers. Off transcribes word for word'),
+    });
+    settings.bind(Key.geminiSmartTranscription, smart, 'active', Gio.SettingsBindFlags.DEFAULT);
+    group.add(smart);
+    return group;
+}
+
+function mistralGroup(settings: Gio.Settings): Adw.PreferencesGroup {
+    const group = providerGroup(settings, 'mistral');
+    group.add(apiKeyRow(settings, Key.mistralApiKey));
+    group.add(makePresetRow(settings, Key.transcriptionDelayMs, {
         title: _('Transcription delay'),
         subtitle: _('Longer delays give the model more context and better accuracy'),
-        choices: [
+        presets: [
             {value: 240, label: _('Instant (240 ms)')},
             {value: 500, label: _('Fast (500 ms)')},
             {value: 1000, label: _('Balanced (1 s)')},
@@ -42,6 +65,29 @@ function transcriptionGroup(settings: Gio.Settings): Adw.PreferencesGroup {
         ],
     }));
     return group;
+}
+
+// One group per service, and only the chosen one is on screen: a key and a
+// knob that belong to a service nobody selected are noise.
+function providerGroup(settings: Gio.Settings, id: ProviderId): Adw.PreferencesGroup {
+    const {keySource, label} = PROVIDERS[id];
+    const group = new Adw.PreferencesGroup({
+        description: _('Your key from %s').replace('%s', keySource),
+        title: label,
+    });
+
+    const sync = () => {
+        group.visible = readProvider(settings) === id;
+    };
+    sync();
+    settings.connect(`changed::${Key.transcriptionProvider}`, sync);
+    return group;
+}
+
+function apiKeyRow(settings: Gio.Settings, key: string): Adw.PasswordEntryRow {
+    const row = new Adw.PasswordEntryRow({title: _('API key')});
+    settings.bind(key, row, 'text', Gio.SettingsBindFlags.DEFAULT);
+    return row;
 }
 
 function recordingGroup(
@@ -75,10 +121,10 @@ function insertionGroup(settings: Gio.Settings): Adw.PreferencesGroup {
     const group = new Adw.PreferencesGroup({title: _('Text insertion')});
 
     group.add(makeDotoolStatusRow());
-    group.add(makeComboRow(settings, Key.typingSpeed, {
+    group.add(makePresetRow(settings, Key.typingSpeed, {
         title: _('Typing speed'),
         subtitle: _('Lower this if characters get dropped or reordered'),
-        choices: TYPING_SPEEDS.map(value => ({
+        presets: TYPING_SPEEDS.map(value => ({
             value,
             label: _('%d chars/s').replace('%d', String(value)),
         })),

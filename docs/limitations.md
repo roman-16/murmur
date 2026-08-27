@@ -12,7 +12,13 @@ Extensions are compiled against the shell's own JavaScript API, which changes ev
 
 ## It needs the network and an API key
 
-Transcription happens on Mistral's servers. There is no offline mode and no local model, so no network means no dictation, and every dictation is billed to your key. [Privacy](privacy.md) covers the trade-off in full.
+Transcription happens on Mistral's or Google's servers. There is no offline mode and no local model, so no network means no dictation, and every dictation is billed to the key you gave it - or, on Google's free tier, paid for with what you dictate. [Privacy](privacy.md) covers the trade-off in full.
+
+The two services are the two that exist. There is no way to point Murmur at a third one, or at something self-hosted, without editing the code.
+
+## A Gemini recording ends after ten minutes
+
+Google ends a live transcription session there, so with Gemini - the default - the countdown starts at ten minutes however high **Maximum recording time** goes. Mistral takes the full half hour the setting allows.
 
 ## A terminal is one big text field
 
@@ -40,9 +46,13 @@ Without dotool, the typing path can only produce characters that exist on your c
 
 Murmur transcribes and inserts. It has no vocabulary for "delete that", no dictation commands and no formatting rules beyond what the model produces. Punctuation is whatever Voxtral infers.
 
+## Tidying up is the model's judgement, not yours
+
+**Tidy up what I say**, on by default with Gemini, has no dial and no vocabulary of your own. It decides what a filler word is, which spoken correction you meant, and where a list belongs - and it may reformat a sentence you wanted verbatim. The only control is the switch. It also introduces line breaks, which are typed as `Enter`.
+
 ## One language at a time, chosen by the model
 
-There is no language setting. Voxtral detects the language from what it hears, which works well for a single language and less well when you switch mid-sentence.
+There is no language setting. Both services detect the language from what they hear, and neither is told which one to expect. Voxtral works well for a single language and less well when you switch mid-sentence; Gemini is built to follow a switch, but nothing in Murmur biases either towards the language you actually speak.
 
 ## Only one key is guaranteed to reach Murmur
 

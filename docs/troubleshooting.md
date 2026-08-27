@@ -6,9 +6,11 @@
 - **Another shortcut owns the combination.** GNOME gives a key combination to one binding only. Check *Settings → Keyboard → View and Customize Shortcuts*, or set a different one in Murmur's preferences.
 - **The shortcut is unset.** The preferences show `Disabled` if it was cleared with `Backspace`.
 
-## "Set your Mistral API key"
+## "Set your Mistral API key" or "Set your Gemini API key"
 
-There is no key in the settings. See [Getting started](getting-started.md).
+The service selected under **Service** has no key in the settings. The notification names which one it wants. See [Getting started](getting-started.md).
+
+If it names a service you did not mean to use, the **Service** row is set to it; switching back finds the other key exactly where you left it.
 
 ## "pw-record not found; install PipeWire"
 
@@ -17,8 +19,9 @@ Murmur records with `pw-record`, which ships with PipeWire. Install your distrib
 ## The panel opens but no text appears
 
 - **Check the microphone.** *Settings → Sound → Input* should show the level moving while you speak. Murmur records from the default input device.
-- **Check the key.** An invalid or expired key surfaces as an error notification when the socket closes.
-- **Check the network.** Transcription is a live connection to `api.mistral.ai`; without it the recording produces nothing.
+- **Check the key.** A key that is invalid, expired or out of quota surfaces as an error notification carrying the service's own words - Gemini says *API key not valid. Please pass a valid API key.*
+- **Check the network.** Transcription is a live connection to `api.mistral.ai` or `generativelanguage.googleapis.com`, depending on the service; without it the recording produces nothing.
+- **"The service did not start a transcription session"** means the connection was accepted and then went quiet, which is the service's end being unwell rather than anything local. Try again, and try the other service.
 
 ## It copied to the clipboard when I expected typing
 
@@ -41,6 +44,10 @@ It collapsed, which it does the moment you look anywhere else: another window, t
 
 The recording is still running. The indicator with the countdown is in the top bar; click it to bring the panel back, or press the recording shortcut to stop and deliver.
 
+## A dictation arrived as several chat messages
+
+**Tidy up what I say** formats a spoken list as a bulleted one, and Murmur types each line break as `Enter`, which a chat box reads as *send*. Turn the setting off, or press `Ctrl+Enter` to take the text to the clipboard and paste it yourself.
+
 ## Characters are dropped, doubled or reordered
 
 Lower **Typing speed** in the preferences; some Electron and Java applications cannot keep up with fast synthetic input.
@@ -59,6 +66,7 @@ Wayland applications do not need dotool at all, so this row can be safely ignore
 
 - **Stop after silence** is set and the room is quiet enough to trigger it. Raise it, or set it to 0.
 - **Maximum recording time** was reached. Ten minutes by default.
+- **The service ended the session.** Gemini transcribes for ten minutes at a stretch, so with it selected the countdown starts there whatever **Maximum recording time** says.
 
 Both deliver what was transcribed so far; nothing is thrown away.
 

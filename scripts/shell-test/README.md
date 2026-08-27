@@ -32,6 +32,8 @@ The probe reaches Murmur's modules through `Main.extensionManager.lookup()`, so 
 
 - An accelerator becomes the label the panel prints.
 - All four controls are hit-testable, and **clicking each one does something**.
+- Every control is a full-size one, 40px or taller, with its label sitting in the middle of it. Set a height in CSS and a button grows; whether what is written on it follows is St's business, and only measuring it tells you.
+- Three lines of transcription are in view before a word is spoken.
 - Taking and releasing the keyboard shows on the panel, and clicking the panel takes it back.
 - The panel collapses both ways it should: when an application comes forward, and when it loses the keyboard it was holding.
 - The panel opens on the monitor holding the focused window, and above a dock that reserves space there. The session has a second screen for exactly this: on one monitor with nothing docked to it, placing the panel where the work is and always placing it on the primary are the same rule.
@@ -40,6 +42,6 @@ The probe reaches Murmur's modules through `Main.extensionManager.lookup()`, so 
 
 ## What it does not check
 
-Anything that needs the microphone, the network or a Mistral key, which is the recording session itself. `scripts/changelog.test.ts` covers the changelog parser. Insertion is the one important gap: synthesizing keystrokes into a client and reading them back is a bigger harness than this, and [`CONTRIBUTING.md`](../../CONTRIBUTING.md) lists the manual passes that stand in for it.
+Anything that needs the microphone, the network or a key, which is the recording session itself, including everything either transcription service says over its socket. `scripts/changelog.test.ts` covers the changelog parser. Insertion is the one important gap: synthesizing keystrokes into a client and reading them back is a bigger harness than this, and [`CONTRIBUTING.md`](../../CONTRIBUTING.md) lists the manual passes that stand in for it.
 
 It does not run in CI, because a GitHub runner has no GNOME Shell and standing one up there is a flakier thing than the bugs it would catch. Run it before a pull request that touches `src/lib/shell/`.

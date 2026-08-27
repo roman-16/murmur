@@ -166,9 +166,18 @@ export default class Probe extends Extension {
     // a window actor appears before the compositor focuses it, and asserting in
     // between tests the gap rather than the rule.
     async #openWindow() {
-        this.#window = Gio.Subprocess.new(
-            ['gjs', GLib.build_filenamev([this.path, 'window.js'])],
-            Gio.SubprocessFlags.STDERR_SILENCE);
+        const launcher = new Gio.SubprocessLauncher({
+            flags: Gio.SubprocessFlags.STDERR_SILENCE,
+        });
+        // Started with the shell's own typelib path, the client loads a Gio
+        // built against a different GLib than its interpreter and dies before it
+        // can open anything. run.sh passes the one belonging to a session that
+        // is known to run GTK applications.
+        const typelibs = GLib.getenv('PROBE_CLIENT_TYPELIBS');
+        if (typelibs)
+            launcher.setenv('GI_TYPELIB_PATH', typelibs, true);
+        this.#window = launcher.spawnv(
+            ['gjs', GLib.build_filenamev([this.path, 'window.js'])]);
 
         for (let tries = 0; tries < WINDOW_TRIES; tries++) {
             const window = global.display.focus_window;
@@ -274,11 +283,26 @@ export default class Probe extends Extension {
         this.#ok('the panel has its four controls', buttons.length === 4,
             `found ${buttons.length}`);
 
-
-
         for (const button of buttons) {
             const name = button.label ?? button.accessible_name ?? '?';
             const [x, y] = this.#centre(button);
+
+            // A control the size of GNOME's own: comfortable to hit, and the
+            // reason this panel is laid out at the shell's dialog scale rather
+            // than its menu scale.
+            const [, height] = button.get_transformed_size();
+            this.#ok(`"${name}" is a full-size control`, height >= 40, `${height}px tall`);
+
+            // Set a height and a button gets taller; whether what is written on
+            // it follows is St's business, and only pressing it tells you.
+            const [content] = button.get_children();
+            if (content) {
+                const [, contentY] = content.get_transformed_position();
+                const [, contentHeight] = content.get_transformed_size();
+                const drift = Math.abs((contentY + contentHeight / 2) - y);
+                this.#ok(`"${name}" reads centred`, drift <= 1,
+                    `${drift.toFixed(1)}px off the button's middle`);
+            }
 
             const hit = global.stage.get_actor_at_pos(Clutter.PickMode.REACTIVE, x, y);
             this.#ok(`"${name}" is what the pointer would hit`,
@@ -439,6 +463,15 @@ export default class Probe extends Extension {
         await this.#settle();
         const card = this.#card();
         this.#ok('the panel can be opened from collapsed', card?.mapped === true);
+
+        // Three lines of transcription are in view before a word is spoken,
+        // which is what keeps a short dictation from sitting in an empty box.
+        const [scroll] = this.#descendants(
+            card ?? Main.layoutManager.uiGroup,
+            actor => actor.style_class?.includes('murmur-scroll') ?? false);
+        const [, scrollHeight] = scroll?.get_transformed_size() ?? [0, 0];
+        this.#ok('three lines of transcription are in view', scrollHeight >= 68,
+            `${scrollHeight}px of transcription`);
         this.#ok('the panel is opaque once opened', card?.get_parent()?.opacity === 255,
             `opacity=${card?.get_parent()?.opacity}`);
     }

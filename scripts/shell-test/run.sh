@@ -23,14 +23,19 @@ export NESTED_EXTENSIONS="scripts/shell-test/probe@murmur.local"
 # shortcut. Naming one nothing binds keeps the run from borrowing yours.
 export RECORDING_SHORTCUT="<Super><Shift><Control><Alt>F12"
 
-# gjs aborts when it loads typelibs from a different GLib than its own, which is
-# what it does by default inside a devbox shell on a GNOME system. The probe
-# opens a window with gjs, as a child of the shell, so this has to be set before
-# the shell starts rather than around the call.
-typelibs=$(cd "$(dirname "$(command -v gjs)")/../lib/girepository-1.0" 2>/dev/null && pwd || true)
-if [ -n "$typelibs" ]; then
-    export GI_TYPELIB_PATH="$typelibs${GI_TYPELIB_PATH:+:$GI_TYPELIB_PATH}"
-fi
+# The probe needs a real GTK client, which it starts with gjs as a child of the
+# nested shell - and a shell hands its children its own typelib path, which
+# belongs to a different GLib than the gjs that has to load it. Mixing the two
+# registers Gio's types twice and the client aborts before it can open a window.
+# The desktop session evidently runs GTK applications, so the client borrows the
+# library environment from the shell already running one.
+session_typelibs() {
+    local pid
+    pid=$(pgrep --newest --uid "$(id --user)" gnome-shell 2>/dev/null) || return 0
+    tr '\0' '\n' <"/proc/$pid/environ" 2>/dev/null | sed --quiet 's/^GI_TYPELIB_PATH=//p' | head -1
+}
+export PROBE_CLIENT_TYPELIBS
+PROBE_CLIENT_TYPELIBS=$(session_typelibs)
 
 # A shell that dies badly still leaves the report behind, and that is the more
 # useful thing to show, so the run's own status is not the answer here.

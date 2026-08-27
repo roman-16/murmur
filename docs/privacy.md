@@ -4,17 +4,27 @@ Murmur transcribes in the cloud. That is a real trade-off, and this page states 
 
 ## What leaves your machine
 
-**Your voice, while you are recording.** From the moment the panel opens until the recording ends, raw audio is streamed to `api.mistral.ai` over an encrypted WebSocket, along with your API key in the `Authorization` header. That is the only network connection Murmur makes.
+**Your voice, while you are recording.** From the moment the panel opens until the recording ends, raw audio is streamed over an encrypted WebSocket to the service you chose, along with your API key in a request header. That is the only network connection Murmur makes.
+
+| Service | Host | Key travels as |
+| --- | --- | --- |
+| Gemini 3.5 Transcribe Live (default) | `generativelanguage.googleapis.com` | `x-goog-api-key` |
+| Mistral Voxtral Realtime | `api.mistral.ai` | `Authorization: Bearer` |
 
 That is also everything. No usage statistics, no crash reports, no analytics, no update checks. Murmur contacts one host, and only while you are speaking to it.
 
-What happens to that audio afterwards is Mistral's business, governed by their terms and privacy policy for the account the key belongs to. If your dictation must not reach a third party, Murmur is the wrong tool, and a local model is the right one.
+What happens to that audio afterwards is the service's business, governed by their terms and privacy policy for the account the key belongs to. Two things are worth reading before you pick:
+
+- **Google's free tier trains on what you dictate.** Its pricing page marks *used to improve our products* as yes for the free tier and no for the paid one. A free key is therefore the cheapest option and the least private - and since Gemini is the default service, it is the trade Murmur makes unless you change it.
+- **Mistral bills from the first minute**, and its terms for your account govern the audio either way.
+
+If your dictation must not reach a third party, Murmur is the wrong tool, and a local model is the right one.
 
 ## What is stored on your machine
 
 | What | Where | Notes |
 | --- | --- | --- |
-| Your API key | dconf, under `/org/gnome/shell/extensions/murmur/` | **Unencrypted**, like every GSettings value. Any process running as you can read it |
+| Your API keys | dconf, under `/org/gnome/shell/extensions/murmur/` | **Unencrypted**, like every GSettings value. Any process running as you can read it. Each service keeps its own, and the one you are not using stays there until you clear it |
 | Your other settings | The same place | Shortcut, delays, limits |
 | The transcription | Nowhere | It exists in memory, is delivered, and is gone |
 | The audio | Nowhere | It is streamed from the microphone to the socket and never written to disk |
@@ -35,4 +45,9 @@ The microphone is opened when a recording starts and released the moment it ends
 
 ## What it costs
 
-Transcription is billed to your Mistral account by the audio you send. Murmur sends only what it records, which is your speech between pressing the shortcut and stopping. **Maximum recording time**, ten minutes by default, caps what a forgotten recording can spend, and **Stop after silence** ends a recording you walked away from.
+Transcription is billed to the account the key belongs to, by the audio you send. Murmur sends only what it records, which is your speech between pressing the shortcut and stopping. **Maximum recording time**, ten minutes by default, caps what a forgotten recording can spend, and **Stop after silence** ends a recording you walked away from.
+
+| Service | Per minute of audio |
+| --- | --- |
+| Gemini 3.5 Transcribe Live | Nothing on the free tier; about $0.009 on the paid one |
+| Mistral Voxtral Realtime | About $0.006 |

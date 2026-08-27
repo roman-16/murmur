@@ -16,7 +16,7 @@ The toolchain is pinned with [devbox](https://www.jetify.com/devbox) and [direnv
 git clone https://github.com/roman-16/murmur.git
 cd murmur
 direnv allow      # or: devbox shell
-cp .env.example .env      # MISTRAL_API_KEY, and optionally RECORDING_SHORTCUT
+cp .env.example .env      # a key for one service, and optionally MURMUR_PROVIDER and RECORDING_SHORTCUT
 ```
 
 Without devbox you need Bun, GJS, GLib's tools, `just`, `librsvg` and `zip` on your own.
@@ -51,13 +51,16 @@ Inside that session the shortcut is **`Super+J`**, set by `RECORDING_SHORTCUT` i
 ## How the code is arranged
 
 ```
-src/extension.ts     the shell half: shortcut, panel, session, delivery
-src/prefs.ts         the preferences half
-src/stylesheet.css   geometry for the panel; its colours come from the shell theme
-src/lib/             shared by both, Gio and GLib only
-src/lib/shell/       shell-only: panel, indicator, insertion, focus, clipboard, session
-src/lib/prefs/       preferences-only: rows, shortcut capture, dotool diagnostics
+src/extension.ts       the shell half: shortcut, panel, session, delivery
+src/prefs.ts           the preferences half
+src/stylesheet.css     geometry for the panel; its colours come from the shell theme
+src/lib/               shared by both, Gio and GLib only
+src/lib/shell/         shell-only: panel, indicator, insertion, focus, clipboard, session
+src/lib/prefs/         preferences-only: rows, shortcut capture, dotool diagnostics
+src/lib/transcription/ one module per service, and the table of them
 ```
+
+A transcription service is a WebSocket that eats raw PCM and emits text, so that is all a module there is: the endpoint, the frames to send, and the events to make of what comes back. `session.ts` owns the microphone and the socket and knows nothing about either service; adding a third one means a module, a row in `PROVIDERS`, and a key in the schema.
 
 `just build` compiles the TypeScript into `dist/`, copies `src/stylesheet.css` and `schemas/` alongside it, and writes `metadata.json` with the `version-name` [`CHANGELOG.md`](CHANGELOG.md) declares. That is the layout GNOME Shell loads.
 
@@ -69,7 +72,7 @@ The two halves run in **different processes** that load different libraries. Imp
 - **No comments** unless the reason genuinely cannot live in the code, usually an external constraint such as a protocol quirk or a shell API that changed shape between versions.
 - **Alphabetical order** for fields, imports, keys and options where the order carries no meaning.
 - **Full-length flags** in shell code and recipes: `--recursive`, not `-r`.
-- **The panel is a GNOME popover.** `.popup-menu-content`, `.button`, `.icon-button` and `.screen-recording-indicator` make it follow whatever theme, accent colour and contrast setting the user has, including a User Theme, and it should be indistinguishable from the shell's own popovers. Set size and spacing in `src/stylesheet.css`; never a colour, a corner, a border or a shadow, and never override padding the theme sets.
+- **The panel is a GNOME popover.** `.popup-menu-content`, `.button`, `.icon-button` and `.screen-recording-indicator` make it follow whatever theme, accent colour and contrast setting the user has, including a User Theme, and it should be indistinguishable from the shell's own popovers. Set size, spacing and padding in `src/stylesheet.css`; never a colour, a corner, a border or a shadow. The shell does the same to its own popovers - `quick-settings` sits on `popup-menu-content` and takes its padding from 6px to 18px - and which of the shell's two rhythms a surface belongs to is a decision about the surface: menus and notifications are glanced at, while this one holds the keyboard and is read and pressed, so it takes the 18px, 12px and 40px of the shell's dialogs and its screenshot panel.
 - **The `@girs` types lag the shell.** They describe an API that may no longer exist, so a shell API change type-checks and then throws at runtime: `addChrome`'s `affectsInputRegion` is declared for GNOME 50 and was removed from it. Check anything shell-side against the shell's own JavaScript, and run it.
 
 ## Testing a change
@@ -86,7 +89,8 @@ Everything past that is the compositor, and the interesting failures are all in 
 - the desktop with nothing focused, for the clipboard path,
 - `Esc` mid-recording, and both `Enter` and `Ctrl+Enter`,
 - clicking anywhere outside the panel mid-recording, which must collapse it and hand the keyboard back, whether or not you changed application,
-- a fullscreen window, which the panel has to be visible over.
+- a fullscreen window, which the panel has to be visible over,
+- **both transcription services**, since each speaks its own protocol and only one of them is exercised by a dictation. `MURMUR_PROVIDER=gemini just dev` switches the throwaway session over.
 
 `journalctl --user --follow /usr/bin/gnome-shell | grep --ignore-case murmur` shows what the extension reports.
 

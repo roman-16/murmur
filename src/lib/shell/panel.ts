@@ -91,7 +91,7 @@ export class MurmurPanel {
             iconButton('window-close-symbolic', 'Cancel', () => this.onAction?.('cancel')));
         this.#card.add_child(header);
 
-        this.#transcript = new St.Label({text: ''});
+        this.#transcript = new St.Label({style_class: 'murmur-transcript', text: ''});
         this.#transcript.clutter_text.line_wrap = true;
         this.#transcript.clutter_text.ellipsize = Pango.EllipsizeMode.NONE;
         const viewport = new St.Viewport({

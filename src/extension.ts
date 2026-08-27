@@ -15,6 +15,7 @@ import {RecordingIndicator} from './lib/shell/indicator.js';
 import {insertText, typingPace, type Pace} from './lib/shell/insertion.js';
 import {MurmurPanel, type PanelAction} from './lib/shell/panel.js';
 import {Session} from './lib/shell/session.js';
+import {PROVIDERS} from './lib/transcription/provider.js';
 
 export default class MurmurExtension extends Extension {
     #cancellable: Gio.Cancellable | null = null;
@@ -91,8 +92,9 @@ export default class MurmurExtension extends Extension {
         }
 
         const config = readRecordingConfig(settings);
-        if (!config.apiKey) {
-            Main.notify('Murmur', 'Set your Mistral API key in the extension preferences');
+        if (!config.provider.apiKey) {
+            const {vendor} = PROVIDERS[config.provider.kind];
+            Main.notify('Murmur', `Set your ${vendor} API key in the extension preferences`);
             return;
         }
 

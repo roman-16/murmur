@@ -135,6 +135,12 @@ gsettings set org.gnome.shell.extensions.murmur toggle-recording "['$shortcut']"
 if [ -n "\${MISTRAL_API_KEY:-}" ]; then
     gsettings set org.gnome.shell.extensions.murmur mistral-api-key "\$MISTRAL_API_KEY"
 fi
+if [ -n "\${GEMINI_API_KEY:-}" ]; then
+    gsettings set org.gnome.shell.extensions.murmur gemini-api-key "\$GEMINI_API_KEY"
+fi
+if [ -n "\${MURMUR_PROVIDER:-}" ]; then
+    gsettings set org.gnome.shell.extensions.murmur transcription-provider "\$MURMUR_PROVIDER"
+fi
 
 if [ -z '$payload' ]; then
     exec $nested

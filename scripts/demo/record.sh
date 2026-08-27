@@ -50,7 +50,10 @@ fi
 
 export MURMUR_REALTIME_URL
 MURMUR_REALTIME_URL=$(head -1 "$tmp/mock.url")
+# The mock speaks Voxtral's protocol, so the take is recorded against that
+# service whatever the environment prefers.
 export MISTRAL_API_KEY=${MISTRAL_API_KEY:-demo}
+export MURMUR_PROVIDER=mistral
 
 # The overlay prints the shortcut it is bound to, so the take has to be recorded
 # with the one the documentation names.

@@ -6,6 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 Adding a version section here is what publishes a release, so this file is the one place a version is decided: see [Releasing](CONTRIBUTING.md#releasing). Versions that shipped before this file existed are on the [releases page](https://github.com/roman-16/murmur/releases).
 
+## [1.6.0] - 2026-08-27
+
+### Added
+
+- A choice of transcription service: Gemini 3.5 Transcribe Live alongside Mistral Voxtral Realtime, chosen in the preferences, each with its own API key. Gemini's free tier costs nothing and, by Google's own pricing page, uses what you dictate to improve their products.
+- **Tidy up what I say**, on by default with Gemini: filler words dropped, a spoken correction resolved rather than transcribed, and a spoken list formatted as one. Turn it off to have what you said transcribed word for word.
+
+### Changed
+
+- **Gemini is the service Murmur transcribes with.** An installation that never picked one switches over on update and needs a key from aistudio.google.com/apikey; setting **Service** back to Mistral finds your Mistral key exactly where it was.
+- The panel is laid out at the scale GNOME uses for its own dialogs rather than its menus: more room around everything, larger transcription text, taller Copy and Stop buttons, and a transcription that grows from three lines to eight while you speak.
+- A recording lasts ten minutes at most while Gemini is the service, because that is where Google ends a live transcription, so the countdown starts there however high **Maximum recording time** goes.
+
+### Fixed
+
+- A recording whose connection drops, or whose API key the service turns down, says so in the service's own words instead of ending as an empty transcription that inserts nothing.
+- A transcription whose last words never arrive no longer leaves the panel on **Finishing…**: after five seconds Murmur delivers what it has.
+
 ## [1.5.0] - 2026-08-26
 
 ### Changed

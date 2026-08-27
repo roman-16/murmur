@@ -1,6 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <schemalist>
+  <enum id="org.gnome.shell.extensions.murmur.provider">
+    <value nick="gemini" value="0"/>
+    <value nick="mistral" value="1"/>
+  </enum>
   <schema id="org.gnome.shell.extensions.murmur" path="/org/gnome/shell/extensions/murmur/">
+    <key name="gemini-api-key" type="s">
+      <default>''</default>
+      <summary>Gemini API key</summary>
+      <description>API key used to authenticate with the Gemini Live API for realtime transcription.</description>
+    </key>
+    <key name="gemini-smart-transcription" type="b">
+      <default>true</default>
+      <summary>Tidy up what I say</summary>
+      <description>Whether Gemini cleans the transcription up: filler words dropped, spoken self-corrections resolved, lists and numbers formatted. Off transcribes word for word.</description>
+    </key>
     <key name="max-recording-seconds" type="i">
       <default>600</default>
       <range min="15" max="1800"/>
@@ -33,6 +47,11 @@
       <range min="240" max="2400"/>
       <summary>Transcription delay</summary>
       <description>Milliseconds of audio Voxtral buffers before transcribing. Higher values give the model more context and better accuracy, lower values show and insert text sooner.</description>
+    </key>
+    <key name="transcription-provider" enum="org.gnome.shell.extensions.murmur.provider">
+      <default>'gemini'</default>
+      <summary>Transcription service</summary>
+      <description>Which service transcribes your voice. Each has its own API key.</description>
     </key>
     <key name="typing-speed" type="i">
       <default>2500</default>

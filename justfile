@@ -56,7 +56,7 @@ boundaries:
         '{{root}}/src/extension.ts' '{{root}}/src/lib/shell'
     reject 'shared modules must stay loadable in both processes' \
         "gi://(Adw|Clutter|Gdk|Gtk|Meta|Shell|St)|from '[^']*(prefs|shell)/" \
-        {{root}}/src/lib/*.ts
+        {{root}}/src/lib/*.ts {{root}}/src/lib/transcription/*.ts
     exit $status
 
 # Check the changelog parser, which decides what gets published

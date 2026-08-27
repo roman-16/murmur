@@ -1,14 +1,21 @@
 # Getting started
 
-## Add your API key
+## Pick a service and add its key
 
-Murmur transcribes with [Mistral Voxtral](https://mistral.ai), so it needs a key of your own. Create one at [console.mistral.ai](https://console.mistral.ai), then open the preferences:
+Murmur transcribes in the cloud, so it needs a key of your own. Two services are on offer, and you pick one in the preferences:
 
 ```bash
 gnome-extensions prefs murmur@roman-16.github.io
 ```
 
-Paste the key into **Mistral API key**. That is the whole setup. Nothing else has to be configured before the first dictation.
+| **Service** | Key from | Good to know |
+| --- | --- | --- |
+| **Gemini 3.5 Transcribe Live** | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) | The default. Free of charge on Google's free tier, which uses what you dictate to improve their products. Tidies up filler words for you. A recording runs ten minutes at most |
+| **Mistral Voxtral Realtime** | [console.mistral.ai](https://console.mistral.ai) | About $0.006 a minute, billed from the first one, and how far text trails your voice is yours to set |
+
+Choose it under **Service**, paste your key into **API key** below it, and that is the whole setup. Each service keeps its own key, so switching back and forth costs nothing.
+
+Nothing else has to be configured before the first dictation.
 
 ## Dictate
 
@@ -67,3 +74,22 @@ Two settings end a recording without you pressing anything:
 - **Maximum recording time** ends it after ten minutes, so a forgotten recording cannot run forever. The countdown is in the panel and in the top-bar indicator.
 
 Both deliver the transcription exactly as `Enter` would. See [Configuration](configuration.md).
+
+## Let it tidy up what you say
+
+With Gemini, **Tidy up what I say** is on, so the model cleans up as it transcribes. Say this:
+
+> Um, so I was thinking uh we should meet on Tuesday, no wait, on Wednesday and um bring three things, the report, the laptop and uh the keys.
+
+and what lands in the field is this:
+
+> I was thinking we should meet on Wednesday and bring three things:
+> - The report
+> - The laptop
+> - The keys
+
+Fillers gone, the correction resolved, the list formatted. Turn it off and you get what you said, word for word.
+
+**One thing to know before dictating into a chat box:** a formatted list means line breaks, and Murmur types a line break as `Enter`, which a chat box reads as *send*. Turn **Tidy up what I say** off for that, or press `Ctrl+Enter` to take the text to the clipboard and paste it yourself.
+
+It applies to the finished transcription, so the text in the panel may rearrange itself when the recording ends.

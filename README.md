@@ -17,7 +17,7 @@ Press `Super+Space`, say what you mean, and the words appear where your cursor a
 
 - **You keep working while it listens.** A small panel appears at the bottom of the screen you are working on; it takes nothing over. Look anywhere else - another window, the overview, the window you were already in - and it collapses by itself, leaving a recording indicator with the countdown in the top bar. It is on screen exactly while it has your keyboard, so it is never in the way and never swallowing keys.
 - **It lands where you are looking.** Where there is a field, the transcription is typed into it, in any application, terminals included, with nothing pasted and your clipboard untouched. Which field is decided when you stop, so you can go and find it while you talk.
-- **You watch it happen.** Audio streams to [Mistral Voxtral](https://mistral.ai) over a WebSocket while you speak, and the text appears in the panel as it arrives, with a countdown and an optional hands-free stop after silence.
+- **You watch it happen.** Audio streams to the service you picked over a WebSocket while you speak, and the text appears in the panel as it arrives, with a countdown and an optional hands-free stop after silence. Transcription runs on [Gemini 3.5 Transcribe Live](https://ai.google.dev/gemini-api/docs/live-api/live-transcribe) or [Mistral Voxtral](https://mistral.ai), whichever you choose in the preferences.
 - **Nothing is ever lost.** If no text field is focused when you stop, Murmur copies the transcription to the clipboard instead of firing a sentence worth of keystrokes at whatever happens to be in front.
 
 ## Install
@@ -32,15 +32,20 @@ Then log out and back in, which Wayland requires for a new extension, and enable
 gnome-extensions enable murmur@roman-16.github.io
 ```
 
-You need **GNOME Shell 47 to 50 on Wayland**, **`pw-record`** from PipeWire, and a **Mistral API key**. Installing with Nix, from source, from extensions.gnome.org once the listing is approved, updating and uninstalling: → [Installation](docs/installation.md)
+You need **GNOME Shell 47 to 50 on Wayland**, **`pw-record`** from PipeWire, and an **API key** for one of the two transcription services. Installing with Nix, from source, from extensions.gnome.org once the listing is approved, updating and uninstalling: → [Installation](docs/installation.md)
 
 ## Get started
 
-Open the preferences and paste in your key from [console.mistral.ai](https://console.mistral.ai):
+Open the preferences, choose the service that transcribes for you, and paste in its key:
 
 ```bash
 gnome-extensions prefs murmur@roman-16.github.io
 ```
+
+| Service | Key from | What it costs |
+| --- | --- | --- |
+| **Gemini 3.5 Transcribe Live** (default) | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) | Nothing on Google's free tier, which uses what you dictate to improve their products; about $0.009 a minute once you pay. A recording runs ten minutes at most |
+| **Mistral Voxtral Realtime** | [console.mistral.ai](https://console.mistral.ai) | About $0.006 a minute of audio, from the first minute |
 
 That is the whole setup. Put the cursor where the words belong, press `Super+Space`, and speak.
 
@@ -70,7 +75,7 @@ Want to know whether an application is recognised? Turn on GNOME's on-screen key
 
 ## What leaves your machine
 
-Your voice, to `api.mistral.ai`, while you are recording. That is the only connection Murmur makes: no telemetry, no analytics, no update pings.
+Your voice, to the service you picked - `generativelanguage.googleapis.com` by default, or `api.mistral.ai` - while you are recording. That is the only connection Murmur makes: no telemetry, no analytics, no update pings.
 
 The transcription is never written to disk and the audio never touches it either. Your API key is stored in dconf like every other GNOME setting, which means unencrypted, because extensions have no keyring access. If a dictation must not reach a third party, Murmur is the wrong tool. → [Privacy](docs/privacy.md)
 
@@ -91,6 +96,8 @@ The transcription is never written to disk and the audio never touches it either
 
 - **A terminal is one big text field.** It tells the compositor it accepts text whenever it is focused and nothing finer, so Murmur will happily deliver a sentence to vim in normal mode.
 - **Dictation is billed to your key.** Murmur sends only what it records, and the ten-minute cap keeps a forgotten recording from running away.
+- **Gemini's free tier is free, and reads what you say.** Google's pricing page states that free-tier usage is used to improve their products, and the paid tier that it is not. Mistral bills from the first minute either way.
+- **A tidied list arrives as several chat messages.** Line breaks are typed as `Enter`, which a chat box reads as *send*. Turn off **Tidy up what I say**, or use `Ctrl+Enter` to copy instead.
 - **The panel is not a window.** It cannot be alt-tabbed or pushed behind an application, because a GNOME Shell extension draws inside the compositor rather than opening a window. Clicking anything else collapses it to the top bar instead, which a window behind a maximised application could not do.
 - **Wayland only.** XWayland applications inside a Wayland session are fine; an X11 session is not.
 - **dotool is recommended.** Without it the fallback keyboard can only produce characters from your current layout, so emoji and other scripts are dropped.

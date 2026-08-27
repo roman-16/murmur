@@ -6,7 +6,7 @@
 | --- | --- |
 | **GNOME Shell 47 to 50** | On a **Wayland** session. Murmur reads which client holds a focused field from the compositor, which an X11 session cannot tell it |
 | **PipeWire `pw-record`** | Captures the microphone. Ships with PipeWire, which is standard on modern GNOME. Murmur tells you if it is missing |
-| **A Mistral API key** | Transcription runs on Mistral's Voxtral realtime endpoint. See [Privacy](privacy.md) for what that means |
+| **An API key** | Transcription runs on Gemini 3.5 Transcribe Live by default, or Mistral Voxtral Realtime; each needs a key of its own, from [aistudio.google.com/apikey](https://aistudio.google.com/apikey) or [console.mistral.ai](https://console.mistral.ai). See [Privacy](privacy.md) for what that means |
 | **[dotool](https://sr.ht/~geb/dotool/)** (recommended) | Types arbitrary Unicode into any application. Without it Murmur falls back to the shell's virtual keyboard, which is limited to your keyboard layout. See [Where the text goes](text-insertion.md) |
 
 Check your session with `echo $XDG_SESSION_TYPE`; it has to say `wayland`.

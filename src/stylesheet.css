@@ -1,31 +1,29 @@
 /* The card, its buttons and the top bar indicator wear GNOME's own style
-   classes, so their colours, corners, borders, shadows and padding are
-   whichever theme is installed: the panel is a GNOME popover that happens to
-   contain a transcription. Only size and spacing are set here, and only in the
-   shell's own units - 0.409em is its 6px base padding, 0.545em twice its 4px
-   base margin, 1.091em its 16px symbolic icon - expressed in em so that text
-   scaling moves the panel with the text. Dimming is opacity rather than a
-   colour, so it holds in a light theme as well as a dark one; the red that
-   means "recording" is the one colour here. */
+   classes, so their colours, corners, borders and shadows are whichever theme
+   is installed: the panel is a GNOME popover that happens to contain a
+   transcription. Only size and spacing are set here.
 
-.murmur-panel {
+   The shell keeps two rhythms, and this is a surface you talk to rather than
+   glance at: it holds the keyboard, you read a paragraph off it and you press
+   its buttons. So the numbers are the ones the shell uses for its dialogs and
+   its own bottom-of-screen panels - 1.227em is their 18px, 0.818em their 12px,
+   0.409em their 6px, 1.091em a 16px symbolic icon, 2.727em a 40px control -
+   expressed in em so that text scaling moves the panel with the text. Dimming
+   is opacity rather than a colour, so it holds in a light theme as well as a
+   dark one; the red that means "recording" is the one colour here. */
+
+.popup-menu-content.murmur-panel {
   margin-bottom: 4em;
-  spacing: 0.409em;
-  width: 34em;
+  padding: 1.227em;
+  spacing: 1.227em;
+  width: 40em;
 }
 
+/* The header's own buttons carry 0.818em of padding each, so 0.409em between
+   its items is what puts them a comfortable distance apart - the same as the
+   shell's notification headers, which are built from the same buttons. */
 .murmur-header {
   spacing: 0.409em;
-}
-
-.murmur-header:ltr {
-  padding-left: 0.818em;
-  padding-right: 0;
-}
-
-.murmur-header:rtl {
-  padding-left: 0;
-  padding-right: 0.818em;
 }
 
 .murmur-status {
@@ -34,7 +32,6 @@
 
 .murmur-countdown {
   font-feature-settings: "tnum";
-  font-size: 0.818em;
   opacity: 0.7;
 }
 
@@ -45,16 +42,20 @@
   width: 0.545em;
 }
 
+/* Three lines of transcription are always in view and it grows to eight, so a
+   short dictation is not framed by an empty box and a long one still fits. */
 .murmur-scroll {
   -st-vfade-offset: 1em;
-  min-height: 5.5em;
-  padding: 0.273em 0.818em;
+  max-height: 12.9em;
+  min-height: 4.9em;
+}
+
+.murmur-transcript {
+  font-size: 1.182em;
 }
 
 .murmur-destination {
-  font-size: 0.818em;
-  opacity: 0.75;
-  padding: 0 0.818em;
+  opacity: 0.7;
   spacing: 0.545em;
 }
 
@@ -62,19 +63,23 @@
   icon-size: 1.091em;
 }
 
+/* Buttons are a step apart from the text above them, which is what the shell
+   does with the button box of a dialog. Their height is set and their padding
+   is not, so the theme still decides what a button looks like. */
 .murmur-actions {
-  padding: 0.273em 0.818em;
-  spacing: 0.409em;
+  padding-top: 0.409em;
+  spacing: 0.818em;
+}
+
+.murmur-actions .button {
+  min-height: 2.727em;
 }
 
 .murmur-hint {
-  font-size: 0.818em;
   opacity: 0.55;
-  padding: 0 0.818em 0.273em 0.818em;
 }
 
 .murmur-result {
-  padding: 0.273em 0.818em;
   spacing: 0.545em;
 }
 
