@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 Adding a version section here is what publishes a release, so this file is the one place a version is decided: see [Releasing](CONTRIBUTING.md#releasing). Versions that shipped before this file existed are on the [releases page](https://github.com/roman-16/murmur/releases).
 
+## [1.6.2] - 2026-08-28
+
+### Changed
+
+- Nothing about dictating changes: this release brings Murmur's code in line with the GNOME extensions review guidelines, which is what the submission on extensions.gnome.org is reviewed against.
+
 ## [1.6.1] - 2026-08-28
 
 ### Changed

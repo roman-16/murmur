@@ -93,9 +93,7 @@ async function probeTier(bin: string): Promise<boolean> {
     // The handler clears the id, so a surviving id means the tier answered in time.
     let timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, PROBE_TIMEOUT_MS, () => {
         timeoutId = 0;
-        try {
-            process.force_exit();
-        } catch {}
+        process.force_exit();
         return GLib.SOURCE_REMOVE;
     });
 
@@ -142,19 +140,15 @@ function uinputGid(): number | null {
 }
 
 function sessionGids(): Set<number> {
+    const [, contents] = GLib.file_get_contents('/proc/self/status');
     const gids = new Set<number>();
-    try {
-        const [ok, contents] = GLib.file_get_contents('/proc/self/status');
-        if (!ok)
-            return gids;
-        for (const raw of new TextDecoder().decode(contents).split('\n')) {
-            const line = raw.trim();
-            if (line.startsWith('Groups:') || line.startsWith('Gid:')) {
-                for (const token of line.split(/\s+/).slice(1))
-                    gids.add(Number(token));
-            }
+    for (const raw of new TextDecoder().decode(contents).split('\n')) {
+        const line = raw.trim();
+        if (line.startsWith('Groups:') || line.startsWith('Gid:')) {
+            for (const token of line.split(/\s+/).slice(1))
+                gids.add(Number(token));
         }
-    } catch {}
+    }
     return gids;
 }
 

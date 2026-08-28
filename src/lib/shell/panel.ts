@@ -62,6 +62,8 @@ export class MurmurPanel {
     #keyFocusId = 0;
     #resultId = 0;
     #shortcut = '';
+    #tailChangedId = 0;
+    #tailValueId = 0;
 
     constructor(options: {collapsed?: boolean} = {}) {
         this.#collapsed = options.collapsed ?? false;
@@ -172,6 +174,14 @@ export class MurmurPanel {
         if (this.#keyFocusId) {
             global.stage.disconnect(this.#keyFocusId);
             this.#keyFocusId = 0;
+        }
+        if (this.#tailChangedId) {
+            this.#scroll.disconnect(this.#tailChangedId);
+            this.#tailChangedId = 0;
+        }
+        if (this.#tailValueId) {
+            this.#scroll.disconnect(this.#tailValueId);
+            this.#tailValueId = 0;
         }
         this.#finished = true;
         this.releaseKeyboard();
@@ -319,16 +329,12 @@ export class MurmurPanel {
             adjustment.value >= adjustment.upper - adjustment.page_size - TAIL_SLACK_PX;
         let following = true;
 
-        const changedId = adjustment.connect('changed', () => {
+        this.#tailChangedId = adjustment.connect('changed', () => {
             if (following)
                 adjustment.value = adjustment.upper - adjustment.page_size;
         });
-        const valueId = adjustment.connect('notify::value', () => {
+        this.#tailValueId = adjustment.connect('notify::value', () => {
             following = atTail();
-        });
-        this.#card.connect('destroy', () => {
-            adjustment.disconnect(changedId);
-            adjustment.disconnect(valueId);
         });
     }
 

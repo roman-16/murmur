@@ -222,6 +222,7 @@ export default class MurmurExtension extends Extension {
             this.#stopRecording();
             return;
         }
+        this.#clearCountdown();
         this.#countdownId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => {
             this.#countdownId = 0;
             this.#tick();

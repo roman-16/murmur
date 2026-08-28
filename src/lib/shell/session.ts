@@ -9,6 +9,7 @@ import {oneLine, SAMPLE_RATE, type Transcriber} from '../transcription/provider.
 import {transcriberFor} from '../transcription/transcriber.js';
 
 const CHUNK_BYTES = (SAMPLE_RATE * 2 * 100) / 1000;
+const SIGTERM = 15;
 const SILENCE_RMS = 0.01;
 // A service that has to open a session of its own gets this long to do it. Audio
 // waits meanwhile, so without the bound a service that answered the handshake
@@ -377,8 +378,7 @@ export class Session {
     }
 
     #stopRecorder(): void {
-        try {
-            this.#recorder?.send_signal(15);
-        } catch {}
+        this.#recorder?.send_signal(SIGTERM);
+        this.#recorder = null;
     }
 }
