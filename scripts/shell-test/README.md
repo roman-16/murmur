@@ -4,7 +4,7 @@
 just test-shell
 ```
 
-Boots a throwaway, headless GNOME Shell with two screens, builds the recording panel inside it, clicks it with a real pointer, and reports what worked. It takes about half a minute, touches nothing in your session, and needs no key, no network and no microphone.
+Boots a throwaway, headless GNOME Shell with two screens, builds the recording panel inside it, clicks it with a real pointer, and reports what worked. It takes about half a minute, touches nothing in your session, and needs no key, no network and no microphone. It does need a text editor or a terminal installed, as something to focus.
 
 `just test` covers the changelog parser, which is pure and fast. This covers the half of Murmur that only exists inside a compositor, where the interesting failures are: an actor that is drawn but cannot be clicked, a keyboard that is taken and never given back, chrome that outlives the recording.
 
@@ -24,13 +24,18 @@ So the probe presses the button, from a position it computed off the actor's own
 | `../nested-shell.sh` | The throwaway session, shared with `just dev` and the demo |
 | `session.sh` | Inside the session: waits for the probe to finish |
 | `probe@murmur.local` | An extension that performs the checks from inside the compositor |
-| `probe@murmur.local/window.js` | A real GTK client, because an extension cannot produce a window |
+| An installed application | A real client to focus, because an extension cannot produce a window |
+
+The client is whichever of `org.gnome.TextEditor`, `org.gnome.gedit`, `org.gnome.Console`, `org.gnome.Ptyxis` or `org.gnome.Terminal` is installed system-wide, launched by the compositor itself.
+
+It has to be an application the session already has rather than a window this harness builds. Announcing a text field takes a whole toolkit; a toolkit loads only in an interpreter from the closure it was built against; and inside a devbox shell the `gjs` on the path and the GTK on the machine are not that pair, so a client of our own aborts before it opens anything. The session's applications are linked correctly by construction, and they are what a real dictation is aimed at anyway.
 
 The probe reaches Murmur's modules through `Main.extensionManager.lookup()`, so it tests the built `dist/` that GNOME Shell actually loads rather than the TypeScript.
 
 ## What it checks
 
 - An accelerator becomes the label the panel prints.
+- A transcript with line breaks in it becomes one line, so nothing Murmur types is an `Enter`.
 - All four controls are hit-testable, and **clicking each one does something**.
 - Every control is a full-size one, 40px or taller, with its label sitting in the middle of it. Set a height in CSS and a button grows; whether what is written on it follows is St's business, and only measuring it tells you.
 - Three lines of transcription are in view before a word is spoken.

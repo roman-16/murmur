@@ -48,7 +48,11 @@ Murmur transcribes and inserts. It has no vocabulary for "delete that", no dicta
 
 ## Tidying up is the model's judgement, not yours
 
-**Tidy up what I say**, on by default with Gemini, has no dial and no vocabulary of your own. It decides what a filler word is, which spoken correction you meant, and where a list belongs - and it may reformat a sentence you wanted verbatim. The only control is the switch. It also introduces line breaks, which are typed as `Enter`.
+**Tidy up what I say**, on by default with Gemini, has no dial and no vocabulary of your own. It decides what a filler word is, which spoken correction you meant, and where a list belongs - and it may reformat a sentence you wanted verbatim. The only control is the switch.
+
+## A transcription is always one line
+
+Every line break the model produces is flattened to a space before the transcription is shown, typed or copied, because Murmur types a line break as `Enter`, and `Enter` means *send* in a chat box, *run* in a shell and *search* in a filter. A dictated list therefore arrives with its bullets inline, and there is no way to get the line breaks back, `Ctrl+Enter` included.
 
 ## One language at a time, chosen by the model
 

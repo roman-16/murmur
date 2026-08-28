@@ -14,7 +14,6 @@ const NORMALIZE = new Map<string, string>([
     ...mapTo('\u2018\u2019\u201a\u201b\u2039\u203a', "'"),
     ...mapTo('\u201c\u201d\u201e\u201f\u00ab\u00bb', '"'),
     ...mapTo('\u2013\u2014\u2015\u2212', '-'),
-    ...mapTo('\u00a0\u2009\u200a\u202f', ' '),
     ['\u2026', '...'],
 ]);
 
@@ -62,35 +61,22 @@ export async function insertText(
     await typeWithVirtualKeyboard(text, pace, cancellable);
 }
 
-export function dotoolScript(text: string, pace: Pace): string {
+function dotoolScript(text: string, pace: Pace): string {
     const commands = [
         `keydelay ${pace.delayMs}`,
         `keyhold ${pace.holdMs}`,
         `typedelay ${pace.delayMs}`,
         `typehold ${pace.holdMs}`,
+        `type ${text}`,
     ];
-    text.split('\n').forEach((line, index) => {
-        if (index > 0)
-            commands.push('key enter');
-        if (line.length > 0)
-            commands.push(`type ${line}`);
-    });
     return `${commands.join('\n')}\n`;
 }
 
-export function normalizeForKeyval(text: string): string {
+function normalizeForKeyval(text: string): string {
     let normalized = '';
     for (const character of text)
         normalized += NORMALIZE.get(character) ?? character;
     return normalized;
-}
-
-export function charToKeyval(character: string): number {
-    if (character === '\n' || character === '\r')
-        return Clutter.KEY_Return;
-    if (character === '\t')
-        return Clutter.KEY_Tab;
-    return Clutter.unicode_to_keysym(character.codePointAt(0) ?? 0);
 }
 
 async function typeWithDotool(
@@ -148,7 +134,8 @@ function typeWithVirtualKeyboard(
 
         sourceId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, pace.tickMs, () => {
             for (let typed = 0; typed < pace.charsPerTick && index < characters.length; typed++) {
-                const keyval = charToKeyval(characters[index++] ?? '');
+                const keyval = Clutter.unicode_to_keysym(
+                    characters[index++]?.codePointAt(0) ?? 0);
                 if (!keyval)
                     continue;
                 const time = GLib.get_monotonic_time();

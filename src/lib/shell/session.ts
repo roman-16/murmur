@@ -5,7 +5,7 @@ import Soup from 'gi://Soup?version=3.0';
 import {deferred, fromAsync} from '../async.js';
 import {errorMessage, isCancelled} from '../errors.js';
 import type {RecordingConfig} from '../settings.js';
-import {SAMPLE_RATE, type Transcriber} from '../transcription/provider.js';
+import {oneLine, SAMPLE_RATE, type Transcriber} from '../transcription/provider.js';
 import {transcriberFor} from '../transcription/transcriber.js';
 
 const CHUNK_BYTES = (SAMPLE_RATE * 2 * 100) / 1000;
@@ -245,19 +245,26 @@ export class Session {
         for (const event of this.#transcriber.receive(new TextDecoder().decode(data))) {
             switch (event.kind) {
                 case 'done':
-                    this.#text = event.text;
+                    this.#transcribe(event.text);
                     this.#finish();
                     return;
                 case 'error':
                     this.#fail(event.message);
                     return;
                 case 'transcript':
-                    this.#text = event.text;
-                    this.#handlers.onPartial(event.text);
+                    this.#transcribe(event.text);
+                    this.#handlers.onPartial(this.#text);
                     break;
             }
         }
         this.#flushAudio();
+    }
+
+    // Every service's words reach the panel, the clipboard and the keyboard
+    // through here, which is what makes one line a property of a transcript
+    // rather than of one service or one way of delivering it.
+    #transcribe(text: string): void {
+        this.#text = oneLine(text);
     }
 
     // A close once the microphone is released is the service finishing; before

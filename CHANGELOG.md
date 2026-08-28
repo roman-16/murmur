@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 Adding a version section here is what publishes a release, so this file is the one place a version is decided: see [Releasing](CONTRIBUTING.md#releasing). Versions that shipped before this file existed are on the [releases page](https://github.com/roman-16/murmur/releases).
 
+## [1.6.1] - 2026-08-28
+
+### Changed
+
+- A transcription arrives as one line whatever the service sends: a tidied list keeps its bullets inline rather than spread across several lines, and no key, `Ctrl+Enter` included, gets the line breaks back.
+
+### Fixed
+
+- A dictation no longer submits itself partway through: a line break in the transcription was typed as `Enter`, which sent the chat message, ran the shell command or started the search before the rest of the sentence arrived.
+
 ## [1.6.0] - 2026-08-27
 
 ### Added

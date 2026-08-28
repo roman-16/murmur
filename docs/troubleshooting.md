@@ -44,10 +44,6 @@ It collapsed, which it does the moment you look anywhere else: another window, t
 
 The recording is still running. The indicator with the countdown is in the top bar; click it to bring the panel back, or press the recording shortcut to stop and deliver.
 
-## A dictation arrived as several chat messages
-
-**Tidy up what I say** formats a spoken list as a bulleted one, and Murmur types each line break as `Enter`, which a chat box reads as *send*. Turn the setting off, or press `Ctrl+Enter` to take the text to the clipboard and paste it yourself.
-
 ## Characters are dropped, doubled or reordered
 
 Lower **Typing speed** in the preferences; some Electron and Java applications cannot keep up with fast synthetic input.

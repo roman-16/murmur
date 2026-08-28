@@ -3,12 +3,10 @@ set -uo pipefail
 
 cd "$(dirname "$0")/../.."
 
-for tool in gjs gnome-shell; do
-    if ! command -v "$tool" >/dev/null; then
-        echo "error: $tool is required to drive the extension" >&2
-        exit 1
-    fi
-done
+if ! command -v gnome-shell >/dev/null; then
+    echo "error: gnome-shell is required to drive the extension" >&2
+    exit 1
+fi
 
 tmp=$(mktemp --directory)
 trap 'rm --recursive --force "$tmp" 2>/dev/null || true' EXIT INT TERM
@@ -22,20 +20,6 @@ export NESTED_EXTENSIONS="scripts/shell-test/probe@murmur.local"
 # The probe reaches the extension directly, so the session needs no working
 # shortcut. Naming one nothing binds keeps the run from borrowing yours.
 export RECORDING_SHORTCUT="<Super><Shift><Control><Alt>F12"
-
-# The probe needs a real GTK client, which it starts with gjs as a child of the
-# nested shell - and a shell hands its children its own typelib path, which
-# belongs to a different GLib than the gjs that has to load it. Mixing the two
-# registers Gio's types twice and the client aborts before it can open a window.
-# The desktop session evidently runs GTK applications, so the client borrows the
-# library environment from the shell already running one.
-session_typelibs() {
-    local pid
-    pid=$(pgrep --newest --uid "$(id --user)" gnome-shell 2>/dev/null) || return 0
-    tr '\0' '\n' <"/proc/$pid/environ" 2>/dev/null | sed --quiet 's/^GI_TYPELIB_PATH=//p' | head -1
-}
-export PROBE_CLIENT_TYPELIBS
-PROBE_CLIENT_TYPELIBS=$(session_typelibs)
 
 # A shell that dies badly still leaves the report behind, and that is the more
 # useful thing to show, so the run's own status is not the answer here.

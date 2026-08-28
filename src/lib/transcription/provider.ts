@@ -46,6 +46,13 @@ export type Transcriber = {
     readonly url: string;
 };
 
+// A line break among typed keystrokes is Enter rather than a character: it sends
+// the message, runs the command, submits the search. So a transcript is one line
+// by the time anything shows, copies or types it.
+export function oneLine(text: string): string {
+    return text.replace(/\s+/g, ' ').trim();
+}
+
 export function providerId(nick: string): ProviderId {
     return nick in PROVIDERS ? (nick as ProviderId) : 'mistral';
 }

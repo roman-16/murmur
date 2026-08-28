@@ -1,24 +1,34 @@
 import Clutter from 'gi://Clutter';
-import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
+import Shell from 'gi://Shell';
 import St from 'gi://St';
 
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
+// In preference order, and every one of them a client that reports a focused
+// text field: an editor with the caret in its document, a terminal whenever it
+// is focused.
+const CLIENT_APPS = [
+    'org.gnome.TextEditor.desktop',
+    'org.gnome.gedit.desktop',
+    'org.gnome.Console.desktop',
+    'org.gnome.Ptyxis.desktop',
+    'org.gnome.Terminal.desktop',
+];
 const MURMUR_UUID = 'murmur@roman-16.github.io';
 const SETTLE_MS = 400;
-const WINDOW_TRIES = 20;
+const WINDOW_TRIES = 30;
 
 export default class Probe extends Extension {
+    #app = null;
     #failures = [];
     #panel = null;
     #passes = 0;
     #pointer = null;
     #client = null;
     #timeouts = [];
-    #window = null;
 
     enable() {
         Main.overview.hide();
@@ -40,8 +50,8 @@ export default class Probe extends Extension {
         this.#timeouts = [];
         this.#panel?.destroy();
         this.#panel = null;
-        this.#window?.force_exit();
-        this.#window = null;
+        this.#app?.request_quit();
+        this.#app = null;
     }
 
     // ------------------------------------------------------------------ checks
@@ -162,22 +172,22 @@ export default class Probe extends Extension {
     // A real client, so that focus behaves the way it does in a session. Nothing
     // in the extension can produce one: it runs inside the compositor.
     //
+    // An application the session already has, rather than a window this harness
+    // builds. Announcing a text field takes a whole toolkit, and a toolkit is
+    // loadable only by an interpreter from the closure it was built against, so
+    // a client of our own is a client that aborts on any machine whose GJS and
+    // whose GTK come from different places. The compositor launching an
+    // installed application is also what a real dictation is aimed at.
+    //
     // Waited on until it actually holds the focus, not merely until it exists:
     // a window actor appears before the compositor focuses it, and asserting in
     // between tests the gap rather than the rule.
     async #openWindow() {
-        const launcher = new Gio.SubprocessLauncher({
-            flags: Gio.SubprocessFlags.STDERR_SILENCE,
-        });
-        // Started with the shell's own typelib path, the client loads a Gio
-        // built against a different GLib than its interpreter and dies before it
-        // can open anything. run.sh passes the one belonging to a session that
-        // is known to run GTK applications.
-        const typelibs = GLib.getenv('PROBE_CLIENT_TYPELIBS');
-        if (typelibs)
-            launcher.setenv('GI_TYPELIB_PATH', typelibs, true);
-        this.#window = launcher.spawnv(
-            ['gjs', GLib.build_filenamev([this.path, 'window.js'])]);
+        const installed = Shell.AppSystem.get_default();
+        this.#app = CLIENT_APPS.map(id => installed.lookup_app(id)).find(app => app) ?? null;
+        if (!this.#app)
+            return null;
+        this.#app.activate();
 
         for (let tries = 0; tries < WINDOW_TRIES; tries++) {
             const window = global.display.focus_window;
@@ -245,11 +255,22 @@ export default class Probe extends Extension {
         const {RecordingIndicator} =
             await import(`file://${murmur.path}/lib/shell/indicator.js`);
         const {FocusTracker} = await import(`file://${murmur.path}/lib/shell/focus.js`);
+        const {oneLine} =
+            await import(`file://${murmur.path}/lib/transcription/provider.js`);
 
         this.#ok('an accelerator becomes a label',
             acceleratorLabel('<Super>space') === 'Super+Space',
             `got "${acceleratorLabel('<Super>space')}"`);
         this.#ok('an unset accelerator becomes nothing', acceleratorLabel('') === '');
+
+        // A line break reaching the keyboard is typed as Enter, which sends the
+        // message, runs the command and submits the search.
+        const formatted = oneLine('three things:\n- The report\n- The laptop');
+        this.#ok('a formatted transcript becomes one line',
+            formatted === 'three things: - The report - The laptop', `got "${formatted}"`);
+        this.#ok('a transcript keeps no break of any kind',
+            oneLine('Restart the worker.\n') === 'Restart the worker.' &&
+                oneLine('one\ttwo') === 'one two');
 
         // The first pointer interaction of a session produces no crossing, so
         // whatever it lands on reads as unhovered however healthy it is. Spend
@@ -363,7 +384,10 @@ export default class Probe extends Extension {
         await this.#settle();
 
         const window = await this.#openWindow();
-        this.#ok('a window can be opened to test against', window !== null);
+        this.#ok('a window can be opened to test against', window !== null,
+            this.#app
+                ? `${this.#app.get_id()} opened no focused window`
+                : `none of ${CLIENT_APPS.join(', ')} is installed system-wide`);
         if (!window)
             return;
 
@@ -377,8 +401,11 @@ export default class Probe extends Extension {
         // The case that made this rule what it is: the window clicked is the one
         // that already had the focus, so nothing about the window changes and
         // only the keyboard moving can be what collapses the panel.
+        // The middle of the window, which is its document or its terminal: a
+        // corner is the header bar, where a click can hit a button and open
+        // something this is not testing.
         const frame = window.get_frame_rect();
-        await this.#click(frame.x + 40, frame.y + 40);
+        await this.#click(frame.x + frame.width / 2, frame.y + frame.height / 2);
         this.#ok('clicking the already focused window releases the keyboard',
             !this.#holdsKeyboard());
         this.#ok('clicking the already focused window collapses the panel',

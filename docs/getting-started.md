@@ -83,13 +83,10 @@ With Gemini, **Tidy up what I say** is on, so the model cleans up as it transcri
 
 and what lands in the field is this:
 
-> I was thinking we should meet on Wednesday and bring three things:
-> - The report
-> - The laptop
-> - The keys
+> I was thinking we should meet on Wednesday and bring three things: - The report - The laptop - The keys
 
-Fillers gone, the correction resolved, the list formatted. Turn it off and you get what you said, word for word.
+Fillers gone, the correction resolved, the list marked out. Turn it off and you get what you said, word for word.
 
-**One thing to know before dictating into a chat box:** a formatted list means line breaks, and Murmur types a line break as `Enter`, which a chat box reads as *send*. Turn **Tidy up what I say** off for that, or press `Ctrl+Enter` to take the text to the clipboard and paste it yourself.
+A transcription is always one line, so the list arrives inline rather than across four of them, and nothing Murmur types is ever an `Enter`: dictating into a chat box sends nothing until you press it yourself.
 
 It applies to the finished transcription, so the text in the panel may rearrange itself when the recording ends.

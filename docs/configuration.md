@@ -34,7 +34,7 @@ It is stored like every other GNOME setting, in dconf, unencrypted. [Privacy](pr
 
 Gemini only, on by default. The model cleans the transcription up: filler words dropped, spoken self-corrections resolved, lists and numbers formatted, capitalisation and punctuation polished. Turn it off to have what you said transcribed word for word.
 
-Formatting includes line breaks - a spoken list comes out as a bulleted one - and Murmur types a line break as `Enter`. In a chat box that sends the message, so a tidied list becomes several messages. Turn this off if you dictate into chat boxes, or take the text with `Ctrl+Enter` and paste it.
+The model's formatting includes line breaks, and a transcription is always one line, so a spoken list arrives with its bullets inline: `three things: - The report - The laptop`. Nothing Murmur types is an `Enter`.
 
 ### Transcription delay
 

@@ -97,7 +97,7 @@ The transcription is never written to disk and the audio never touches it either
 - **A terminal is one big text field.** It tells the compositor it accepts text whenever it is focused and nothing finer, so Murmur will happily deliver a sentence to vim in normal mode.
 - **Dictation is billed to your key.** Murmur sends only what it records, and the ten-minute cap keeps a forgotten recording from running away.
 - **Gemini's free tier is free, and reads what you say.** Google's pricing page states that free-tier usage is used to improve their products, and the paid tier that it is not. Mistral bills from the first minute either way.
-- **A tidied list arrives as several chat messages.** Line breaks are typed as `Enter`, which a chat box reads as *send*. Turn off **Tidy up what I say**, or use `Ctrl+Enter` to copy instead.
+- **A dictation always arrives as one line.** Line breaks are flattened to spaces before anything is typed, so a transcription can never press `Enter` in a chat box, a prompt or a shell. A tidied list keeps its bullets, inline.
 - **The panel is not a window.** It cannot be alt-tabbed or pushed behind an application, because a GNOME Shell extension draws inside the compositor rather than opening a window. Clicking anything else collapses it to the top bar instead, which a window behind a maximised application could not do.
 - **Wayland only.** XWayland applications inside a Wayland session are fine; an X11 session is not.
 - **dotool is recommended.** Without it the fallback keyboard can only produce characters from your current layout, so emoji and other scripts are dropped.
