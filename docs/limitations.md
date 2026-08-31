@@ -18,7 +18,7 @@ The two services are the two that exist. There is no way to point Murmur at a th
 
 ## A Gemini recording ends after ten minutes
 
-Google ends a live transcription session there, so with Gemini - the default - the countdown starts at ten minutes however high **Maximum recording time** goes. Mistral takes the full half hour the setting allows.
+Google ends a live transcription session there, so with Gemini - the default - **Maximum recording time** goes no higher than ten minutes. Mistral ends no session of its own, so with it a recording runs for as long as you set, up to a day.
 
 ## A terminal is one big text field
 
@@ -41,6 +41,10 @@ What it does instead is get out of the way. Clicking anything else collapses the
 ## The virtual keyboard is limited to your layout
 
 Without dotool, the typing path can only produce characters that exist on your current keyboard layout. Typographic quotes, dashes and non-breaking spaces are rewritten to plain equivalents; emoji and other scripts are dropped. dotool removes the limit entirely.
+
+## Your dictation history is plain text
+
+Every dictation is kept in `~/.local/state/murmur@roman-16.github.io/history.jsonl`, unencrypted, because a GNOME extension has no keyring. Anything running as you can read it. A field the application reports as a password is skipped, but only Wayland applications report it, so a password dictated into an XWayland application would be kept. **Remember what I dictate** turns the whole thing off.
 
 ## No editing, no commands, no punctuation by voice
 

@@ -1,11 +1,11 @@
-import type Clutter from 'gi://Clutter';
+import Clutter from 'gi://Clutter';
 import Shell from 'gi://Shell';
 
 import {getIBusManager} from 'resource:///org/gnome/shell/misc/ibusManager.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 export type Destination =
-    | {app: string; kind: 'field'}
+    | {app: string; kind: 'field'; password: boolean}
     | {kind: 'clipboard'};
 
 // Main.inputMethod is the shell's Clutter.InputMethod plus the focus the
@@ -67,7 +67,9 @@ export class FocusTracker {
     // whole recording however much the user clicks around.
     current(): Destination {
         const field = focusedInputMethod() || this.#ibusFocused;
-        return field ? {app: focusedApp(), kind: 'field'} : {kind: 'clipboard'};
+        return field
+            ? {app: focusedApp(), kind: 'field', password: passwordField()}
+            : {kind: 'clipboard'};
     }
 }
 
@@ -81,4 +83,11 @@ function focusedApp(): string {
 function focusedInputMethod(): boolean {
     const focus = (Main.inputMethod as InputMethod).currentFocus;
     return focus?.is_focused() ?? false;
+}
+
+// A Wayland client that announces a password field reaches the shell as this
+// purpose, which is the same signal the on-screen keyboard reads. A client that
+// announces nothing, X11 included, is indistinguishable from an ordinary field.
+function passwordField(): boolean {
+    return Main.inputMethod.content_purpose === Clutter.InputContentPurpose.PASSWORD;
 }

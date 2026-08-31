@@ -19,6 +19,7 @@ Press `Super+Space`, say what you mean, and the words appear where your cursor a
 - **It lands where you are looking.** Where there is a field, the transcription is typed into it, in any application, terminals included, with nothing pasted and your clipboard untouched. Which field is decided when you stop, so you can go and find it while you talk.
 - **You watch it happen.** Audio streams to the service you picked over a WebSocket while you speak, and the text appears in the panel as it arrives, with a countdown and an optional hands-free stop after silence. Transcription runs on [Gemini 3.5 Transcribe Live](https://ai.google.dev/gemini-api/docs/live-api/live-transcribe) or [Mistral Voxtral](https://mistral.ai), whichever you choose in the preferences.
 - **Nothing is ever lost.** If no text field is focused when you stop, Murmur copies the transcription to the clipboard instead of firing a sentence worth of keystrokes at whatever happens to be in front.
+- **You can go back to what you said.** Every dictation is kept on your machine and listed in the preferences, newest first: click one to copy it, search them, or clear the lot. A field the application reports as a password is never kept.
 
 ## Install
 
@@ -45,7 +46,7 @@ gnome-extensions prefs murmur@roman-16.github.io
 | Service | Key from | What it costs |
 | --- | --- | --- |
 | **Gemini 3.5 Transcribe Live** (default) | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) | Nothing on Google's free tier, which uses what you dictate to improve their products; about $0.009 a minute once you pay. A recording runs ten minutes at most |
-| **Mistral Voxtral Realtime** | [console.mistral.ai](https://console.mistral.ai) | About $0.006 a minute of audio, from the first minute |
+| **Mistral Voxtral Realtime** | [console.mistral.ai](https://console.mistral.ai) | About $0.006 a minute of audio, from the first minute. A recording runs as long as you set |
 
 That is the whole setup. Put the cursor where the words belong, press `Super+Space`, and speak.
 
@@ -77,7 +78,7 @@ Want to know whether an application is recognised? Turn on GNOME's on-screen key
 
 Your voice, to the service you picked - `generativelanguage.googleapis.com` by default, or `api.mistral.ai` - while you are recording. That is the only connection Murmur makes: no telemetry, no analytics, no update pings.
 
-The transcription is never written to disk and the audio never touches it either. Your API key is stored in dconf like every other GNOME setting, which means unencrypted, because extensions have no keyring access. If a dictation must not reach a third party, Murmur is the wrong tool. → [Privacy](docs/privacy.md)
+The audio is never written to disk. The transcription is, on your machine only: the text of each dictation is kept in `~/.local/state/murmur@roman-16.github.io/history.jsonl` so you can read it back later, until you clear it or turn **Remember what I dictate** off. Your API key is stored in dconf like every other GNOME setting, which means unencrypted, because extensions have no keyring access. If a dictation must not reach a third party, Murmur is the wrong tool. → [Privacy](docs/privacy.md)
 
 ## Documentation
 
@@ -101,7 +102,7 @@ The transcription is never written to disk and the audio never touches it either
 - **The panel is not a window.** It cannot be alt-tabbed or pushed behind an application, because a GNOME Shell extension draws inside the compositor rather than opening a window. Clicking anything else collapses it to the top bar instead, which a window behind a maximised application could not do.
 - **Wayland only.** XWayland applications inside a Wayland session are fine; an X11 session is not.
 - **dotool is recommended.** Without it the fallback keyboard can only produce characters from your current layout, so emoji and other scripts are dropped.
-- **Passwords are typed, never copied.** A password field is still a text field, so nothing lands on the clipboard.
+- **Passwords are typed, never copied, never kept.** A password field is still a text field, so nothing lands on the clipboard or in the history - as long as the application reports the field as one, which XWayland applications cannot.
 
 ## Contributing
 

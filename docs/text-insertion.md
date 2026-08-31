@@ -67,4 +67,6 @@ Without dotool, typing falls back to the shell's virtual keyboard, which can onl
 
 ## Passwords
 
-A password field is still a text field, so a dictated password is typed into it and never goes near the clipboard. Whether dictating a password aloud is a good idea is a separate question.
+A password field is still a text field, so a dictated password is typed into it, never goes near the clipboard, and is never kept in your [dictation history](configuration.md#remember-what-i-dictate). That last one holds as far as the application says so: Wayland clients announce a password field and are honoured, XWayland clients announce nothing and a password dictated into one would be kept.
+
+Whether dictating a password aloud is a good idea is a separate question.

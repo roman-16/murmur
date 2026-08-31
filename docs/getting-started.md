@@ -62,6 +62,16 @@ Murmur asks the question when you stop, and the panel names the answer under the
 
 Because the answer is read at the end rather than the start, you can press the shortcut anywhere, start talking, and click into the field you actually want while you speak. `Ctrl+Enter` sends the words to the clipboard instead whenever you would rather keep them than place them. [Where the text goes](text-insertion.md) explains how the decision is made and which applications are recognised.
 
+## Look back at what you said
+
+Every dictation is kept, so a transcription that landed in the wrong place is one click away rather than gone. Open the preferences and switch to the **History** page:
+
+- **Click a dictation** to copy it to the clipboard.
+- **Search** them from the magnifier in the header.
+- **Clear history** empties the lot, after asking.
+
+The newest 500 are kept, in plain text, in `~/.local/state/murmur@roman-16.github.io/history.jsonl`. **Remember what I dictate**, at the top of the page, turns it off; a password field and a dictation you cancelled are never kept either way. See [Privacy](privacy.md).
+
 ## Change the shortcut
 
 In the preferences, click the shortcut next to **Recording shortcut**, press the combination you want, and it takes effect for the next dictation. `Backspace` clears it, which disables the shortcut entirely; `Esc` keeps the old one.
@@ -71,7 +81,7 @@ In the preferences, click the shortcut next to **Recording shortcut**, press the
 Two settings end a recording without you pressing anything:
 
 - **Stop after silence** ends it after a number of seconds without speech. Off by default.
-- **Maximum recording time** ends it after ten minutes, so a forgotten recording cannot run forever. The countdown is in the panel and in the top-bar indicator.
+- **Maximum recording time** ends it after ten minutes, so a forgotten recording cannot run forever. The countdown is in the panel and in the top-bar indicator. Gemini holds this to ten minutes, which is where it ends a session; with Mistral it goes as high as you like.
 
 Both deliver the transcription exactly as `Enter` would. See [Configuration](configuration.md).
 

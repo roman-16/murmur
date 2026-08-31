@@ -56,7 +56,7 @@ src/prefs.ts           the preferences half
 src/stylesheet.css     geometry for the panel; its colours come from the shell theme
 src/lib/               shared by both, Gio and GLib only
 src/lib/shell/         shell-only: panel, indicator, insertion, focus, clipboard, session
-src/lib/prefs/         preferences-only: rows, shortcut capture, dotool diagnostics
+src/lib/prefs/         preferences-only: rows, shortcut capture, dotool diagnostics, history page
 src/lib/transcription/ one module per service, and the table of them
 ```
 
@@ -88,6 +88,7 @@ Everything past that is the compositor, and the interesting failures are all in 
 - a web-based terminal such as the one in VS Code, which only reads key events,
 - the desktop with nothing focused, for the clipboard path,
 - `Esc` mid-recording, and both `Enter` and `Ctrl+Enter`,
+- a password field, which must land in the field and **not** in the history page,
 - clicking anywhere outside the panel mid-recording, which must collapse it and hand the keyboard back, whether or not you changed application,
 - a fullscreen window, which the panel has to be visible over,
 - **both transcription services**, since each speaks its own protocol and only one of them is exercised by a dictation. `MURMUR_PROVIDER=gemini just dev` switches the throwaway session over.

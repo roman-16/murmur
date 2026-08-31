@@ -101,8 +101,9 @@ rm ~/.local/share/gnome-shell/extensions/murmur@roman-16.github.io
 
 A Nix install goes away with the entry in your configuration and the next rebuild.
 
-Your settings, including the API key, live in dconf and outlive the extension. Clear them with:
+Your settings, including the API key, live in dconf and outlive the extension, and so does what you dictated. Clear both with:
 
 ```bash
 dconf reset -f /org/gnome/shell/extensions/murmur/
+rm -r ~/.local/state/murmur@roman-16.github.io
 ```

@@ -18,7 +18,7 @@ Which service transcribes your voice. Only the chosen one's settings are on scre
 | --- | --- | --- |
 | Key from | [console.mistral.ai](https://console.mistral.ai) | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) |
 | Cost | About $0.006 per minute of audio | Free on Google's free tier, which trains on your dictation; about $0.009 per minute when you pay |
-| Longest recording | 30 minutes, the cap you set | 10 minutes, which the service imposes |
+| Longest recording | As long as you set; Mistral ends no session of its own | 10 minutes, which the service imposes |
 | Own settings | **Transcription delay** | **Tidy up what I say** |
 | Language | Detected by the model | Detected by the model, and it follows a switch mid-sentence |
 
@@ -68,15 +68,40 @@ Either way the rule is the same once a recording is running: the panel is on scr
 
 ### Maximum recording time
 
-Seconds after which a recording ends on its own and delivers what it has. 600 by default, between 15 and 1800. This is a safety net for a recording you walked away from, not a way to keep dictations short. The countdown shows in the panel and in the top-bar indicator.
+Seconds after which a recording ends on its own and delivers what it has. 600 by default. This is a safety net for a recording you walked away from, not a way to keep dictations short. The countdown shows in the panel and in the top-bar indicator, in hours once a recording runs past one.
 
-With Gemini selected the countdown starts at ten minutes however high this is set, because Google ends a live transcription session there.
+How high it goes is the selected service's business, so the number you set is always the number the countdown starts at:
+
+| Service | This row goes up to |
+| --- | --- |
+| Gemini 3.5 Transcribe Live | **600 seconds**, because Google ends a live transcription session at ten minutes |
+| Mistral Voxtral Realtime | **86400 seconds**, a day. Mistral imposes nothing; the ceiling is Murmur declining to offer a recording with no end at all |
+
+Switching to Gemini with a longer time set lowers it to 600, and switching back to Mistral leaves it there.
 
 ### Stop after silence
 
 Seconds of uninterrupted silence that end the recording. 0 keeps it running until you stop it yourself.
 
 Silence is measured in audio time rather than wall-clock time, so a slow network cannot be mistaken for a pause. Anything quieter than roughly 1% of full scale counts as silence, so a noisy room may need a longer setting, or none.
+
+## History
+
+### Remember what I dictate
+
+On by default. The text of every finished dictation is appended to `~/.local/state/murmur@roman-16.github.io/history.jsonl`, in plain text, and listed on the **History** page.
+
+- **Click a dictation to copy it** to the clipboard.
+- **Search** them from the magnifier in the window's header.
+- **Clear history** deletes the file, after asking.
+- The newest **500** are kept; older ones fall off the end.
+- A field the application reports as a password is never kept, nor is a dictation you cancelled with `Esc`. XWayland applications report nothing, so a password dictated into one would be kept.
+
+Turn the switch off and nothing further is written. What is already there stays until you clear it, and uninstalling does not remove it:
+
+```bash
+rm -r ~/.local/state/murmur@roman-16.github.io
+```
 
 ## Text insertion
 
@@ -101,6 +126,7 @@ gsettings set org.gnome.shell.extensions.murmur transcription-provider gemini
 gsettings set org.gnome.shell.extensions.murmur gemini-api-key "$(cat ~/.secrets/gemini)"
 gsettings set org.gnome.shell.extensions.murmur gemini-smart-transcription true
 gsettings set org.gnome.shell.extensions.murmur mistral-api-key "$(cat ~/.secrets/mistral)"
+gsettings set org.gnome.shell.extensions.murmur remember-dictations false
 gsettings set org.gnome.shell.extensions.murmur toggle-recording "['<Super>space']"
 gsettings set org.gnome.shell.extensions.murmur show-panel-on-start false
 gsettings set org.gnome.shell.extensions.murmur transcription-delay-ms 500
@@ -113,8 +139,9 @@ gsettings set org.gnome.shell.extensions.murmur typing-speed 500
 | --- | --- | --- | --- |
 | `gemini-api-key` | string | empty | |
 | `gemini-smart-transcription` | boolean | `true` | |
-| `max-recording-seconds` | integer | 600 | 15 to 1800 |
+| `max-recording-seconds` | integer | 600 | 15 to 86400, and to 600 in the preferences while Gemini is selected |
 | `mistral-api-key` | string | empty | |
+| `remember-dictations` | boolean | `true` | |
 | `show-panel-on-start` | boolean | `true` | |
 | `silence-timeout-seconds` | integer | 0 | 0 to 30 |
 | `toggle-recording` | string list | `['<Super>space']` | |

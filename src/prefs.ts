@@ -6,10 +6,12 @@ import {
     gettext as _
 } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
+import {History} from './lib/history.js';
 import {makeDotoolStatusRow} from './lib/prefs/dotool-status.js';
+import {makeHistoryPage} from './lib/prefs/history.js';
 import {makeChoiceRow, makePresetRow, makeSpinRow} from './lib/prefs/rows.js';
 import {makeShortcutRow} from './lib/prefs/shortcut.js';
-import {Key, readProvider} from './lib/settings.js';
+import {Key, readIntRange, readProvider} from './lib/settings.js';
 import {PROVIDER_IDS, PROVIDERS, type ProviderId} from './lib/transcription/provider.js';
 
 const TYPING_SPEEDS = [50, 100, 250, 500, 1000, 2500];
@@ -17,13 +19,18 @@ const TYPING_SPEEDS = [50, 100, 250, 500, 1000, 2500];
 export default class MurmurPreferences extends ExtensionPreferences {
     override async fillPreferencesWindow(window: Adw.PreferencesWindow): Promise<void> {
         const settings = this.getSettings();
-        const page = new Adw.PreferencesPage();
+        const page = new Adw.PreferencesPage({
+            icon_name: 'audio-input-microphone-symbolic',
+            title: _('Dictation'),
+        });
         page.add(transcriptionGroup(settings));
         page.add(geminiGroup(settings));
         page.add(mistralGroup(settings));
         page.add(recordingGroup(window, settings));
         page.add(insertionGroup(settings));
         window.add(page);
+        window.add(makeHistoryPage(window, settings, new History(this.uuid)));
+        window.search_enabled = true;
     }
 }
 
@@ -104,17 +111,39 @@ function recordingGroup(
     settings.bind(Key.showPanelOnStart, panelRow, 'active', Gio.SettingsBindFlags.DEFAULT);
     group.add(panelRow);
 
-    group.add(makeSpinRow(settings, Key.maxRecordingSeconds, {
-        title: _('Maximum recording time'),
-        subtitle: _('Seconds after which recording stops on its own'),
-        step: 15,
-    }));
+    group.add(maxRecordingRow(settings));
     group.add(makeSpinRow(settings, Key.silenceSeconds, {
         title: _('Stop after silence'),
         subtitle: _('Seconds of silence that end the recording, or 0 to keep recording'),
         step: 1,
     }));
     return group;
+}
+
+// The ceiling is the service's, so the row cannot be set past what the service
+// would allow: the number here is the number the countdown starts at.
+function maxRecordingRow(settings: Gio.Settings): Adw.SpinRow {
+    const row = makeSpinRow(settings, Key.maxRecordingSeconds, {
+        title: _('Maximum recording time'),
+        subtitle: '',
+        step: 15,
+    });
+
+    const sync = () => {
+        const {maxSessionSeconds, vendor} = PROVIDERS[readProvider(settings)];
+        row.adjustment.upper =
+            maxSessionSeconds ?? readIntRange(settings, Key.maxRecordingSeconds).upper;
+        row.subtitle = maxSessionSeconds === undefined
+            ? _('Seconds after which recording stops on its own. %s sets no limit of its own, so this is only a safety net for a recording you walked away from')
+                .replace('%s', vendor)
+            : _('Seconds after which recording stops on its own. %s ends a session after %d minutes, which is as high as this goes')
+                .replace('%s', vendor)
+                .replace('%d', String(Math.floor(maxSessionSeconds / 60)));
+    };
+    sync();
+
+    settings.connect(`changed::${Key.transcriptionProvider}`, sync);
+    return row;
 }
 
 function insertionGroup(settings: Gio.Settings): Adw.PreferencesGroup {

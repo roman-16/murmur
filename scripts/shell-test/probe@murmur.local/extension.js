@@ -255,6 +255,7 @@ export default class Probe extends Extension {
         const {RecordingIndicator} =
             await import(`file://${murmur.path}/lib/shell/indicator.js`);
         const {FocusTracker} = await import(`file://${murmur.path}/lib/shell/focus.js`);
+        const {History} = await import(`file://${murmur.path}/lib/history.js`);
         const {oneLine} =
             await import(`file://${murmur.path}/lib/transcription/provider.js`);
 
@@ -278,9 +279,11 @@ export default class Probe extends Extension {
         await this.#click(640, 300);
 
         const fired = [];
+        this.#checkHistory(History);
+
         this.#panel = new MurmurPanel();
         this.#panel.shortcut = 'Super+Space';
-        this.#panel.destination = {app: 'Text Editor', kind: 'field'};
+        this.#panel.destination = {app: 'Text Editor', kind: 'field', password: false};
         this.#panel.transcript = 'the quick brown fox';
         this.#panel.onAction = action => fired.push(action);
         await this.#settle(600);
@@ -294,6 +297,47 @@ export default class Probe extends Extension {
         await this.#checkTeardown(RecordingIndicator);
         this.#checkExtensionCycle(murmur);
         this.#report();
+    }
+
+    // What a dictation leaves behind, checked where it is written rather than in
+    // the abstract: the session's own state directory, from inside the shell
+    // process that does the writing.
+    #checkHistory(History) {
+        const history = new History('probe@murmur.local');
+        history.clear();
+        this.#ok('a history nothing was said into is empty', history.entries().length === 0);
+
+        history.append('the first thing said');
+        history.append('the second thing said');
+        const kept = history.entries();
+        this.#ok('a dictation is kept, newest first',
+            kept[0]?.text === 'the second thing said' &&
+                kept[1]?.text === 'the first thing said',
+            JSON.stringify(kept));
+        this.#ok('a kept dictation carries when it was said',
+            typeof kept[0]?.at === 'string' && kept[0].at.length > 0, `at=${kept[0]?.at}`);
+        this.#ok('the history is a file on disk',
+            GLib.file_test(history.path, GLib.FileTest.EXISTS), history.path);
+
+        for (let index = 0; index < 501; index++)
+            history.append(`dictation ${index}`);
+        const capped = history.entries();
+        this.#ok('the history stops at 500 dictations', capped.length === 500,
+            `${capped.length} kept`);
+        this.#ok('the oldest dictation is the one dropped',
+            capped.at(-1)?.text === 'dictation 1', `oldest is ${capped.at(-1)?.text}`);
+
+        // A half-written line costs its own entry and nothing else.
+        GLib.file_set_contents(history.path,
+            '{"at":"2026-01-01T00:00:00Z","text":"kept"}\n{"at":"2026-01\n');
+        const survivors = history.entries();
+        this.#ok('a damaged line is skipped rather than losing the file',
+            survivors.length === 1 && survivors[0]?.text === 'kept', JSON.stringify(survivors));
+
+        history.clear();
+        this.#ok('clearing leaves nothing behind',
+            history.entries().length === 0 &&
+                !GLib.file_test(history.path, GLib.FileTest.EXISTS));
     }
 
     // The regression this whole harness exists for: a button that is hit-tested

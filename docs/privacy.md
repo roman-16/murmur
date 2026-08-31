@@ -26,10 +26,18 @@ If your dictation must not reach a third party, Murmur is the wrong tool, and a 
 | --- | --- | --- |
 | Your API keys | dconf, under `/org/gnome/shell/extensions/murmur/` | **Unencrypted**, like every GSettings value. Any process running as you can read it. Each service keeps its own, and the one you are not using stays there until you clear it |
 | Your other settings | The same place | Shortcut, delays, limits |
-| The transcription | Nowhere | It exists in memory, is delivered, and is gone |
+| The transcription | `~/.local/state/murmur@roman-16.github.io/history.jsonl` | **Unencrypted**, one line per dictation, oldest first, the newest 500 kept |
 | The audio | Nowhere | It is streamed from the microphone to the socket and never written to disk |
 
-There is no history, no cache and no log of what you dictated. Closing the panel is the end of it.
+## Your dictation history
+
+**Remember what I dictate** is on, so the text of every finished dictation is written to that file and listed on the **History** page of the preferences, where a click copies one and **Clear history** deletes the file. Turn the switch off and nothing further is written; what was written stays until you clear it.
+
+Three things are worth knowing about it:
+
+- **It is plain text with no encryption**, readable by anything running as you, exactly like your API key. That is the same platform limit: extensions have no keyring.
+- **A password field is never kept**, when the application says it is one. Wayland applications announce it and are honoured; XWayland applications announce nothing at all, so a password dictated into one would be kept.
+- **A cancelled dictation is never kept.** `Esc` stores nothing, and neither does a recording that transcribed nothing.
 
 An API key in dconf is the same protection GNOME gives every other setting, which is to say it protects you from other users on the machine and not from software running as you. GNOME extensions have no access to the system keyring, so this is the honest limit rather than a choice.
 

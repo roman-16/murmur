@@ -105,7 +105,8 @@ trap 'restore; rm --recursive --force "$tmp" 2>/dev/null || true' EXIT INT TERM
 # text-input to the nested compositor directly.
 unset GTK_IM_MODULE QT_IM_MODULE QT_IM_MODULES XMODIFIERS
 
-export XDG_CACHE_HOME="$tmp/cache" XDG_CONFIG_HOME="$tmp/config" XDG_DATA_HOME="$tmp/data"
+export XDG_CACHE_HOME="$tmp/cache" XDG_CONFIG_HOME="$tmp/config" XDG_DATA_HOME="$tmp/data" \
+    XDG_STATE_HOME="$tmp/state"
 extensions="$XDG_DATA_HOME/gnome-shell/extensions"
 mkdir --parents "$extensions"
 ln --symbolic --force --no-dereference --no-target-directory "$PWD/dist" "$extensions/$uuid"

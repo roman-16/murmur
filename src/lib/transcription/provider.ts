@@ -7,7 +7,9 @@ export type ProviderId = 'gemini' | 'mistral';
 export type Provider = {
     keySource: string;
     label: string;
-    maxSessionSeconds: number;
+    // Absent where the service ends no session of its own, which leaves the
+    // recording as long as the user sets it.
+    maxSessionSeconds?: number;
     vendor: string;
 };
 
@@ -24,7 +26,6 @@ export const PROVIDERS: Record<ProviderId, Provider> = {
     mistral: {
         keySource: 'console.mistral.ai',
         label: 'Mistral Voxtral Realtime',
-        maxSessionSeconds: 1800,
         vendor: 'Mistral',
     },
 };
@@ -53,8 +54,8 @@ export function oneLine(text: string): string {
     return text.replace(/\s+/g, ' ').trim();
 }
 
-export function providerId(nick: string): ProviderId {
-    return nick in PROVIDERS ? (nick as ProviderId) : 'mistral';
+export function isProviderId(nick: string): nick is ProviderId {
+    return nick in PROVIDERS;
 }
 
 // The override exists so the demo recording can drive a scripted endpoint

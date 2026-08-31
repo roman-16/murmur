@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 Adding a version section here is what publishes a release, so this file is the one place a version is decided: see [Releasing](CONTRIBUTING.md#releasing). Versions that shipped before this file existed are on the [releases page](https://github.com/roman-16/murmur/releases).
 
+## [1.7.0] - 2026-08-31
+
+### Added
+
+- A **History** page in the preferences holds what you dictated, newest first, up to the last 500: click one to copy it, search them from the window's header, or clear the lot.
+
+### Changed
+
+- A transcription no longer disappears when the panel closes. Its text is kept on your machine, in `~/.local/state/murmur@roman-16.github.io/history.jsonl`, in plain text and readable by anything running as you. A field the application reports as a password is never kept, a cancelled dictation is never kept, and **Remember what I dictate** turns the whole thing off.
+- **Maximum recording time** now follows the service: ten minutes at most while Gemini is selected, because that is where Google ends a session, and as long as you like with Mistral, which imposes no limit of its own. The number you set is the number the countdown starts at.
+- The countdown in the panel and the top bar shows hours once a recording runs past one.
+
 ## [1.6.2] - 2026-08-28
 
 ### Changed

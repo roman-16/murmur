@@ -17,14 +17,19 @@
     </key>
     <key name="max-recording-seconds" type="i">
       <default>600</default>
-      <range min="15" max="1800"/>
+      <range min="15" max="86400"/>
       <summary>Maximum recording time</summary>
-      <description>Seconds after which recording stops on its own and the transcription is inserted.</description>
+      <description>Seconds after which recording stops on its own and the transcription is inserted. A service that ends a session sooner lowers this: with Gemini selected the preferences go no higher than its ten minutes.</description>
     </key>
     <key name="mistral-api-key" type="s">
       <default>''</default>
       <summary>Mistral API key</summary>
       <description>API key used to authenticate with the Mistral Voxtral realtime transcription endpoint.</description>
+    </key>
+    <key name="remember-dictations" type="b">
+      <default>true</default>
+      <summary>Remember what I dictate</summary>
+      <description>Whether the text of a finished dictation is kept on disk, as history.jsonl in the extension's own directory under XDG_STATE_HOME, to be read back and copied from the History page. A field the application reports as a password is never kept.</description>
     </key>
     <key name="show-panel-on-start" type="b">
       <default>true</default>

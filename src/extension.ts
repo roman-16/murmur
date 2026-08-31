@@ -7,6 +7,7 @@ import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import {errorMessage} from './lib/errors.js';
+import {History} from './lib/history.js';
 import {Key, readAccelerator, readRecordingConfig} from './lib/settings.js';
 import {acceleratorLabel} from './lib/shell/accelerator.js';
 import {copyText} from './lib/shell/clipboard.js';
@@ -23,6 +24,7 @@ export default class MurmurExtension extends Extension {
     #countdownId = 0;
     #deadlineUs = 0;
     #focusTracker: FocusTracker | null = null;
+    #history: History | null = null;
     #indicator: RecordingIndicator | null = null;
     #keybindingId = 0;
     #panel: MurmurPanel | null = null;
@@ -33,6 +35,7 @@ export default class MurmurExtension extends Extension {
     enable(): void {
         const settings = this.getSettings();
         this.#settings = settings;
+        this.#history = new History(this.uuid);
         this.#focusTracker = new FocusTracker();
         this.#bindShortcut();
         this.#settingsChangedId = settings.connect(`changed::${Key.toggleRecording}`, () => {
@@ -54,6 +57,7 @@ export default class MurmurExtension extends Extension {
         this.#closeUi();
         this.#focusTracker?.destroy();
         this.#focusTracker = null;
+        this.#history = null;
         this.#settings = null;
     }
 
@@ -156,6 +160,7 @@ export default class MurmurExtension extends Extension {
             this.#closeUi();
             return;
         }
+        this.#remember(transcript, destination);
 
         if (destination.kind === 'clipboard') {
             copyText(transcript);
@@ -169,6 +174,16 @@ export default class MurmurExtension extends Extension {
         this.#closeUi();
         if (!cancellable.is_cancelled())
             await insertText(transcript, pace, cancellable);
+    }
+
+    // A password the client announced as one is delivered and forgotten; there
+    // is nothing to gain from a dictation that is kept where the password is.
+    #remember(transcript: string, destination: Destination): void {
+        if (!this.#settings?.get_boolean(Key.rememberDictations))
+            return;
+        if (destination.kind === 'field' && destination.password)
+            return;
+        this.#history?.append(transcript);
     }
 
     #onPanelAction(action: PanelAction): void {
@@ -239,5 +254,9 @@ export default class MurmurExtension extends Extension {
 }
 
 function formatRemaining(seconds: number): string {
-    return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+    const minutes = Math.floor(seconds / 60);
+    const tail = String(seconds % 60).padStart(2, '0');
+    if (minutes < 60)
+        return `${minutes}:${tail}`;
+    return `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, '0')}:${tail}`;
 }
