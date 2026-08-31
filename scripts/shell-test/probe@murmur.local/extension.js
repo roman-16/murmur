@@ -1,4 +1,5 @@
 import Clutter from 'gi://Clutter';
+import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
 import Shell from 'gi://Shell';
@@ -279,7 +280,7 @@ export default class Probe extends Extension {
         await this.#click(640, 300);
 
         const fired = [];
-        this.#checkHistory(History);
+        await this.#checkHistory(History);
 
         this.#panel = new MurmurPanel();
         this.#panel.shortcut = 'Super+Space';
@@ -302,14 +303,15 @@ export default class Probe extends Extension {
     // What a dictation leaves behind, checked where it is written rather than in
     // the abstract: the session's own state directory, from inside the shell
     // process that does the writing.
-    #checkHistory(History) {
+    async #checkHistory(History) {
         const history = new History('probe@murmur.local');
-        history.clear();
-        this.#ok('a history nothing was said into is empty', history.entries().length === 0);
+        await history.clear();
+        this.#ok('a history nothing was said into is empty',
+            (await history.entries()).length === 0);
 
-        history.append('the first thing said');
-        history.append('the second thing said');
-        const kept = history.entries();
+        await history.append('the first thing said');
+        await history.append('the second thing said');
+        const kept = await history.entries();
         this.#ok('a dictation is kept, newest first',
             kept[0]?.text === 'the second thing said' &&
                 kept[1]?.text === 'the first thing said',
@@ -319,9 +321,26 @@ export default class Probe extends Extension {
         this.#ok('the history is a file on disk',
             GLib.file_test(history.path, GLib.FileTest.EXISTS), history.path);
 
+        // Nothing but the user reads what the user dictated, which the write
+        // has to settle as it creates the file: a mode corrected afterwards
+        // leaves an instant in which it is not true.
+        const modeOf = path => Gio.File.new_for_path(path)
+            .query_info('unix::mode', Gio.FileQueryInfoFlags.NONE, null)
+            .get_attribute_uint32('unix::mode') & 0o7777;
+        const directory = GLib.path_get_dirname(history.path);
+        this.#ok('the history is readable by nobody else',
+            modeOf(history.path) === 0o600 && modeOf(directory) === 0o700,
+            `file ${modeOf(history.path).toString(8)}, ` +
+                `directory ${modeOf(directory).toString(8)}`);
+
+        // Appends queue behind one another, so the last one to be handed over
+        // is the last one to be written and waiting for it waits for them all.
+        let queued;
         for (let index = 0; index < 501; index++)
-            history.append(`dictation ${index}`);
-        const capped = history.entries();
+            queued = history.append(`dictation ${index}`);
+        await queued;
+
+        const capped = await history.entries();
         this.#ok('the history stops at 500 dictations', capped.length === 500,
             `${capped.length} kept`);
         this.#ok('the oldest dictation is the one dropped',
@@ -330,13 +349,13 @@ export default class Probe extends Extension {
         // A half-written line costs its own entry and nothing else.
         GLib.file_set_contents(history.path,
             '{"at":"2026-01-01T00:00:00Z","text":"kept"}\n{"at":"2026-01\n');
-        const survivors = history.entries();
+        const survivors = await history.entries();
         this.#ok('a damaged line is skipped rather than losing the file',
             survivors.length === 1 && survivors[0]?.text === 'kept', JSON.stringify(survivors));
 
-        history.clear();
+        await history.clear();
         this.#ok('clearing leaves nothing behind',
-            history.entries().length === 0 &&
+            (await history.entries()).length === 0 &&
                 !GLib.file_test(history.path, GLib.FileTest.EXISTS));
     }
 

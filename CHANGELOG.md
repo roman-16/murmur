@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 Adding a version section here is what publishes a release, so this file is the one place a version is decided: see [Releasing](CONTRIBUTING.md#releasing). Versions that shipped before this file existed are on the [releases page](https://github.com/roman-16/murmur/releases).
 
+## [1.7.1] - 2026-08-31
+
+### Changed
+
+- Writing a dictation to your history no longer holds up the desktop. The pause was a few milliseconds on a fast disk and longer on a slow one, and it landed just as the transcription was being typed.
+
+### Security
+
+- Your dictation history is created readable by you alone. Every write made it world-readable and narrowed it a moment later, so each dictation left an instant in which another account on the machine could read what you had said, and a crash in that instant left it that way.
+
 ## [1.7.0] - 2026-08-31
 
 ### Added

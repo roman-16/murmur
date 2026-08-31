@@ -7,6 +7,7 @@ import Gtk from 'gi://Gtk';
 
 import {gettext as _} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
+import {errorMessage} from '../errors.js';
 import type {Dictation, History} from '../history.js';
 import {Key} from '../settings.js';
 
@@ -38,12 +39,19 @@ export function makeHistoryPage(
     page.add(list);
 
     const rows: Gtk.Widget[] = [];
-    const rebuild = () => {
+    // The list is read from disk, so a rebuild that started earlier may answer
+    // later; only the newest one is allowed to fill the group.
+    let generation = 0;
+    const rebuild = async () => {
+        const current = ++generation;
+        const entries = await history.entries();
+        if (current !== generation)
+            return;
+
         for (const row of rows)
             list.remove(row);
         rows.length = 0;
 
-        const entries = history.entries();
         if (entries.length === 0) {
             rows.push(add(list, emptyRow(settings)));
             return;
@@ -52,7 +60,7 @@ export function makeHistoryPage(
             rows.push(add(list, dictationRow(window, entry)));
         rows.push(add(list, clearRow(window, history, entries.length, rebuild)));
     };
-    rebuild();
+    void rebuild();
 
     watch(page, history, rebuild);
     return page;
@@ -94,7 +102,7 @@ function emptyRow(settings: Gio.Settings): Adw.ActionRow {
 
 function clearRow(
     window: Adw.PreferencesWindow, history: History, count: number,
-    onCleared: () => void): Adw.ButtonRow {
+    onCleared: () => Promise<void>): Adw.ButtonRow {
     const row = new Adw.ButtonRow({title: _('Clear history')});
     row.add_css_class('destructive-action');
     row.connect('activated', () => {
@@ -108,8 +116,9 @@ function clearRow(
         dialog.connect('response', (_dialog: Adw.AlertDialog, response: string) => {
             if (response !== 'delete')
                 return;
-            history.clear();
-            onCleared();
+            void history.clear()
+                .catch(error => console.error(`murmur: history: ${errorMessage(error)}`))
+                .then(onCleared);
         });
         dialog.present(window);
     });
@@ -131,7 +140,8 @@ function copy(window: Adw.PreferencesWindow, text: string): void {
 }
 
 // A dictation while this window is open belongs in the list without reopening it.
-function watch(page: Adw.PreferencesPage, history: History, rebuild: () => void): void {
+function watch(
+    page: Adw.PreferencesPage, history: History, rebuild: () => Promise<void>): void {
     const monitor = history.monitor();
     let settleId = 0;
 
@@ -146,7 +156,7 @@ function watch(page: Adw.PreferencesPage, history: History, rebuild: () => void)
         clearSettle();
         settleId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, SETTLE_MS, () => {
             settleId = 0;
-            rebuild();
+            void rebuild();
             return GLib.SOURCE_REMOVE;
         });
     });

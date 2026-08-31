@@ -178,12 +178,16 @@ export default class MurmurExtension extends Extension {
 
     // A password the client announced as one is delivered and forgotten; there
     // is nothing to gain from a dictation that is kept where the password is.
+    //
+    // The words land first and the record follows: waiting for the disk before
+    // typing would hand a slow filesystem a say in how soon the text appears.
     #remember(transcript: string, destination: Destination): void {
         if (!this.#settings?.get_boolean(Key.rememberDictations))
             return;
         if (destination.kind === 'field' && destination.password)
             return;
-        this.#history?.append(transcript);
+        this.#history?.append(transcript)
+            .catch(error => console.error(`murmur: history: ${errorMessage(error)}`));
     }
 
     #onPanelAction(action: PanelAction): void {
