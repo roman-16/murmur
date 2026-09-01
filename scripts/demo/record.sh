@@ -55,8 +55,8 @@ MURMUR_REALTIME_URL=$(head -1 "$tmp/mock.url")
 export MISTRAL_API_KEY=${MISTRAL_API_KEY:-demo}
 export MURMUR_PROVIDER=mistral
 
-# The overlay prints the shortcut it is bound to, so the take has to be recorded
-# with the one the documentation names.
+# The take is recorded with the shortcut the documentation names, so the session
+# behaves like the one the README describes.
 export DEMO_CAPTURE="$tmp/demo"
 export DEMO_DONE_FILE="$tmp/done"
 export DEMO_RECORDING_FILE="$DEMO_CAPTURE.recording"

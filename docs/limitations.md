@@ -38,6 +38,10 @@ A GNOME Shell extension runs inside the compositor, so it has no client to hand 
 
 What it does instead is get out of the way. Clicking anything else collapses the panel, leaving the recording indicator and its countdown in the top bar, and clicking that indicator brings the panel back. A window pushed behind a maximised application would show you nothing at all; the top bar keeps the recording in sight.
 
+## The panel shows the last four lines
+
+The transcription is a caption, not a document: it follows the newest words and older lines scroll out of sight, with no way to scroll back while you are still speaking. Nothing is lost - the whole dictation is what gets typed or copied when you stop, and it is in the history afterwards.
+
 ## The virtual keyboard is limited to your layout
 
 Without dotool, the typing path can only produce characters that exist on your current keyboard layout. Typographic quotes, dashes and non-breaking spaces are rewritten to plain equivalents; emoji and other scripts are dropped. dotool removes the limit entirely.
@@ -64,4 +68,4 @@ There is no language setting. Both services detect the language from what they h
 
 ## Only one key is guaranteed to reach Murmur
 
-`Enter`, `Ctrl+Enter` and `Esc` reach the panel only while it is on screen, and looking anywhere else collapses it. That is the point, but it means the recording shortcut is the only key that always works. To cancel a recording you have clicked away from, click the top-bar indicator to bring the panel back, then `Esc` or its ✕.
+`Enter`, `Ctrl+Enter` and `Esc` reach the panel only while it is on screen, and looking anywhere else collapses it. That is the point, but it means the recording shortcut is the only key that always works. To cancel a recording you have clicked away from, click the top-bar indicator to bring the panel back, then `Esc` or **Cancel**.

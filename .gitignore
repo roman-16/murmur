@@ -3,3 +3,4 @@
 *.shell-extension.zip
 dist/
 node_modules/
+result

@@ -1,88 +1,31 @@
-/* The card, its buttons and the top bar indicator wear GNOME's own style
-   classes, so their colours, corners, borders and shadows are whichever theme
-   is installed: the panel is a GNOME popover that happens to contain a
-   transcription. Only size and spacing are set here.
+/* The panel is the shell's own notification card: `message notification-banner`
+   for the frame, `message-header`, `message-title`, `slider` and
+   `notification-button` for what sits in it. Its colours, corners, borders,
+   shadows, fonts and button states are therefore whichever theme, accent colour
+   and contrast setting is installed, down to the light and dark variants.
 
-   The shell keeps two rhythms, and this is a surface you talk to rather than
-   glance at: it holds the keyboard, you read a paragraph off it and you press
-   its buttons. So the numbers are the ones the shell uses for its dialogs and
-   its own bottom-of-screen panels - 1.227em is their 18px, 0.818em their 12px,
-   0.409em their 6px, 1.091em a 16px symbolic icon, 2.727em a 40px control -
-   expressed in em so that text scaling moves the panel with the text. Dimming
-   is opacity rather than a colour, so it holds in a light theme as well as a
-   dark one; the red that means "recording" is the one colour here. */
+   A declaration in an extension's stylesheet outranks a theme's, `!important`
+   included, so anything written here is out of the theme's reach for good. What
+   is left is the geometry no theme has an opinion about. */
 
-.popup-menu-content.murmur-panel {
-  margin-bottom: 4em;
-  padding: 1.227em;
-  spacing: 1.227em;
-  width: 40em;
-}
-
-/* The header's own buttons carry 0.818em of padding each, so 0.409em between
-   its items is what puts them a comfortable distance apart - the same as the
-   shell's notification headers, which are built from the same buttons. */
+/* The shell leaves 6px of the header to a close button. This card is cancelled
+   from its buttons rather than dismissed, so the space goes back and the
+   countdown ends where the text below it does. In pixels, because the padding
+   it restores is in pixels. */
 .murmur-header {
-  spacing: 0.409em;
+  padding: 0 6px;
 }
 
-.murmur-status {
-  font-weight: bold;
+.murmur-level {
+  width: 6em;
 }
 
-.murmur-countdown {
-  font-feature-settings: "tnum";
-  opacity: 0.7;
+.murmur-panel {
+  margin-bottom: 4em;
 }
 
-.murmur-recording-dot {
-  background-color: #c01c28;
-  border-radius: 999px;
-  height: 0.545em;
-  width: 0.545em;
-}
-
-/* Three lines of transcription are always in view and it grows to eight, so a
-   short dictation is not framed by an empty box and a long one still fits. */
-.murmur-scroll {
-  -st-vfade-offset: 1em;
-  max-height: 12.9em;
-  min-height: 4.9em;
-}
-
+/* Four lines of transcription, the newest at the bottom. */
 .murmur-transcript {
-  font-size: 1.182em;
-}
-
-.murmur-destination {
-  opacity: 0.7;
-  spacing: 0.545em;
-}
-
-.murmur-destination StIcon {
-  icon-size: 1.091em;
-}
-
-/* Buttons are a step apart from the text above them, which is what the shell
-   does with the button box of a dialog. Their height is set and their padding
-   is not, so the theme still decides what a button looks like. */
-.murmur-actions {
-  padding-top: 0.409em;
-  spacing: 0.818em;
-}
-
-.murmur-actions .button {
-  min-height: 2.727em;
-}
-
-.murmur-hint {
-  opacity: 0.55;
-}
-
-.murmur-result {
-  spacing: 0.545em;
-}
-
-.murmur-result StIcon {
-  icon-size: 1.091em;
+  -st-vfade-offset: 1em;
+  max-height: 5.5em;
 }

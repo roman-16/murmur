@@ -250,8 +250,6 @@ export default class Probe extends Extension {
         if (!murmur?.stateObj || !murmur.path)
             throw new Error(`${MURMUR_UUID} is not loaded`);
 
-        const {acceleratorLabel} =
-            await import(`file://${murmur.path}/lib/shell/accelerator.js`);
         const {MurmurPanel} = await import(`file://${murmur.path}/lib/shell/panel.js`);
         const {RecordingIndicator} =
             await import(`file://${murmur.path}/lib/shell/indicator.js`);
@@ -259,11 +257,6 @@ export default class Probe extends Extension {
         const {History} = await import(`file://${murmur.path}/lib/history.js`);
         const {oneLine} =
             await import(`file://${murmur.path}/lib/transcription/provider.js`);
-
-        this.#ok('an accelerator becomes a label',
-            acceleratorLabel('<Super>space') === 'Super+Space',
-            `got "${acceleratorLabel('<Super>space')}"`);
-        this.#ok('an unset accelerator becomes nothing', acceleratorLabel('') === '');
 
         // A line break reaching the keyboard is typed as Enter, which sends the
         // message, runs the command and submits the search.
@@ -283,7 +276,6 @@ export default class Probe extends Extension {
         await this.#checkHistory(History);
 
         this.#panel = new MurmurPanel();
-        this.#panel.shortcut = 'Super+Space';
         this.#panel.destination = {app: 'Text Editor', kind: 'field', password: false};
         this.#panel.transcript = 'the quick brown fox';
         this.#panel.onAction = action => fired.push(action);
@@ -295,6 +287,7 @@ export default class Probe extends Extension {
         await this.#checkDestination(FocusTracker, MurmurPanel);
         await this.#checkPlacement(MurmurPanel);
         await this.#checkCollapsedStart(MurmurPanel);
+        await this.#checkTranscript(MurmurPanel);
         await this.#checkTeardown(RecordingIndicator);
         this.#checkExtensionCycle(murmur);
         this.#report();
@@ -364,29 +357,15 @@ export default class Probe extends Extension {
     // something above it consumed the press and cancelled its gesture.
     async #checkButtons(fired) {
         const buttons = this.#buttons();
-        this.#ok('the panel has its four controls', buttons.length === 4,
-            `found ${buttons.length}`);
+        this.#ok('the panel has its three actions', buttons.length === 3,
+            `found ${buttons.map(button => button.label).join(', ') || 'none'}`);
 
+        // Nothing here measures the buttons. They are the shell's own
+        // notification buttons and their size is the installed theme's answer,
+        // so a number checked here would be a number Murmur had to set.
         for (const button of buttons) {
             const name = button.label ?? button.accessible_name ?? '?';
             const [x, y] = this.#centre(button);
-
-            // A control the size of GNOME's own: comfortable to hit, and the
-            // reason this panel is laid out at the shell's dialog scale rather
-            // than its menu scale.
-            const [, height] = button.get_transformed_size();
-            this.#ok(`"${name}" is a full-size control`, height >= 40, `${height}px tall`);
-
-            // Set a height and a button gets taller; whether what is written on
-            // it follows is St's business, and only pressing it tells you.
-            const [content] = button.get_children();
-            if (content) {
-                const [, contentY] = content.get_transformed_position();
-                const [, contentHeight] = content.get_transformed_size();
-                const drift = Math.abs((contentY + contentHeight / 2) - y);
-                this.#ok(`"${name}" reads centred`, drift <= 1,
-                    `${drift.toFixed(1)}px off the button's middle`);
-            }
 
             const hit = global.stage.get_actor_at_pos(Clutter.PickMode.REACTIVE, x, y);
             this.#ok(`"${name}" is what the pointer would hit`,
@@ -553,25 +532,76 @@ export default class Probe extends Extension {
         await this.#settle();
         const card = this.#card();
         this.#ok('the panel can be opened from collapsed', card?.mapped === true);
-
-        // Three lines of transcription are in view before a word is spoken,
-        // which is what keeps a short dictation from sitting in an empty box.
-        const [scroll] = this.#descendants(
-            card ?? Main.layoutManager.uiGroup,
-            actor => actor.style_class?.includes('murmur-scroll') ?? false);
-        const [, scrollHeight] = scroll?.get_transformed_size() ?? [0, 0];
-        this.#ok('three lines of transcription are in view', scrollHeight >= 68,
-            `${scrollHeight}px of transcription`);
         this.#ok('the panel is opaque once opened', card?.get_parent()?.opacity === 255,
             `opacity=${card?.get_parent()?.opacity}`);
+    }
+
+    // The card is only as tall as what has been said: nothing yet is nothing on
+    // screen, and a long dictation stops growing rather than filling the screen.
+    async #checkTranscript(MurmurPanel) {
+        this.#panel.destroy();
+        this.#panel = new MurmurPanel();
+        // Through the setter rather than straight from the constructor: a
+        // service that sends an empty partial has to leave the card as small as
+        // one that has sent nothing at all.
+        this.#panel.transcript = '';
+        await this.#settle(400);
+
+        this.#ok('an unspoken transcript takes no room',
+            this.#transcriptHeight() === 0, `${this.#transcriptHeight()}px of transcription`);
+
+        this.#panel.transcript = 'the quick brown fox';
+        await this.#settle(300);
+        const spoken = this.#transcriptHeight();
+        this.#ok('a spoken word opens the transcript', spoken > 0, `${spoken}px`);
+
+        this.#panel.transcript = 'the quick brown fox jumps over the lazy dog. '.repeat(40);
+        await this.#settle(400);
+        const long = this.#transcriptHeight();
+        this.#ok('a long transcript stops at its cap', long > spoken && long <= 8 * spoken,
+            `${long}px from ${spoken}px`);
+
+        // Copying is a choice only while there is a field to type into; with
+        // nothing focused it does what stopping does.
+        this.#panel.destination = {app: 'Text Editor', kind: 'field', password: false};
+        await this.#settle(200);
+        const withField = this.#buttons().filter(button => button.visible).length;
+        this.#panel.destination = {kind: 'clipboard'};
+        await this.#settle(200);
+        const withClipboard = this.#buttons().filter(button => button.visible).length;
+        this.#ok('copying is offered for a field and not for the clipboard',
+            withField === 3 && withClipboard === 2,
+            `${withField} with a field, ${withClipboard} with none`);
+    }
+
+    #transcriptHeight() {
+        const [scroll] = this.#descendants(
+            this.#card() ?? Main.layoutManager.uiGroup,
+            actor => actor.style_class?.includes('murmur-transcript') ?? false);
+        if (!scroll?.visible)
+            return 0;
+        const [, height] = scroll.get_transformed_size();
+        return height;
     }
 
     async #checkTeardown(RecordingIndicator) {
         const indicator = new RecordingIndicator();
         indicator.countdown = '9:41';
         await this.#settle();
-        this.#ok('the indicator reaches the top bar',
-            Main.panel.statusArea['murmur'] !== undefined);
+        const pill = Main.panel.statusArea['murmur'];
+        this.#ok('the indicator reaches the top bar', pill !== undefined);
+
+        // The only way back to a panel that has been clicked away, so a press
+        // that lands on it and does nothing loses the recording behind it.
+        let toggled = false;
+        indicator.onToggle = () => {
+            toggled = true;
+        };
+        if (pill) {
+            const [x, y] = this.#centre(pill);
+            await this.#click(x, y);
+            this.#ok('clicking the indicator asks for the panel back', toggled);
+        }
 
         indicator.destroy();
         this.#panel.destroy();

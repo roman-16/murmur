@@ -9,6 +9,10 @@ import {oneLine, SAMPLE_RATE, type Transcriber} from '../transcription/provider.
 import {transcriberFor} from '../transcription/transcriber.js';
 
 const CHUNK_BYTES = (SAMPLE_RATE * 2 * 100) / 1000;
+// Loudness reads as a curve rather than a ratio, so the meter spans the decibels
+// a voice moves through: full scale down to -50 dB, and quieter than that is a
+// room with nobody talking in it.
+const METER_RANGE_DB = 50;
 const SIGTERM = 15;
 const SILENCE_RMS = 0.01;
 // A service that has to open a session of its own gets this long to do it. Audio
@@ -20,6 +24,7 @@ const SETUP_TIMEOUT_MS = 10000;
 const TAIL_TIMEOUT_MS = 5000;
 
 export type SessionHandlers = {
+    onLevel: (level: number) => void;
     onPartial: (text: string) => void;
     onSilence: () => void;
 };
@@ -148,7 +153,7 @@ export class Session {
             const chunk = this.#wholeSamples(data);
             if (chunk.length === 0)
                 continue;
-            this.#trackSilence(chunk);
+            this.#trackAudio(chunk);
             this.#queueAudio(chunk);
         }
     }
@@ -205,25 +210,22 @@ export class Session {
         this.#awaitTail();
     }
 
-    // Measured in audio time, not wall time, so a backlog of buffered chunks
-    // cannot be mistaken for a long silence.
-    #trackSilence(data: Uint8Array): void {
-        if (!this.#silenceLimitUs || !this.#recording)
+    // How loud the microphone is, and for how long it has been quiet. The
+    // silence is measured in audio time, not wall time, so a backlog of buffered
+    // chunks cannot be mistaken for a long pause.
+    #trackAudio(data: Uint8Array): void {
+        if (!this.#recording)
             return;
-
-        let squareSum = 0;
-        let samples = 0;
-        for (let index = 0; index + 1 < data.length; index += 2) {
-            let sample = (data[index] ?? 0) | ((data[index + 1] ?? 0) << 8);
-            if (sample >= 0x8000)
-                sample -= 0x10000;
-            squareSum += sample * sample;
-            samples++;
-        }
+        const samples = data.length >> 1;
         if (samples === 0)
             return;
 
-        if (Math.sqrt(squareSum / samples) / 32768 >= SILENCE_RMS) {
+        const loudness = rootMeanSquare(data, samples);
+        this.#handlers.onLevel(meterLevel(loudness));
+
+        if (!this.#silenceLimitUs)
+            return;
+        if (loudness >= SILENCE_RMS) {
             this.#silentUs = 0;
             return;
         }
@@ -381,4 +383,23 @@ export class Session {
         this.#recorder?.send_signal(SIGTERM);
         this.#recorder = null;
     }
+}
+
+// Signed 16-bit samples, little-endian, as the recorder writes them.
+function rootMeanSquare(data: Uint8Array, samples: number): number {
+    let squareSum = 0;
+    for (let index = 0; index + 1 < data.length; index += 2) {
+        let sample = (data[index] ?? 0) | ((data[index + 1] ?? 0) << 8);
+        if (sample >= 0x8000)
+            sample -= 0x10000;
+        squareSum += sample * sample;
+    }
+    return Math.sqrt(squareSum / samples) / 32768;
+}
+
+function meterLevel(loudness: number): number {
+    if (loudness <= 0)
+        return 0;
+    const decibels = 20 * Math.log10(loudness);
+    return Math.min(1, Math.max(0, (decibels + METER_RANGE_DB) / METER_RANGE_DB));
 }

@@ -1,3 +1,4 @@
+import Atk from 'gi://Atk';
 import Clutter from 'gi://Clutter';
 import St from 'gi://St';
 
@@ -17,6 +18,7 @@ export class RecordingIndicator {
 
     constructor() {
         this.#button = new PanelMenu.Button(0, 'Murmur', true);
+        this.#button.accessible_role = Atk.Role.PUSH_BUTTON;
         this.#button.add_style_class_name('screen-recording-indicator');
 
         const box = new St.BoxLayout();
@@ -25,7 +27,22 @@ export class RecordingIndicator {
         box.add_child(new St.Icon({icon_name: 'media-record-symbolic'}));
         this.#button.add_child(box);
 
-        this.#button.connect('button-press-event', () => {
+        // Touch and pointer both, from the one signal that carries them in every
+        // shell version Murmur runs in: the gesture the shell itself moved to is
+        // GNOME 50 and later.
+        this.#button.connect('event', (_actor, event: Clutter.Event) => {
+            const type = event.type();
+            if (type !== Clutter.EventType.BUTTON_PRESS &&
+                type !== Clutter.EventType.TOUCH_BEGIN)
+                return Clutter.EVENT_PROPAGATE;
+            this.onToggle?.();
+            return Clutter.EVENT_STOP;
+        });
+        this.#button.connect('key-press-event', (_actor, event: Clutter.Event) => {
+            const symbol = event.get_key_symbol();
+            if (symbol !== Clutter.KEY_Return && symbol !== Clutter.KEY_KP_Enter &&
+                symbol !== Clutter.KEY_ISO_Enter && symbol !== Clutter.KEY_space)
+                return Clutter.EVENT_PROPAGATE;
             this.onToggle?.();
             return Clutter.EVENT_STOP;
         });

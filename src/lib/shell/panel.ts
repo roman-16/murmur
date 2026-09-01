@@ -4,12 +4,14 @@ import GObject from 'gi://GObject';
 import Pango from 'gi://Pango';
 import St from 'gi://St';
 
+import {BarLevel} from 'resource:///org/gnome/shell/ui/barLevel.js';
 import * as Layout from 'resource:///org/gnome/shell/ui/layout.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import type {Destination} from './focus.js';
 
 const FADE_MS = 150;
+const LEVEL_MS = 100;
 const RESULT_HOLD_MS = 1800;
 const TAIL_SLACK_PX = 1;
 
@@ -31,7 +33,7 @@ class Card extends St.BoxLayout {
             can_focus: true,
             orientation: Clutter.Orientation.VERTICAL,
             reactive: true,
-            style_class: 'popup-menu-content murmur-panel',
+            style_class: 'message notification-banner murmur-panel',
         });
     }
 
@@ -40,28 +42,57 @@ class Card extends St.BoxLayout {
             return Clutter.EVENT_STOP;
         return super.vfunc_key_press_event(event);
     }
+
+    // Chrome is laid out at the height it is asked for, and asked without being
+    // told how wide it will be - which a wrapping label answers with one line
+    // however much it holds. The card's width is the theme's and is never
+    // negotiated, and there is no shorter card than the one that fits what it
+    // holds, so both answers are the same answer.
+    override vfunc_get_preferred_height(forWidth: number): [number, number] {
+        const width = forWidth >= 0 ? forWidth : this.get_preferred_width(-1)[1];
+        const [, natural] = super.vfunc_get_preferred_height(width);
+        return [natural, natural];
+    }
+}
+
+// A scroll view asks for nothing, because scrolling is what it does when it is
+// given less than it holds. The card is laid out at the height it says it needs
+// at least, so the transcription has to ask for the room it wants: what it holds
+// at the width it is given, up to the height the stylesheet caps it at.
+class Transcript extends St.ScrollView {
+    static {
+        GObject.registerClass({GTypeName: 'MurmurTranscript'}, this);
+    }
+
+    override vfunc_get_preferred_height(forWidth: number): [number, number] {
+        const [, natural] = super.vfunc_get_preferred_height(forWidth);
+        return [natural, natural];
+    }
 }
 
 export class MurmurPanel {
     onAction: ((action: PanelAction) => void) | null = null;
 
+    readonly #actions: St.Bin;
+    readonly #body: St.BoxLayout;
     readonly #card: Card;
     readonly #constraint: Layout.MonitorConstraint;
     readonly #container: St.Widget;
+    readonly #copy: St.Button;
     readonly #countdown: St.Label;
-    readonly #destinationIcon: St.Icon;
-    readonly #destinationLabel: St.Label;
-    readonly #hint: St.Label;
-    readonly #scroll: St.Adjustment;
+    readonly #icon: St.Icon;
+    readonly #level: BarLevel;
     readonly #status: St.Label;
+    readonly #tail: St.Adjustment;
+    readonly #title: St.Label;
     readonly #transcript: St.Label;
+    readonly #transcriptView: Transcript;
 
     #collapsed = false;
     #destination: Destination = {kind: 'clipboard'};
     #finished = false;
     #keyFocusId = 0;
     #resultId = 0;
-    #shortcut = '';
     #tailChangedId = 0;
     #tailValueId = 0;
 
@@ -70,68 +101,96 @@ export class MurmurPanel {
         this.#card = new Card();
         this.#card.onKeyPress = event => this.#onKeyPress(event);
 
-        const header = new St.BoxLayout({style_class: 'murmur-header', x_expand: true});
-        header.add_child(new St.Widget({
-            style_class: 'murmur-recording-dot',
+        this.#icon = new St.Icon({
+            icon_name: 'audio-input-microphone-symbolic',
+            style_class: 'message-source-icon',
             y_align: Clutter.ActorAlign.CENTER,
-        }));
+        });
         this.#status = new St.Label({
-            style_class: 'murmur-status',
+            style_class: 'message-source-title',
             text: 'Listening…',
+            x_expand: true,
             y_align: Clutter.ActorAlign.CENTER,
         });
-        header.add_child(this.#status);
-        header.add_child(new St.Widget({x_expand: true}));
+        this.#level = new BarLevel({
+            style_class: 'slider murmur-level',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
         this.#countdown = new St.Label({
-            style_class: 'murmur-countdown',
-            text: '',
+            style_class: 'event-time',
             y_align: Clutter.ActorAlign.CENTER,
         });
-        header.add_child(this.#countdown);
-        header.add_child(iconButton('go-down-symbolic', 'Collapse', () => this.collapse()));
-        header.add_child(
-            iconButton('window-close-symbolic', 'Cancel', () => this.onAction?.('cancel')));
+
+        const headerContent = new St.BoxLayout({
+            style_class: 'message-header-content',
+            x_expand: true,
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        headerContent.add_child(this.#status);
+        headerContent.add_child(this.#level);
+        headerContent.add_child(this.#countdown);
+
+        const header = new St.BoxLayout({
+            style_class: 'message-header murmur-header',
+            x_expand: true,
+            y_expand: true,
+        });
+        header.add_child(this.#icon);
+        header.add_child(headerContent);
         this.#card.add_child(header);
 
-        this.#transcript = new St.Label({style_class: 'murmur-transcript', text: ''});
+        this.#title = new St.Label({style_class: 'message-title'});
+        this.#title.clutter_text.line_wrap = true;
+
+        this.#transcript = new St.Label({text: ''});
         this.#transcript.clutter_text.line_wrap = true;
         this.#transcript.clutter_text.ellipsize = Pango.EllipsizeMode.NONE;
         const viewport = new St.Viewport({
             layout_manager: new Clutter.BoxLayout({orientation: Clutter.Orientation.VERTICAL}),
         });
         viewport.add_child(this.#transcript);
-        const scroll = new St.ScrollView({
-            style_class: 'murmur-scroll',
+        this.#transcriptView = new Transcript({
+            style_class: 'murmur-transcript',
             hscrollbar_policy: St.PolicyType.NEVER,
             reactive: true,
+            visible: false,
             vscrollbar_policy: St.PolicyType.EXTERNAL,
         });
-        scroll.child = viewport;
-        this.#scroll = scroll.vadjustment;
+        this.#transcriptView.child = viewport;
+        this.#tail = this.#transcriptView.vadjustment;
         this.#followTail();
-        this.#card.add_child(scroll);
 
-        const destination = new St.BoxLayout({style_class: 'murmur-destination', x_expand: true});
-        this.#destinationIcon = new St.Icon({y_align: Clutter.ActorAlign.CENTER});
-        this.#destinationLabel = new St.Label({y_align: Clutter.ActorAlign.CENTER});
-        this.#destinationLabel.clutter_text.line_wrap = true;
-        destination.add_child(this.#destinationIcon);
-        destination.add_child(this.#destinationLabel);
-        this.#card.add_child(destination);
+        const content = new St.BoxLayout({
+            style_class: 'message-content',
+            orientation: Clutter.Orientation.VERTICAL,
+            x_expand: true,
+        });
+        content.add_child(this.#title);
+        content.add_child(this.#transcriptView);
+        this.#body = new St.BoxLayout({style_class: 'message-box', x_expand: true});
+        this.#body.add_child(content);
+        this.#card.add_child(this.#body);
 
-        this.#card.add_child(this.#actions());
-
-        this.#hint = new St.Label({style_class: 'murmur-hint'});
-        this.#hint.clutter_text.line_wrap = true;
-        this.#card.add_child(this.#hint);
-        this.#syncHint();
+        this.#copy = this.#button('copy', 'Copy');
+        const buttons = new St.BoxLayout({
+            style_class: 'notification-buttons-bin',
+            x_expand: true,
+        });
+        buttons.add_child(this.#button('cancel', 'Cancel'));
+        buttons.add_child(this.#copy);
+        buttons.add_child(this.#button('stop', 'Stop'));
+        this.#actions = new St.Bin({
+            style_class: 'message-action-bin',
+            child: buttons,
+            x_expand: true,
+        });
+        this.#card.add_child(this.#actions);
 
         this.#constraint = new Layout.MonitorConstraint({
             index: workingMonitorIndex(),
             workArea: true,
         });
         this.#container = new St.Widget({
-            layout_manager: new Clutter.BinLayout(),
             opacity: 0,
             x_align: Clutter.ActorAlign.CENTER,
             x_expand: true,
@@ -176,11 +235,11 @@ export class MurmurPanel {
             this.#keyFocusId = 0;
         }
         if (this.#tailChangedId) {
-            this.#scroll.disconnect(this.#tailChangedId);
+            this.#tail.disconnect(this.#tailChangedId);
             this.#tailChangedId = 0;
         }
         if (this.#tailValueId) {
-            this.#scroll.disconnect(this.#tailValueId);
+            this.#tail.disconnect(this.#tailValueId);
             this.#tailValueId = 0;
         }
         this.#finished = true;
@@ -205,9 +264,14 @@ export class MurmurPanel {
         this.#syncDestination();
     }
 
-    set shortcut(label: string) {
-        this.#shortcut = label;
-        this.#syncHint();
+    // How loud the microphone is right now, from silence to full scale. Eased
+    // over the interval between two readings, so the bar moves with the voice
+    // rather than stepping.
+    set level(level: number) {
+        this.#level.ease_property('value', level, {
+            duration: LEVEL_MS,
+            mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+        });
     }
 
     set status(text: string) {
@@ -216,6 +280,7 @@ export class MurmurPanel {
 
     set transcript(text: string) {
         this.#transcript.text = text;
+        this.#transcriptView.visible = text.length > 0;
     }
 
     collapse(): void {
@@ -249,24 +314,21 @@ export class MurmurPanel {
     }
 
     // The last thing a dictation says, in the place the user was already
-    // looking, rather than a second message somewhere else. The rows it
-    // replaces are hidden rather than removed, so a late transcription or
-    // destination still has somewhere harmless to land.
+    // looking, rather than a second message somewhere else. What it replaces is
+    // hidden rather than removed, so a late transcription or destination still
+    // has somewhere harmless to land.
     showResult(message: string): void {
         this.#finished = true;
         this.releaseKeyboard();
         this.#collapsed = false;
         this.#reveal();
-        for (const child of this.#card.get_children())
-            child.hide();
 
-        const row = new St.BoxLayout({style_class: 'murmur-result', x_expand: true});
-        row.add_child(new St.Icon({
-            icon_name: 'object-select-symbolic',
-            y_align: Clutter.ActorAlign.CENTER,
-        }));
-        row.add_child(new St.Label({text: message, y_align: Clutter.ActorAlign.CENTER}));
-        this.#card.add_child(row);
+        this.#icon.icon_name = 'object-select-symbolic';
+        this.#status.text = message;
+        this.#actions.hide();
+        this.#body.hide();
+        this.#countdown.hide();
+        this.#level.hide();
 
         this.#resultId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, RESULT_HOLD_MS, () => {
             this.#resultId = 0;
@@ -287,19 +349,11 @@ export class MurmurPanel {
         this.#container.show();
     }
 
-    #actions(): St.BoxLayout {
-        const row = new St.BoxLayout({style_class: 'murmur-actions', x_expand: true});
-        row.layout_manager.homogeneous = true;
-        row.add_child(this.#button('copy', 'Copy', 'button'));
-        row.add_child(this.#button('stop', 'Stop', 'button default'));
-        return row;
-    }
-
-    #button(action: PanelAction, label: string, styleClass: string): St.Button {
+    #button(action: PanelAction, label: string): St.Button {
         const button = new St.Button({
             can_focus: true,
             label,
-            style_class: styleClass,
+            style_class: 'notification-button',
             x_expand: true,
         });
         button.connect('clicked', () => this.onAction?.(action));
@@ -320,11 +374,11 @@ export class MurmurPanel {
             this.onAction?.(control ? 'copy' : 'stop');
             return true;
         }
-        return this.#scrollTranscript(symbol);
+        return false;
     }
 
     #followTail(): void {
-        const adjustment = this.#scroll;
+        const adjustment = this.#tail;
         const atTail = () =>
             adjustment.value >= adjustment.upper - adjustment.page_size - TAIL_SLACK_PX;
         let following = true;
@@ -338,49 +392,11 @@ export class MurmurPanel {
         });
     }
 
-    #scrollTranscript(symbol: number): boolean {
-        const adjustment = this.#scroll;
-
-        switch (symbol) {
-            case Clutter.KEY_Down:
-            case Clutter.KEY_KP_Down:
-                adjustment.value += adjustment.step_increment;
-                return true;
-            case Clutter.KEY_End:
-            case Clutter.KEY_KP_End:
-                adjustment.value = adjustment.upper - adjustment.page_size;
-                return true;
-            case Clutter.KEY_Home:
-            case Clutter.KEY_KP_Home:
-                adjustment.value = 0;
-                return true;
-            case Clutter.KEY_Page_Down:
-            case Clutter.KEY_KP_Page_Down:
-                adjustment.value += adjustment.page_increment;
-                return true;
-            case Clutter.KEY_Page_Up:
-            case Clutter.KEY_KP_Page_Up:
-                adjustment.value -= adjustment.page_increment;
-                return true;
-            case Clutter.KEY_Up:
-            case Clutter.KEY_KP_Up:
-                adjustment.value -= adjustment.step_increment;
-                return true;
-            default:
-                return false;
-        }
-    }
-
-    #syncHint(): void {
-        this.#hint.text = hintText(this.#shortcut);
-    }
-
+    // Copying is a choice only while the words have somewhere else to go; with
+    // nothing focused it is what stopping already does.
     #syncDestination(): void {
-        const insert = this.#destination.kind === 'field';
-        this.#destinationIcon.icon_name = insert
-            ? 'input-keyboard-symbolic'
-            : 'edit-copy-symbolic';
-        this.#destinationLabel.text = destinationText(this.#destination);
+        this.#copy.visible = this.#destination.kind === 'field';
+        this.#title.text = destinationText(this.#destination);
     }
 
     // The panel is on screen exactly while it holds the keyboard. Looking
@@ -398,18 +414,6 @@ export class MurmurPanel {
     }
 }
 
-function iconButton(icon: string, label: string, onClick: () => void): St.Button {
-    const button = new St.Button({
-        accessible_name: label,
-        can_focus: true,
-        child: new St.Icon({icon_name: icon}),
-        style_class: 'icon-button',
-        y_align: Clutter.ActorAlign.CENTER,
-    });
-    button.connect('clicked', onClick);
-    return button;
-}
-
 // Read from mutter rather than from the stage's key focus the shell tracks,
 // which the panel itself takes: that answer would be the panel's own monitor.
 function workingMonitorIndex(): number {
@@ -417,15 +421,8 @@ function workingMonitorIndex(): number {
     return focused >= 0 ? focused : global.display.get_current_monitor();
 }
 
-function hintText(shortcut: string): string {
-    const keys = ['Enter types', 'Ctrl+Enter copies', 'Esc cancels'];
-    if (shortcut)
-        keys.push(`${shortcut} stops`);
-    return keys.join('  ·  ');
-}
-
 function destinationText(destination: Destination): string {
     if (destination.kind === 'clipboard')
-        return 'No text field focused · copies to the clipboard';
+        return 'Copies to the clipboard';
     return destination.app ? `Types into ${destination.app}` : 'Types into the focused text field';
 }

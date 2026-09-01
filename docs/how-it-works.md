@@ -5,7 +5,7 @@ Murmur is a GNOME Shell extension, which means it runs inside the compositor its
 ## One dictation, start to finish
 
 1. **The shortcut fires.** `Super+Space` is a shell keybinding, active in the normal session and in the overview.
-2. **The panel opens** at the bottom of the monitor holding the focused window - the pointer's monitor when nothing is focused - clear of anything docked there, showing the status, a countdown, the destination, and the transcription as it arrives, alongside an indicator in the top bar. Nothing is grabbed: the panel is drawn as shell chrome and, unless it holds the keyboard, every click and keystroke goes where it would have anyway.
+2. **The panel opens** at the bottom of the monitor holding the focused window - the pointer's monitor when nothing is focused - clear of anything docked there, showing the status, the level of your voice, a countdown, the destination, and the transcription as it arrives, alongside an indicator in the top bar. Nothing is grabbed: the panel is drawn as shell chrome and, unless it holds the keyboard, every click and keystroke goes where it would have anyway.
 3. **The microphone opens.** `pw-record` is spawned and writes raw audio to a pipe: 16 kHz, mono, signed 16-bit little-endian, read in 100 ms chunks.
 4. **A WebSocket opens** to the service you chose, authenticated with your API key in a request header, and the session announces the audio format and whatever that service takes: the transcription delay, or the language and formatting mode.
 5. **Audio streams up** as it is recorded, each chunk base64-encoded in a JSON message. Nothing is buffered to disk. A service that has to finish its own setup first gets the chunks the moment it says it is ready, so no words are lost to the handshake.
@@ -29,9 +29,17 @@ Murmur's panel uses exactly that, so no grab is involved and three things follow
 
 Synthesized keystrokes are routed by the same rule, so the panel releases the keyboard before the transcription is typed; otherwise the text would be typed into the panel.
 
+## What the panel is made of
+
+The card is built from the shell's own notification: the same `message` frame a notification banner wears, the same header, title, body and buttons inside it. Murmur's stylesheet sets four things - where the card sits above the screen edge, how wide the level is, how tall the transcription may grow, and the header padding the shell reserves for a close button this card does not have. Everything else - colour, corner, border, shadow, font, and every button state - comes from the installed theme, so the panel follows the light and dark styles, the accent colour, high contrast, and a User Theme, without knowing any of them exist.
+
+That division is not a preference. A declaration in an extension's stylesheet outranks the theme's, `!important` included, so any colour Murmur set would be a colour no theme could ever change.
+
 ## Silence detection
 
 When **Stop after silence** is on, every chunk of audio is measured before it is sent: the root mean square of its samples, as a fraction of full scale. Anything under 1% counts as silence, and silence is accumulated in *audio* time rather than wall-clock time, so a slow network or a backlog of buffered chunks can never look like a pause.
+
+The same measurement drives the level in the panel, spread across the 50 decibels below full scale so that it moves the way loudness is heard rather than the way it is computed.
 
 ## Two processes, two halves of the code
 

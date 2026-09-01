@@ -1,7 +1,7 @@
 {
   "uuid": "murmur@roman-16.github.io",
   "name": "Murmur",
-  "description": "Voice dictation for GNOME. Press Super+Space, talk, and the words land where your cursor is: browsers, editors, terminals.\n\nRealtime transcription with Gemini 3.5 Transcribe Live or Mistral Voxtral, and no companion daemon. Murmur types into the focused field instead of pasting.\n\nClipboard: when no text field is focused, Murmur writes the transcription to the clipboard so the words are not lost.",
+  "description": "Voice dictation for GNOME. Speak into any text field: press Super+Space, say what you mean, and the words are typed where your cursor already is - browsers, editors, chat boxes, terminals.\n\nThe transcription is typed as keystrokes rather than pasted, so your clipboard stays yours and applications that ignore a paste still get the text. While you speak, a panel in your desktop's own style shows what is being heard and where it will land; look anywhere else and it collapses to an indicator in the top bar while the recording carries on. With no text field focused, the words go to the clipboard rather than nowhere.\n\nWayland only, and it transcribes with an API key of your own: Gemini 3.5 Transcribe Live or Mistral Voxtral. No companion daemon and no background listening - the microphone opens when you start and is released the moment you stop.",
   "shell-version": [
     "47",
     "48",

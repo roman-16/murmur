@@ -8,8 +8,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import {errorMessage} from './lib/errors.js';
 import {History} from './lib/history.js';
-import {Key, readAccelerator, readRecordingConfig} from './lib/settings.js';
-import {acceleratorLabel} from './lib/shell/accelerator.js';
+import {Key, readRecordingConfig} from './lib/settings.js';
 import {copyText} from './lib/shell/clipboard.js';
 import {FocusTracker, type Destination} from './lib/shell/focus.js';
 import {RecordingIndicator} from './lib/shell/indicator.js';
@@ -106,7 +105,6 @@ export default class MurmurExtension extends Extension {
 
         const panel = new MurmurPanel({collapsed: !config.showPanel});
         panel.destination = focusTracker.current();
-        panel.shortcut = acceleratorLabel(readAccelerator(settings));
         panel.onAction = action => this.#onPanelAction(action);
         this.#panel = panel;
 
@@ -121,6 +119,9 @@ export default class MurmurExtension extends Extension {
         const cancellable = new Gio.Cancellable();
         this.#cancellable = cancellable;
         const session = new Session(config, {
+            onLevel: level => {
+                panel.level = level;
+            },
             onPartial: text => {
                 panel.transcript = text;
             },

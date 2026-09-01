@@ -6,6 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 Adding a version section here is what publishes a release, so this file is the one place a version is decided: see [Releasing](CONTRIBUTING.md#releasing). Versions that shipped before this file existed are on the [releases page](https://github.com/roman-16/murmur/releases).
 
+## [1.8.0] - 2026-09-01
+
+### Changed
+
+- The recording panel is built out of GNOME's own notification card, so its colours, corners, shadow, text and buttons are the ones your desktop already uses: the light style as readily as the dark one, your accent colour, high contrast, and a User Theme if you have one. It is also about half the size it was, and it grows with what you say instead of holding open an empty box.
+- A level moves with your voice while Murmur listens, in place of the red dot, so a microphone nobody is hearing shows itself before you have finished the sentence.
+- Where the transcription will land is the panel's headline now - **Types into Text Editor**, or **Copies to the clipboard** - above the words rather than below them.
+- The panel's buttons are **Cancel**, **Copy** and **Stop**. **Copy** appears only when there is a field to type into; with nothing focused it did exactly what **Stop** does.
+
+### Removed
+
+- The row of key hints along the bottom of the panel. `Enter`, `Ctrl+Enter`, `Esc` and the recording shortcut all still do what they did.
+- The panel's collapse button. Clicking anywhere else still puts the panel away, and the top-bar indicator still brings it back.
+- Scrolling back through a long transcription with `Page Up`, `Home` and the arrow keys. The panel keeps the last four lines in view, and everything you said is delivered in full when you stop.
+
+### Fixed
+
+- The recording indicator in the top bar answers a tap on a touchscreen and `Enter` when you reach it with the keyboard, not only a click.
+
 ## [1.7.1] - 2026-08-31
 
 ### Changed
