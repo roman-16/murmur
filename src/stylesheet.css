@@ -1,8 +1,11 @@
-/* The panel is the shell's own notification card: `message notification-banner`
-   for the frame, `message-header`, `message-title`, `slider` and
-   `notification-button` for what sits in it. Its colours, corners, borders,
-   shadows, fonts and button states are therefore whichever theme, accent colour
-   and contrast setting is installed, down to the light and dark variants.
+/* The panel is a popover with the shell's own notification card in it, which is
+   what the notification list is when it holds one message: `popup-menu-content`
+   for the frame, because a surface that floats over a window has to carry an
+   edge and that is the class every theme gives one; `message`, `message-header`,
+   `message-title`, `slider` and `notification-button` for what sits inside it.
+   Its colours, corners, borders, shadows, fonts and button states are therefore
+   whichever theme, accent colour and contrast setting is installed, down to the
+   light and dark variants.
 
    A declaration in an extension's stylesheet outranks a theme's, `!important`
    included, so anything written here is out of the theme's reach for good. What
@@ -20,8 +23,18 @@
   width: 6em;
 }
 
+/* One surface rather than two. The notification inside the frame is what shapes
+   the contents; the frame is what the theme dresses, so the panel is the colour
+   a menu is. Cards are raised where a list has several of them to separate. */
+.murmur-panel .message {
+  background: none;
+  border: none;
+  box-shadow: none;
+}
+
 .murmur-panel {
   margin-bottom: 4em;
+  width: 34em;
 }
 
 /* Four lines of transcription, the newest at the bottom. */

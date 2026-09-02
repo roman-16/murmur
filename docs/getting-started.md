@@ -35,6 +35,8 @@ Nothing else has to be configured before the first dictation.
 
 All of those except **Super+Space** reach the panel while it is on screen, which is exactly while it holds the keyboard. See [Keeping your hands free](#keeping-your-hands-free).
 
+The keyboard starts on **Stop**, which is why `Enter` delivers. `Tab` moves it along the panel's buttons, and `Enter` or `Space` presses the one it is on.
+
 ## Keeping your hands free
 
 The panel takes nothing over. While it is recording you can click into another window, scroll, and carry on working; the microphone keeps running.

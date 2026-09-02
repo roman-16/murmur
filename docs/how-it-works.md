@@ -31,9 +31,11 @@ Synthesized keystrokes are routed by the same rule, so the panel releases the ke
 
 ## What the panel is made of
 
-The card is built from the shell's own notification: the same `message` frame a notification banner wears, the same header, title, body and buttons inside it. Murmur's stylesheet sets four things - where the card sits above the screen edge, how wide the level is, how tall the transcription may grow, and the header padding the shell reserves for a close button this card does not have. Everything else - colour, corner, border, shadow, font, and every button state - comes from the installed theme, so the panel follows the light and dark styles, the accent colour, high contrast, and a User Theme, without knowing any of them exist.
+The panel is a popover with the shell's own notification card inside it, which is what your notification list is when it holds a single message. The frame is the class GNOME's menus and Quick Settings wear, and it is a popover for one reason: a surface that floats over a window has to carry its own edge, and that is the class every theme gives one. The card inside it brings the header, the timestamp slot, the title, the body and the action buttons. Murmur's stylesheet sets five things - how wide the panel is, where it sits above the screen edge, how wide the level is, how tall the transcription may grow, and the header padding the shell reserves for a close button this card does not have. Everything else - colour, corner, border, shadow, font, and every button state - comes from the installed theme, so the panel follows the light and dark styles, the accent colour, high contrast, and a User Theme, without knowing any of them exist.
 
 That division is not a preference. A declaration in an extension's stylesheet outranks the theme's, `!important` included, so any colour Murmur set would be a colour no theme could ever change.
+
+The keyboard sits on **Stop** rather than on the panel itself, so the theme's focus ring marks the action `Enter` takes instead of outlining the whole surface for as long as it is open. `Esc` and `Ctrl+Enter` are taken before the focused button sees them, because a button in the shell activates on `Return` whatever modifier is held.
 
 ## Silence detection
 

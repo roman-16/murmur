@@ -167,7 +167,8 @@ export default class Probe extends Extension {
 
     #holdsKeyboard() {
         const card = this.#card();
-        return card !== null && global.stage.get_key_focus() === card;
+        const focus = global.stage.get_key_focus();
+        return card !== null && focus !== null && card.contains(focus);
     }
 
     // A real client, so that focus behaves the way it does in a session. Nothing
@@ -281,6 +282,7 @@ export default class Probe extends Extension {
         this.#panel.onAction = action => fired.push(action);
         await this.#settle(600);
 
+        this.#checkSurface();
         await this.#checkButtons(fired);
         await this.#checkKeyboard();
         await this.#checkCollapse();
@@ -350,6 +352,25 @@ export default class Probe extends Extension {
         this.#ok('clearing leaves nothing behind',
             (await history.entries()).length === 0 &&
                 !GLib.file_test(history.path, GLib.FileTest.EXISTS));
+    }
+
+    // What made the panel disappear into a dark desktop: the class it wore is
+    // styled for sitting inside another surface, so the theme gave its frame a
+    // transparent border and a transparent shadow, and a card the colour of the
+    // window behind it had nothing to separate it. Read from the theme rather
+    // than from a screenshot, because whether it shows depends on the wallpaper.
+    #checkSurface() {
+        const node = this.#card().get_theme_node();
+        const border = node.get_border_color(St.Side.TOP);
+        this.#ok('the theme draws the panel an edge of its own', border.alpha > 0,
+            `border alpha ${border.alpha}, width ${node.get_border_width(St.Side.TOP)}`);
+
+        // A frame that holds the keyboard wears the theme's focus ring for as
+        // long as it is open, which no shell surface does.
+        const focus = global.stage.get_key_focus();
+        this.#ok('the keyboard is on the action, not on the frame',
+            focus instanceof St.Button && focus.label === 'Stop',
+            `focus is ${focus?.constructor?.name} "${focus?.label ?? focus?.style_class}"`);
     }
 
     // The regression this whole harness exists for: a button that is hit-tested

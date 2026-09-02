@@ -10,7 +10,8 @@ Adding a version section here is what publishes a release, so this file is the o
 
 ### Changed
 
-- The recording panel is built out of GNOME's own notification card, so its colours, corners, shadow, text and buttons are the ones your desktop already uses: the light style as readily as the dark one, your accent colour, high contrast, and a User Theme if you have one. It is also about half the size it was, and it grows with what you say instead of holding open an empty box.
+- The recording panel is built out of GNOME's own surfaces - the frame a menu wears, the contents a notification wears - so its colour, corners, border, shadow, text and buttons are the ones your desktop already uses: the light style as readily as the dark one, your accent colour, high contrast, and a User Theme if you have one. It is also about half the size it was, and it grows with what you say instead of holding open an empty box.
+- The keyboard starts on **Stop**, so the highlight marks the button `Enter` presses rather than outlining the whole panel. `Tab` moves it along the buttons, and `Enter` or `Space` presses the one it is on.
 - A level moves with your voice while Murmur listens, in place of the red dot, so a microphone nobody is hearing shows itself before you have finished the sentence.
 - Where the transcription will land is the panel's headline now - **Types into Text Editor**, or **Copies to the clipboard** - above the words rather than below them.
 - The panel's buttons are **Cancel**, **Copy** and **Stop**. **Copy** appears only when there is a field to type into; with nothing focused it did exactly what **Stop** does.

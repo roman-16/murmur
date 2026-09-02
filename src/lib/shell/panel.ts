@@ -19,34 +19,39 @@ export type PanelAction = 'cancel' | 'copy' | 'stop';
 
 // Keys reach an actor only while it holds the stage's key focus, which mutter
 // clears the moment any window is focused or anything in the shell takes over.
-// The panel is on screen exactly while it holds that focus, so every way of
+// The panel is on screen exactly while that focus is inside it, so every way of
 // looking somewhere else already collapses it and none of them is handled here.
-class Card extends St.BoxLayout {
+//
+// The frame is a popover because a surface that floats over a window has to
+// carry its own edge, and that is the class every theme dresses for it.
+class Frame extends St.BoxLayout {
     static {
-        GObject.registerClass({GTypeName: 'MurmurCard'}, this);
+        GObject.registerClass({GTypeName: 'MurmurFrame'}, this);
     }
 
     onKeyPress: ((event: Clutter.Event) => boolean) | null = null;
 
     constructor() {
         super({
-            can_focus: true,
             orientation: Clutter.Orientation.VERTICAL,
             reactive: true,
-            style_class: 'message notification-banner murmur-panel',
+            style_class: 'popup-menu-content murmur-panel',
         });
-    }
 
-    override vfunc_key_press_event(event: Clutter.Event): boolean {
-        if (this.onKeyPress?.(event))
-            return Clutter.EVENT_STOP;
-        return super.vfunc_key_press_event(event);
+        // The keyboard sits on the button that acts, so a key the panel answers
+        // for itself has to be taken on the way down: a button activates on
+        // Return whatever modifier is held, and would stop rather than copy.
+        this.connect('captured-event', (_actor, event: Clutter.Event) => {
+            if (event.type() !== Clutter.EventType.KEY_PRESS)
+                return Clutter.EVENT_PROPAGATE;
+            return this.onKeyPress?.(event) ? Clutter.EVENT_STOP : Clutter.EVENT_PROPAGATE;
+        });
     }
 
     // Chrome is laid out at the height it is asked for, and asked without being
     // told how wide it will be - which a wrapping label answers with one line
-    // however much it holds. The card's width is the theme's and is never
-    // negotiated, and there is no shorter card than the one that fits what it
+    // however much it holds. The panel's width is its own and is never
+    // negotiated, and there is no shorter panel than the one that fits what it
     // holds, so both answers are the same answer.
     override vfunc_get_preferred_height(forWidth: number): [number, number] {
         const width = forWidth >= 0 ? forWidth : this.get_preferred_width(-1)[1];
@@ -75,14 +80,16 @@ export class MurmurPanel {
 
     readonly #actions: St.Bin;
     readonly #body: St.BoxLayout;
-    readonly #card: Card;
+    readonly #card: St.BoxLayout;
     readonly #constraint: Layout.MonitorConstraint;
     readonly #container: St.Widget;
     readonly #copy: St.Button;
     readonly #countdown: St.Label;
+    readonly #frame: Frame;
     readonly #icon: St.Icon;
     readonly #level: BarLevel;
     readonly #status: St.Label;
+    readonly #stop: St.Button;
     readonly #tail: St.Adjustment;
     readonly #title: St.Label;
     readonly #transcript: St.Label;
@@ -98,8 +105,18 @@ export class MurmurPanel {
 
     constructor(options: {collapsed?: boolean} = {}) {
         this.#collapsed = options.collapsed ?? false;
-        this.#card = new Card();
-        this.#card.onKeyPress = event => this.#onKeyPress(event);
+        this.#frame = new Frame();
+        this.#frame.onKeyPress = event => this.#onKeyPress(event);
+        // Reactive because St reads that as sensitive: the shell's own message is
+        // a button, and a card that is not one is styled as a disabled one, which
+        // dims every word it holds to four tenths.
+        this.#card = new St.BoxLayout({
+            orientation: Clutter.Orientation.VERTICAL,
+            reactive: true,
+            style_class: 'message',
+            x_expand: true,
+        });
+        this.#frame.add_child(this.#card);
 
         this.#icon = new St.Icon({
             icon_name: 'audio-input-microphone-symbolic',
@@ -172,13 +189,14 @@ export class MurmurPanel {
         this.#card.add_child(this.#body);
 
         this.#copy = this.#button('copy', 'Copy');
+        this.#stop = this.#button('stop', 'Stop');
         const buttons = new St.BoxLayout({
             style_class: 'notification-buttons-bin',
             x_expand: true,
         });
         buttons.add_child(this.#button('cancel', 'Cancel'));
         buttons.add_child(this.#copy);
-        buttons.add_child(this.#button('stop', 'Stop'));
+        buttons.add_child(this.#stop);
         this.#actions = new St.Bin({
             style_class: 'message-action-bin',
             child: buttons,
@@ -198,11 +216,11 @@ export class MurmurPanel {
             y_expand: true,
         });
         this.#container.add_constraint(this.#constraint);
-        this.#container.add_child(this.#card);
+        this.#container.add_child(this.#frame);
 
-        // Chrome sits above every window, so the input region has to be the card
-        // and nothing else: the container stays unreactive and clicks anywhere
-        // around it reach the application underneath.
+        // Chrome sits above every window, so the input region has to be the
+        // panel and nothing else: the container stays unreactive and clicks
+        // anywhere around it reach the application underneath.
         Main.layoutManager.addTopChrome(this.#container);
         // A fullscreen window is handed straight to the display unless something
         // says otherwise, and an unredirected window paints over chrome.
@@ -220,7 +238,7 @@ export class MurmurPanel {
 
         this.#keyFocusId = global.stage.connect('notify::key-focus', () => this.#syncKeyboard());
         if (!this.#collapsed)
-            this.#card.grab_key_focus();
+            this.#stop.grab_key_focus();
         this.#syncKeyboard();
         this.#syncDestination();
     }
@@ -296,7 +314,7 @@ export class MurmurPanel {
             return;
         this.#collapsed = false;
         this.#reveal();
-        this.#card.grab_key_focus();
+        this.#stop.grab_key_focus();
     }
 
     toggle(): void {
@@ -307,9 +325,9 @@ export class MurmurPanel {
     }
 
     // Synthesized keystrokes are routed like real ones, so the transcription
-    // would be typed into the card if it still held the keyboard.
+    // would be typed into the panel if it still held the keyboard.
     releaseKeyboard(): void {
-        if (global.stage.get_key_focus() === this.#card)
+        if (this.#holdsKeyboard())
             global.stage.set_key_focus(null);
     }
 
@@ -360,6 +378,8 @@ export class MurmurPanel {
         return button;
     }
 
+    // Cancelling and copying are the panel's own, whichever button the keyboard
+    // is on. Stopping is the button it is on, so Enter and Space are left to it.
     #onKeyPress(event: Clutter.Event): boolean {
         const symbol = event.get_key_symbol();
 
@@ -367,11 +387,11 @@ export class MurmurPanel {
             this.onAction?.('cancel');
             return true;
         }
-        if (symbol === Clutter.KEY_Return ||
+        const enter = symbol === Clutter.KEY_Return ||
             symbol === Clutter.KEY_KP_Enter ||
-            symbol === Clutter.KEY_ISO_Enter) {
-            const control = (event.get_state() & Clutter.ModifierType.CONTROL_MASK) !== 0;
-            this.onAction?.(control ? 'copy' : 'stop');
+            symbol === Clutter.KEY_ISO_Enter;
+        if (enter && (event.get_state() & Clutter.ModifierType.CONTROL_MASK) !== 0) {
+            this.onAction?.('copy');
             return true;
         }
         return false;
@@ -399,6 +419,13 @@ export class MurmurPanel {
         this.#title.text = destinationText(this.#destination);
     }
 
+    // The keyboard is on the action it would take, so what makes the panel the
+    // focus is the focus being anywhere inside it.
+    #holdsKeyboard(): boolean {
+        const focus = global.stage.get_key_focus();
+        return focus !== null && this.#frame.contains(focus);
+    }
+
     // The panel is on screen exactly while it holds the keyboard. Looking
     // anywhere else - another window, the overview, a shell dialog - takes that
     // focus away, and the panel follows it out of sight rather than sitting
@@ -406,7 +433,7 @@ export class MurmurPanel {
     #syncKeyboard(): void {
         if (this.#finished)
             return;
-        const holds = global.stage.get_key_focus() === this.#card;
+        const holds = this.#holdsKeyboard();
         if (!holds && !this.#collapsed)
             this.collapse();
         else if (holds && this.#collapsed)
