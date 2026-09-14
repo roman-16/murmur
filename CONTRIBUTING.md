@@ -16,7 +16,7 @@ The toolchain is pinned with [devbox](https://www.jetify.com/devbox) and [direnv
 git clone https://github.com/roman-16/murmur.git
 cd murmur
 direnv allow      # or: devbox shell
-cp .env.example .env      # a key for one service, and optionally MURMUR_PROVIDER and RECORDING_SHORTCUT
+cp .env.example .env      # a key for one service, and optionally MURMUR_PROVIDER, OPENROUTER_MODEL and RECORDING_SHORTCUT
 ```
 
 Without devbox you need Bun, GJS, GLib's tools, `just`, `librsvg` and `zip` on your own.
@@ -44,7 +44,7 @@ just pack         # build the .shell-extension.zip
 nix build         # build the extension through the flake, as a Nix install does
 ```
 
-`just dev` boots a nested GNOME Shell with its own `XDG_DATA_HOME`, picks up `MISTRAL_API_KEY` from `.env`, and touches nothing in your real session. It also unsets `GTK_IM_MODULE`, because the desktop session points clients at ibus and the nested one runs none: a GTK client that cannot reach its input method never enables the Wayland text-input protocol, so every field in the nested session would look like no field and every dictation would go to the clipboard. It is the fastest way to try a change; a real session needs a log out and back in for every reload, because Wayland cannot restart the shell in place.
+`just dev` boots a nested GNOME Shell with its own `XDG_DATA_HOME`, picks up the API keys in `.env`, and touches nothing in your real session. It also unsets `GTK_IM_MODULE`, because the desktop session points clients at ibus and the nested one runs none: a GTK client that cannot reach its input method never enables the Wayland text-input protocol, so every field in the nested session would look like no field and every dictation would go to the clipboard. It is the fastest way to try a change; a real session needs a log out and back in for every reload, because Wayland cannot restart the shell in place.
 
 Inside that session the shortcut is **`Super+J`**, set by `RECORDING_SHORTCUT` in `.env`, because a key combination belongs to one compositor: your own session matches `Super+Space` first and the nested shell never sees it. When a run does need the real combination, as the demo does, `scripts/nested-shell.sh` borrows it from your session and gives it back on exit.
 
@@ -57,10 +57,12 @@ src/stylesheet.css     geometry for the panel; its colours come from the shell t
 src/lib/               shared by both, Gio and GLib only
 src/lib/shell/         shell-only: panel, indicator, insertion, focus, clipboard, session
 src/lib/prefs/         preferences-only: rows, shortcut capture, dotool diagnostics, history page
-src/lib/transcription/ one module per service, and the table of them
+src/lib/transcription/ the two ways audio becomes text, and the table of services
 ```
 
-A transcription service is a WebSocket that eats raw PCM and emits text, so that is all a module there is: the endpoint, the frames to send, and the events to make of what comes back. `session.ts` owns the microphone and the socket and knows nothing about either service; adding a third one means a module, a row in `PROVIDERS`, and a key in the schema.
+`session.ts` owns the microphone - it records, meters, watches for silence, and hands the audio to a `Transcription`, which is the seam every service comes through: fed chunks, told when the microphone is released, and finally the words. There are two implementations of it. `stream.ts` holds a WebSocket open for the recording and drives a `StreamProtocol` - the endpoint, the frames to send, and the events to make of what comes back, which is all `gemini.ts` and `mistral.ts` are. `openrouter.ts` is the other: it keeps the audio and sends it in one request when the recording ends.
+
+Adding a service means one module on whichever side it belongs, a row in `PROVIDERS`, and its keys in the schema. Nothing else in Murmur knows which one is selected.
 
 `just build` compiles the TypeScript into `dist/`, copies `src/stylesheet.css` and `schemas/` alongside it, and writes `metadata.json` with the `version-name` [`CHANGELOG.md`](CHANGELOG.md) declares. That is the layout GNOME Shell loads.
 
@@ -94,7 +96,7 @@ Everything past that is the compositor, and the interesting failures are all in 
 - a password field, which must land in the field and **not** in the history page,
 - clicking anywhere outside the panel mid-recording, which must collapse it and hand the keyboard back, whether or not you changed application,
 - a fullscreen window, which the panel has to be visible over,
-- **both transcription services**, since each speaks its own protocol and only one of them is exercised by a dictation. `MURMUR_PROVIDER=gemini just dev` switches the throwaway session over.
+- **all three transcription services**, since each speaks its own protocol and only one of them is exercised by a dictation - and OpenRouter is the one that transcribes nothing until the microphone closes. `MURMUR_PROVIDER=openrouter just dev` switches the throwaway session over.
 
 `journalctl --user --follow /usr/bin/gnome-shell | grep --ignore-case murmur` shows what the extension reports.
 

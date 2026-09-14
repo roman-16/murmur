@@ -6,11 +6,15 @@
 - **Another shortcut owns the combination.** GNOME gives a key combination to one binding only. Check *Settings → Keyboard → View and Customize Shortcuts*, or set a different one in Murmur's preferences.
 - **The shortcut is unset.** The preferences show `Disabled` if it was cleared with `Backspace`.
 
-## "Set your Mistral API key" or "Set your Gemini API key"
+## "Set your Gemini API key", or Mistral's, or OpenRouter's
 
 The service selected under **Service** has no key in the settings. The notification names which one it wants. See [Getting started](getting-started.md).
 
 If it names a service you did not mean to use, the **Service** row is set to it; switching back finds the other key exactly where you left it.
+
+## OpenRouter reports that the model is unknown
+
+The slug under **Model** is not one OpenRouter serves, which happens to a model that has been retired or set by hand with a typo. Open the **Model** list and pick one: it is fetched from OpenRouter, so it holds exactly what is available now.
 
 ## "pw-record not found; install PipeWire"
 
@@ -20,8 +24,9 @@ Murmur records with `pw-record`, which ships with PipeWire. Install your distrib
 
 - **Check the microphone.** *Settings → Sound → Input* should show the level moving while you speak. Murmur records from the default input device.
 - **Check the key.** A key that is invalid, expired or out of quota surfaces as an error notification carrying the service's own words - Gemini says *API key not valid. Please pass a valid API key.*
-- **Check the network.** Transcription is a live connection to `api.mistral.ai` or `generativelanguage.googleapis.com`, depending on the service; without it the recording produces nothing.
-- **"The service did not start a transcription session"** means the connection was accepted and then went quiet, which is the service's end being unwell rather than anything local. Try again, and try the other service.
+- **Check the network.** Transcription reaches `generativelanguage.googleapis.com`, `api.mistral.ai` or `openrouter.ai`, depending on the service; without it the recording produces nothing.
+- **With OpenRouter, nothing appears until you stop.** That is the service, not a fault: it transcribes the recording in one go rather than as you speak. See [Limitations](limitations.md).
+- **"The service did not start a transcription session"** means the connection was accepted and then went quiet, which is the service's end being unwell rather than anything local. Try again, and try another service.
 
 ## It copied to the clipboard when I expected typing
 
@@ -62,7 +67,7 @@ Wayland applications do not need dotool at all, so this row can be safely ignore
 
 - **Stop after silence** is set and the room is quiet enough to trigger it. Raise it, or set it to 0.
 - **Maximum recording time** was reached. Ten minutes by default.
-- **The service ended the session.** Gemini transcribes for ten minutes at a stretch, so with it selected the countdown starts there whatever **Maximum recording time** says.
+- **The service transcribes only so much at a stretch.** Gemini and OpenRouter stop at ten minutes, so with either selected the countdown starts there whatever **Maximum recording time** says.
 
 Both deliver what was transcribed so far; nothing is thrown away.
 

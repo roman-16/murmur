@@ -4,7 +4,7 @@ import {
     endpoint,
     errorText,
     SAMPLE_RATE,
-    type Transcriber,
+    type StreamProtocol,
     type TranscriptionEvent
 } from './provider.js';
 
@@ -29,7 +29,7 @@ type ServerMessage = {
 // revised as the speaker carries on, and a finalized segment each time a turn
 // ends. So the text is the finalized segments plus whatever the current
 // hypothesis is, and the interim disappears the moment it is superseded.
-export class GeminiTranscriber implements Transcriber {
+export class GeminiProtocol implements StreamProtocol {
     readonly headers: [string, string][];
     readonly url = endpoint(URL);
 

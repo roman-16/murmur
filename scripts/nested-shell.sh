@@ -139,6 +139,12 @@ fi
 if [ -n "\${GEMINI_API_KEY:-}" ]; then
     gsettings set org.gnome.shell.extensions.murmur gemini-api-key "\$GEMINI_API_KEY"
 fi
+if [ -n "\${OPENROUTER_API_KEY:-}" ]; then
+    gsettings set org.gnome.shell.extensions.murmur openrouter-api-key "\$OPENROUTER_API_KEY"
+fi
+if [ -n "\${OPENROUTER_MODEL:-}" ]; then
+    gsettings set org.gnome.shell.extensions.murmur openrouter-model "\$OPENROUTER_MODEL"
+fi
 if [ -n "\${MURMUR_PROVIDER:-}" ]; then
     gsettings set org.gnome.shell.extensions.murmur transcription-provider "\$MURMUR_PROVIDER"
 fi

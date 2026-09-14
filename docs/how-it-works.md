@@ -7,10 +7,10 @@ Murmur is a GNOME Shell extension, which means it runs inside the compositor its
 1. **The shortcut fires.** `Super+Space` is a shell keybinding, active in the normal session and in the overview.
 2. **The panel opens** at the bottom of the monitor holding the focused window - the pointer's monitor when nothing is focused - clear of anything docked there, showing the status, the level of your voice, a countdown, the destination, and the transcription as it arrives, alongside an indicator in the top bar. Nothing is grabbed: the panel is drawn as shell chrome and, unless it holds the keyboard, every click and keystroke goes where it would have anyway.
 3. **The microphone opens.** `pw-record` is spawned and writes raw audio to a pipe: 16 kHz, mono, signed 16-bit little-endian, read in 100 ms chunks.
-4. **A WebSocket opens** to the service you chose, authenticated with your API key in a request header, and the session announces the audio format and whatever that service takes: the transcription delay, or the language and formatting mode.
-5. **Audio streams up** as it is recorded, each chunk base64-encoded in a JSON message. Nothing is buffered to disk. A service that has to finish its own setup first gets the chunks the moment it says it is ready, so no words are lost to the handshake.
-6. **Text streams down** and appears in the panel immediately.
-7. **You stop**, or silence or the time limit stops it for you. The microphone is released at once, and the connection stays open just long enough to collect the tail of the transcription.
+4. **The service is opened**, authenticated with your API key in a request header. A streaming service gets a WebSocket, told the audio format and whatever else it takes: the transcription delay, or the language and formatting mode. OpenRouter is opened by being sent the recording, so nothing happens here at all.
+5. **The audio goes up.** Streaming, each chunk is base64-encoded in a JSON message as it is recorded; a service that has to finish its own setup first gets the chunks the moment it says it is ready, so no words are lost to the handshake. With OpenRouter the chunks are collected in memory instead. Nothing is buffered to disk either way.
+6. **Text comes down** and appears in the panel immediately - from a streaming service, which is the only kind that has anything to say before you stop.
+7. **You stop**, or silence or the time limit stops it for you. The microphone is released at once. A streaming connection stays open just long enough to collect the tail of the transcription; OpenRouter is sent the whole recording as a WAV and answers with the whole transcription.
 8. **The destination is read**, now rather than at the start: whichever client holds a focused text field at this moment. See [Where the text goes](text-insertion.md).
 9. **The panel releases the keyboard and closes**, and the text is delivered: typed into the focused field, or copied to the clipboard when there is none, which the panel says before it goes.
 10. **The transcription is appended to the history**, `history.jsonl` in the extension's directory under `$XDG_STATE_HOME`, unless **Remember what I dictate** is off or the field was one the client reported as a password.
@@ -55,9 +55,25 @@ A GNOME extension runs in two places, and they share nothing but files on disk:
 
 Importing a shell type into the preferences, or a GTK type into the shell, crashes at load. `just lint` greps for exactly that and fails the build, so the boundary is enforced rather than remembered.
 
-## The realtime protocols
+## How a recording becomes words
 
-A transcription service is a WebSocket that eats raw audio and emits text, so each one is a single module that speaks its own protocol; everything else in Murmur - the microphone, the panel, the destination, the insertion - is the same either way.
+Everything about a dictation that you can see - the microphone, the level, the silence, the panel, the destination, the insertion - is the same whichever service transcribes it. What differs is only how the audio travels, and there are two ways:
+
+| | Streaming | One request |
+| --- | --- | --- |
+| Services | Gemini, Mistral | OpenRouter |
+| Carried by | A WebSocket held open for the recording | One `POST` when the recording ends |
+| Audio sent as | Base64 PCM chunks, as recorded | One 16 kHz mono WAV, built in memory |
+| Panel during the recording | The words so far | The level and the countdown |
+| Bounded by | Ten seconds to open a session, five for the tail | A minute for the model to answer |
+
+### OpenRouter
+
+One `POST` to `openrouter.ai/api/v1/audio/transcriptions` carrying the chosen model's slug and the recording as base64 WAV, answered with `{"text": …}`. The samples `pw-record` writes are already what the models want, so the conversion is a 44-byte RIFF header in front of them. There is no streaming transcription API to use instead - the request is the whole protocol, which is also why nothing can appear in the panel until you stop.
+
+### The realtime protocols
+
+A streaming service is a WebSocket that eats raw audio and emits text, so each one is a single module that speaks its own protocol.
 
 Mistral, with `voxtral-mini-transcribe-realtime-2602`, streams text to append:
 
@@ -90,7 +106,7 @@ Four details of that one are worth writing down, because every one of them is in
 - **The JSON arrives in binary frames** as readily as in text ones, so the frame type says nothing about whether a message is for us.
 - **The handshake succeeds whatever the key is.** A key the service rejects arrives as a socket closing with `1007` and a reason of its own words, which is why a close before the microphone was released is reported as an error rather than an empty transcription.
 
-Both ends of a dictation are bounded, so neither the panel nor the microphone can wait on a service forever: the audio waits ten seconds for a session to be opened for it, and the transcription's tail five seconds after the microphone closes.
+Both ends of a streamed dictation are bounded, so neither the panel nor the microphone can wait on a service forever: the audio waits ten seconds for a session to be opened for it, and the transcription's tail five seconds after the microphone closes.
 
 ## Built from TypeScript
 

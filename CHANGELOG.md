@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 Adding a version section here is what publishes a release, so this file is the one place a version is decided: see [Releasing](CONTRIBUTING.md#releasing). Versions that shipped before this file existed are on the [releases page](https://github.com/roman-16/murmur/releases).
 
+## [1.9.0] - 2026-09-14
+
+### Added
+
+- **OpenRouter** joins **Service** as a third choice: one key for every transcription model it serves - Whisper, Nova, Voxtral, Parakeet and whatever it adds next - chosen from the **Model** list beside it. It cannot transcribe while you speak, so the panel shows only the level and the countdown and the whole dictation arrives when you stop. A recording runs ten minutes at most.
+
 ## [1.8.0] - 2026-09-01
 
 ### Changed

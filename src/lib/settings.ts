@@ -7,6 +7,8 @@ export const Key = {
     geminiSmartTranscription: 'gemini-smart-transcription',
     maxRecordingSeconds: 'max-recording-seconds',
     mistralApiKey: 'mistral-api-key',
+    openrouterApiKey: 'openrouter-api-key',
+    openrouterModel: 'openrouter-model',
     rememberDictations: 'remember-dictations',
     showPanelOnStart: 'show-panel-on-start',
     silenceSeconds: 'silence-timeout-seconds',
@@ -18,7 +20,8 @@ export const Key = {
 
 export type ProviderConfig =
     | {apiKey: string; delayMs: number; kind: 'mistral'}
-    | {apiKey: string; kind: 'gemini'; smart: boolean};
+    | {apiKey: string; kind: 'gemini'; smart: boolean}
+    | {apiKey: string; kind: 'openrouter'; model: string};
 
 export type RecordingConfig = {
     maxSeconds: number;
@@ -60,11 +63,11 @@ export function readIntRange(settings: Gio.Settings, key: string): {lower: numbe
     return {lower, upper};
 }
 
-// A service that ends the session itself decides the real ceiling, so the
-// countdown counts down to the earlier of the two.
+// A service that transcribes only so much at a stretch decides the real
+// ceiling, so the countdown counts down to the earlier of the two.
 function cappedSeconds(settings: Gio.Settings, kind: ProviderId): number {
     const seconds = settings.get_int(Key.maxRecordingSeconds);
-    const cap = PROVIDERS[kind].maxSessionSeconds;
+    const cap = PROVIDERS[kind].maxSeconds;
     return cap === undefined ? seconds : Math.min(seconds, cap);
 }
 
@@ -90,6 +93,12 @@ function readProviderConfig(settings: Gio.Settings): ProviderConfig {
                 apiKey: settings.get_string(Key.mistralApiKey),
                 delayMs: settings.get_int(Key.transcriptionDelayMs),
                 kind: 'mistral',
+            };
+        case 'openrouter':
+            return {
+                apiKey: settings.get_string(Key.openrouterApiKey),
+                kind: 'openrouter',
+                model: settings.get_string(Key.openrouterModel),
             };
     }
 }

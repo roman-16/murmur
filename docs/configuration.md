@@ -12,17 +12,20 @@ Every setting takes effect on the next dictation. Nothing needs a restart.
 
 ### Service
 
-Which service transcribes your voice. Only the chosen one's settings are on screen; the other's key stays where it is, so switching back is one click.
+Which service transcribes your voice. Only the chosen one's settings are on screen; the others' keys stay where they are, so switching back is one click.
 
-| | Mistral Voxtral Realtime | Gemini 3.5 Transcribe Live |
-| --- | --- | --- |
-| Key from | [console.mistral.ai](https://console.mistral.ai) | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) |
-| Cost | About $0.006 per minute of audio | Free on Google's free tier, which trains on your dictation; about $0.009 per minute when you pay |
-| Longest recording | As long as you set; Mistral ends no session of its own | 10 minutes, which the service imposes |
-| Own settings | **Transcription delay** | **Tidy up what I say** |
-| Language | Detected by the model | Detected by the model, and it follows a switch mid-sentence |
+| | Gemini 3.5 Transcribe Live | Mistral Voxtral Realtime | OpenRouter |
+| --- | --- | --- | --- |
+| Key from | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) | [console.mistral.ai](https://console.mistral.ai) | [openrouter.ai/settings/keys](https://openrouter.ai/settings/keys) |
+| Cost | Free on Google's free tier, which trains on your dictation; about $0.009 per minute when you pay | About $0.006 per minute of audio | The model's own price, on its [model page](https://openrouter.ai/models?output_modalities=transcription) |
+| Text appears | While you speak | While you speak | When you stop |
+| Longest recording | 10 minutes, which the service imposes | As long as you set; Mistral ends no session of its own | 10 minutes |
+| Own settings | **Tidy up what I say** | **Transcription delay** | **Model** |
+| Language | Detected by the model, and it follows a switch mid-sentence | Detected by the model | Detected by the model |
 
 Gemini is the default, because a free key transcribes as much as you like. What that costs instead is [privacy](privacy.md#what-leaves-your-machine): Google's free tier states that it uses what you dictate to improve their products.
+
+OpenRouter is one key for every transcription model it serves - Whisper, Deepgram Nova, Voxtral, Parakeet, and whatever it adds next. It has no streaming transcription API, so nothing appears in the panel while you speak: the recording is sent when you stop, and the words arrive a moment later. Everything else - the level, the countdown, the destination, the four keys - is unchanged.
 
 ### API key
 
@@ -35,6 +38,18 @@ It is stored like every other GNOME setting, in dconf, unencrypted. [Privacy](pr
 Gemini only, on by default. The model cleans the transcription up: filler words dropped, spoken self-corrections resolved, lists and numbers formatted, capitalisation and punctuation polished. Turn it off to have what you said transcribed word for word.
 
 The model's formatting includes line breaks, and a transcription is always one line, so a spoken list arrives with its bullets inline: `three things: - The report - The laptop`. Nothing Murmur types is an `Enter`.
+
+### Model
+
+OpenRouter only. Which of its transcription models does the work; **Meta: Muse Voice Transcribe 1.0** by default, a model built for push-to-talk dictation.
+
+The list is fetched from OpenRouter when the preferences open, so a model added since your last update is in it. Without a network it lists only the model already set - the setting is a slug, so any model OpenRouter serves can be set by hand:
+
+```bash
+gsettings set org.gnome.shell.extensions.murmur openrouter-model openai/whisper-large-v3
+```
+
+What each one costs is on its page at [openrouter.ai](https://openrouter.ai/models?output_modalities=transcription); Murmur does not show a price, because the models are priced by the hour, by the minute and by the token and the API does not say which.
 
 ### Transcription delay
 
@@ -76,6 +91,7 @@ How high it goes is the selected service's business, so the number you set is al
 | --- | --- |
 | Gemini 3.5 Transcribe Live | **600 seconds**, because Google ends a live transcription session at ten minutes |
 | Mistral Voxtral Realtime | **86400 seconds**, a day. Mistral imposes nothing; the ceiling is Murmur declining to offer a recording with no end at all |
+| OpenRouter | **600 seconds**. The whole recording is sent in one request, so its length is also how much audio is held in memory and how much a model is asked to take at once |
 
 Switching to Gemini with a longer time set lowers it to 600, and switching back to Mistral leaves it there.
 
@@ -126,6 +142,8 @@ gsettings set org.gnome.shell.extensions.murmur transcription-provider gemini
 gsettings set org.gnome.shell.extensions.murmur gemini-api-key "$(cat ~/.secrets/gemini)"
 gsettings set org.gnome.shell.extensions.murmur gemini-smart-transcription true
 gsettings set org.gnome.shell.extensions.murmur mistral-api-key "$(cat ~/.secrets/mistral)"
+gsettings set org.gnome.shell.extensions.murmur openrouter-api-key "$(cat ~/.secrets/openrouter)"
+gsettings set org.gnome.shell.extensions.murmur openrouter-model meta/muse-voice-transcribe-1.0
 gsettings set org.gnome.shell.extensions.murmur remember-dictations false
 gsettings set org.gnome.shell.extensions.murmur toggle-recording "['<Super>space']"
 gsettings set org.gnome.shell.extensions.murmur show-panel-on-start false
@@ -139,14 +157,16 @@ gsettings set org.gnome.shell.extensions.murmur typing-speed 500
 | --- | --- | --- | --- |
 | `gemini-api-key` | string | empty | |
 | `gemini-smart-transcription` | boolean | `true` | |
-| `max-recording-seconds` | integer | 600 | 15 to 86400, and to 600 in the preferences while Gemini is selected |
+| `max-recording-seconds` | integer | 600 | 15 to 86400, and to 600 in the preferences while Gemini or OpenRouter is selected |
 | `mistral-api-key` | string | empty | |
+| `openrouter-api-key` | string | empty | |
+| `openrouter-model` | string | `meta/muse-voice-transcribe-1.0` | Any model slug OpenRouter transcribes with |
 | `remember-dictations` | boolean | `true` | |
 | `show-panel-on-start` | boolean | `true` | |
 | `silence-timeout-seconds` | integer | 0 | 0 to 30 |
 | `toggle-recording` | string list | `['<Super>space']` | |
 | `transcription-delay-ms` | integer | 2400 | 240 to 2400 |
-| `transcription-provider` | `gemini` or `mistral` | `gemini` | |
+| `transcription-provider` | `gemini`, `mistral` or `openrouter` | `gemini` | |
 | `typing-speed` | integer | 2500 | 50 to 2500 |
 
 A source install has to point `gsettings` at the schema it built, since it is not in the system directory:

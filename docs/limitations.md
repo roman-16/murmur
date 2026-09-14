@@ -12,13 +12,17 @@ Extensions are compiled against the shell's own JavaScript API, which changes ev
 
 ## It needs the network and an API key
 
-Transcription happens on Mistral's or Google's servers. There is no offline mode and no local model, so no network means no dictation, and every dictation is billed to the key you gave it - or, on Google's free tier, paid for with what you dictate. [Privacy](privacy.md) covers the trade-off in full.
+Transcription happens on Google's, Mistral's or OpenRouter's servers. There is no offline mode and no local model, so no network means no dictation, and every dictation is billed to the key you gave it - or, on Google's free tier, paid for with what you dictate. [Privacy](privacy.md) covers the trade-off in full.
 
-The two services are the two that exist. There is no way to point Murmur at a third one, or at something self-hosted, without editing the code.
+The three services are the three that exist. OpenRouter opens up every transcription model it serves, but there is no way to point Murmur at a service it does not know, or at something self-hosted, without editing the code.
 
-## A Gemini recording ends after ten minutes
+## With OpenRouter, nothing appears until you stop
 
-Google ends a live transcription session there, so with Gemini - the default - **Maximum recording time** goes no higher than ten minutes. Mistral ends no session of its own, so with it a recording runs for as long as you set, up to a day.
+OpenRouter has no streaming transcription API: the recording is sent in one request when you stop, and the words arrive together a moment later. The panel still shows the level, the countdown and where the text will land, but the transcription itself cannot be watched as it is spoken. Gemini and Mistral can, which is the reason to pick one of them.
+
+## A recording ends after ten minutes
+
+**Maximum recording time** goes no higher than that with Gemini - the default - because Google ends a live transcription session there, nor with OpenRouter, which has to hold the whole recording in memory and hand it to a model in one piece. Mistral imposes nothing of its own, so with it a recording runs for as long as you set, up to a day.
 
 ## A terminal is one big text field
 
@@ -52,7 +56,7 @@ Every dictation is kept in `~/.local/state/murmur@roman-16.github.io/history.jso
 
 ## No editing, no commands, no punctuation by voice
 
-Murmur transcribes and inserts. It has no vocabulary for "delete that", no dictation commands and no formatting rules beyond what the model produces. Punctuation is whatever Voxtral infers.
+Murmur transcribes and inserts. It has no vocabulary for "delete that", no dictation commands and no formatting rules beyond what the model produces. Punctuation is whatever the model infers.
 
 ## Tidying up is the model's judgement, not yours
 
@@ -64,7 +68,7 @@ Every line break the model produces is flattened to a space before the transcrip
 
 ## One language at a time, chosen by the model
 
-There is no language setting. Both services detect the language from what they hear, and neither is told which one to expect. Voxtral works well for a single language and less well when you switch mid-sentence; Gemini is built to follow a switch, but nothing in Murmur biases either towards the language you actually speak.
+There is no language setting. Every service detects the language from what it hears, and none is told which one to expect. Voxtral works well for a single language and less well when you switch mid-sentence; Gemini is built to follow a switch; what an OpenRouter model does is the model's own business. Nothing in Murmur biases any of them towards the language you actually speak.
 
 ## Only one key is guaranteed to reach Murmur
 

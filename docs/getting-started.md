@@ -2,7 +2,7 @@
 
 ## Pick a service and add its key
 
-Murmur transcribes in the cloud, so it needs a key of your own. Two services are on offer, and you pick one in the preferences:
+Murmur transcribes in the cloud, so it needs a key of your own. Three services are on offer, and you pick one in the preferences:
 
 ```bash
 gnome-extensions prefs murmur@roman-16.github.io
@@ -12,6 +12,7 @@ gnome-extensions prefs murmur@roman-16.github.io
 | --- | --- | --- |
 | **Gemini 3.5 Transcribe Live** | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) | The default. Free of charge on Google's free tier, which uses what you dictate to improve their products. Tidies up filler words for you. A recording runs ten minutes at most |
 | **Mistral Voxtral Realtime** | [console.mistral.ai](https://console.mistral.ai) | About $0.006 a minute, billed from the first one, and how far text trails your voice is yours to set |
+| **OpenRouter** | [openrouter.ai/settings/keys](https://openrouter.ai/settings/keys) | One key for every transcription model it serves - Whisper, Nova, Voxtral, Parakeet - which you pick under **Model**. It cannot transcribe while you speak, so the words arrive when you stop |
 
 Choose it under **Service**, paste your key into **API key** below it, and that is the whole setup. Each service keeps its own key, so switching back and forth costs nothing.
 
@@ -21,7 +22,7 @@ Nothing else has to be configured before the first dictation.
 
 1. Put the cursor where the words should land, in any application.
 2. Press **Super+Space**. A panel appears at the bottom of the screen you are working on and recording starts.
-3. Speak. The transcription appears in the panel while you are still talking.
+3. Speak. With Gemini or Mistral the transcription appears in the panel while you are still talking; with OpenRouter it arrives when you stop.
 4. Press **Enter** (or Super+Space again). The panel closes and the text is inserted.
 
 ## The four keys
@@ -81,7 +82,7 @@ In the preferences, click the shortcut next to **Recording shortcut**, press the
 Two settings end a recording without you pressing anything:
 
 - **Stop after silence** ends it after a number of seconds without speech. Off by default.
-- **Maximum recording time** ends it after ten minutes, so a forgotten recording cannot run forever. The countdown is in the panel and in the top-bar indicator. Gemini holds this to ten minutes, which is where it ends a session; with Mistral it goes as high as you like.
+- **Maximum recording time** ends it after ten minutes, so a forgotten recording cannot run forever. The countdown is in the panel and in the top-bar indicator. Gemini and OpenRouter hold this to ten minutes, which is as much as either transcribes at a stretch; with Mistral it goes as high as you like.
 
 Both deliver the transcription exactly as `Enter` would. See [Configuration](configuration.md).
 

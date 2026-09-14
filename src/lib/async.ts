@@ -18,6 +18,22 @@ export function fromAsync<T>(
     });
 }
 
+// A cancellable runs its handlers with its own lock held, so a handler must not
+// disconnect the handler it is running from: the id is dropped on the way in,
+// and the release afterwards has nothing left to do.
+export function whenCancelled(cancellable: Gio.Cancellable, cancel: () => void): () => void {
+    let id = cancellable.connect(() => {
+        id = 0;
+        cancel();
+    });
+    return () => {
+        if (!id)
+            return;
+        cancellable.disconnect(id);
+        id = 0;
+    };
+}
+
 export type Deferred<T> = {
     promise: Promise<T>;
     reject: (reason: unknown) => void;

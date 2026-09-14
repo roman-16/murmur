@@ -9,6 +9,7 @@ import {
 import {History} from './lib/history.js';
 import {makeDotoolStatusRow} from './lib/prefs/dotool-status.js';
 import {makeHistoryPage} from './lib/prefs/history.js';
+import {makeModelRow} from './lib/prefs/model.js';
 import {makeChoiceRow, makePresetRow, makeSpinRow} from './lib/prefs/rows.js';
 import {makeShortcutRow} from './lib/prefs/shortcut.js';
 import {Key, readIntRange, readProvider} from './lib/settings.js';
@@ -26,6 +27,7 @@ export default class MurmurPreferences extends ExtensionPreferences {
         page.add(transcriptionGroup(settings));
         page.add(geminiGroup(settings));
         page.add(mistralGroup(settings));
+        page.add(openrouterGroup(settings));
         page.add(recordingGroup(window, settings));
         page.add(insertionGroup(settings));
         window.add(page);
@@ -71,6 +73,13 @@ function mistralGroup(settings: Gio.Settings): Adw.PreferencesGroup {
             {value: 2400, label: _('Accurate (2.4 s)')},
         ],
     }));
+    return group;
+}
+
+function openrouterGroup(settings: Gio.Settings): Adw.PreferencesGroup {
+    const group = providerGroup(settings, 'openrouter');
+    group.add(apiKeyRow(settings, Key.openrouterApiKey));
+    group.add(makeModelRow(settings));
     return group;
 }
 
@@ -130,15 +139,14 @@ function maxRecordingRow(settings: Gio.Settings): Adw.SpinRow {
     });
 
     const sync = () => {
-        const {maxSessionSeconds, vendor} = PROVIDERS[readProvider(settings)];
-        row.adjustment.upper =
-            maxSessionSeconds ?? readIntRange(settings, Key.maxRecordingSeconds).upper;
-        row.subtitle = maxSessionSeconds === undefined
+        const {maxSeconds, vendor} = PROVIDERS[readProvider(settings)];
+        row.adjustment.upper = maxSeconds ?? readIntRange(settings, Key.maxRecordingSeconds).upper;
+        row.subtitle = maxSeconds === undefined
             ? _('Seconds after which recording stops on its own. %s sets no limit of its own, so this is only a safety net for a recording you walked away from')
                 .replace('%s', vendor)
-            : _('Seconds after which recording stops on its own. %s ends a session after %d minutes, which is as high as this goes')
+            : _('Seconds after which recording stops on its own. %s transcribes at most %d minutes at a stretch, which is as high as this goes')
                 .replace('%s', vendor)
-                .replace('%d', String(Math.floor(maxSessionSeconds / 60)));
+                .replace('%d', String(Math.floor(maxSeconds / 60)));
     };
     sync();
 

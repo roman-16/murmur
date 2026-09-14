@@ -3,6 +3,7 @@
   <enum id="org.gnome.shell.extensions.murmur.provider">
     <value nick="gemini" value="0"/>
     <value nick="mistral" value="1"/>
+    <value nick="openrouter" value="2"/>
   </enum>
   <schema id="org.gnome.shell.extensions.murmur" path="/org/gnome/shell/extensions/murmur/">
     <key name="gemini-api-key" type="s">
@@ -19,12 +20,22 @@
       <default>600</default>
       <range min="15" max="86400"/>
       <summary>Maximum recording time</summary>
-      <description>Seconds after which recording stops on its own and the transcription is inserted. A service that ends a session sooner lowers this: with Gemini selected the preferences go no higher than its ten minutes.</description>
+      <description>Seconds after which recording stops on its own and the transcription is inserted. A service that transcribes less than this at a stretch lowers it: with Gemini or OpenRouter selected the preferences go no higher than ten minutes.</description>
     </key>
     <key name="mistral-api-key" type="s">
       <default>''</default>
       <summary>Mistral API key</summary>
       <description>API key used to authenticate with the Mistral Voxtral realtime transcription endpoint.</description>
+    </key>
+    <key name="openrouter-api-key" type="s">
+      <default>''</default>
+      <summary>OpenRouter API key</summary>
+      <description>API key used to authenticate with OpenRouter's speech-to-text endpoint.</description>
+    </key>
+    <key name="openrouter-model" type="s">
+      <default>'meta/muse-voice-transcribe-1.0'</default>
+      <summary>OpenRouter model</summary>
+      <description>Which of the transcription models OpenRouter serves transcribes the recording, written as the slug on its model page. The preferences list what OpenRouter currently offers; any slug it accepts can be set here.</description>
     </key>
     <key name="remember-dictations" type="b">
       <default>true</default>

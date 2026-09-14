@@ -4,7 +4,7 @@ import {
     endpoint,
     errorText,
     SAMPLE_RATE,
-    type Transcriber,
+    type StreamProtocol,
     type TranscriptionEvent
 } from './provider.js';
 
@@ -18,7 +18,7 @@ type ServerEvent =
 
 // Voxtral streams the transcription as deltas to append and finishes with the
 // whole of it, so the text is simply everything that has arrived.
-export class MistralTranscriber implements Transcriber {
+export class MistralProtocol implements StreamProtocol {
     readonly headers: [string, string][];
     readonly ready = true;
     readonly url = endpoint(URL);
