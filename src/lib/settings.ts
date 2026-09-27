@@ -16,12 +16,14 @@ export const Key = {
     transcriptionDelayMs: 'transcription-delay-ms',
     transcriptionProvider: 'transcription-provider',
     typingSpeed: 'typing-speed',
+    xaiApiKey: 'xai-api-key',
 } as const;
 
 export type ProviderConfig =
     | {apiKey: string; delayMs: number; kind: 'mistral'}
     | {apiKey: string; kind: 'gemini'; smart: boolean}
-    | {apiKey: string; kind: 'openrouter'; model: string};
+    | {apiKey: string; kind: 'openrouter'; model: string}
+    | {apiKey: string; kind: 'xai'};
 
 export type RecordingConfig = {
     maxSeconds: number;
@@ -99,6 +101,11 @@ function readProviderConfig(settings: Gio.Settings): ProviderConfig {
                 apiKey: settings.get_string(Key.openrouterApiKey),
                 kind: 'openrouter',
                 model: settings.get_string(Key.openrouterModel),
+            };
+        case 'xai':
+            return {
+                apiKey: settings.get_string(Key.xaiApiKey),
+                kind: 'xai',
             };
     }
 }

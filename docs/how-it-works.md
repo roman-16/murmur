@@ -7,8 +7,8 @@ Murmur is a GNOME Shell extension, which means it runs inside the compositor its
 1. **The shortcut fires.** `Super+Space` is a shell keybinding, active in the normal session and in the overview.
 2. **The panel opens** at the bottom of the monitor holding the focused window - the pointer's monitor when nothing is focused - clear of anything docked there, showing the status, the level of your voice, a countdown, the destination, and the transcription as it arrives, alongside an indicator in the top bar. Nothing is grabbed: the panel is drawn as shell chrome and, unless it holds the keyboard, every click and keystroke goes where it would have anyway.
 3. **The microphone opens.** `pw-record` is spawned and writes raw audio to a pipe: 16 kHz, mono, signed 16-bit little-endian, read in 100 ms chunks.
-4. **The service is opened**, authenticated with your API key in a request header. A streaming service gets a WebSocket, told the audio format and whatever else it takes: the transcription delay, or the language and formatting mode. OpenRouter is opened by being sent the recording, so nothing happens here at all.
-5. **The audio goes up.** Streaming, each chunk is base64-encoded in a JSON message as it is recorded; a service that has to finish its own setup first gets the chunks the moment it says it is ready, so no words are lost to the handshake. With OpenRouter the chunks are collected in memory instead. Nothing is buffered to disk either way.
+4. **The service is opened**, authenticated with your API key in a request header. A streaming service gets a WebSocket and is told the audio format and whatever else it takes, in the address or in a first message: the model, the transcription delay, or the language and formatting mode. OpenRouter is opened by being sent the recording, so nothing happens here at all.
+5. **The audio goes up.** Streaming, each chunk goes as it is recorded - raw in a binary frame to xAI, base64-encoded in a JSON message to Google and Mistral; a service that has to finish its own setup first gets the chunks the moment it says it is ready, so no words are lost to the handshake. With OpenRouter the chunks are collected in memory instead. Nothing is buffered to disk either way.
 6. **Text comes down** and appears in the panel immediately - from a streaming service, which is the only kind that has anything to say before you stop.
 7. **You stop**, or silence or the time limit stops it for you. The microphone is released at once. A streaming connection stays open just long enough to collect the tail of the transcription; OpenRouter is sent the whole recording as a WAV and answers with the whole transcription.
 8. **The destination is read**, now rather than at the start: whichever client holds a focused text field at this moment. See [Where the text goes](text-insertion.md).
@@ -61,9 +61,9 @@ Everything about a dictation that you can see - the microphone, the level, the s
 
 | | Streaming | One request |
 | --- | --- | --- |
-| Services | Gemini, Mistral | OpenRouter |
+| Services | Gemini, Grok, Mistral | OpenRouter |
 | Carried by | A WebSocket held open for the recording | One `POST` when the recording ends |
-| Audio sent as | Base64 PCM chunks, as recorded | One 16 kHz mono WAV, built in memory |
+| Audio sent as | PCM chunks as recorded, raw or base64 | One 16 kHz mono WAV, built in memory |
 | Panel during the recording | The words so far | The level and the countdown |
 | Bounded by | Ten seconds to open a session, five for the tail | A minute for the model to answer |
 
@@ -106,7 +106,23 @@ Four details of that one are worth writing down, because every one of them is in
 - **The JSON arrives in binary frames** as readily as in text ones, so the frame type says nothing about whether a message is for us.
 - **The handshake succeeds whatever the key is.** A key the service rejects arrives as a socket closing with `1007` and a reason of its own words, which is why a close before the microphone was released is reported as an error rather than an empty transcription.
 
-Both ends of a streamed dictation are bounded, so neither the panel nor the microphone can wait on a service forever: the audio waits ten seconds for a session to be opened for it, and the transcription's tail five seconds after the microphone closes.
+Grok, with `grok-voice-transcribe-2.0`, streams locked pieces placed by where they start in the audio, and guesses in between:
+
+| Direction | Message | Meaning |
+| --- | --- | --- |
+| Up | The address | The model, 16 kHz PCM, and that guesses are wanted: `?model=grok-voice-transcribe-2.0&sample_rate=16000&encoding=pcm&interim_results=true` |
+| Up | A binary frame | One chunk of PCM, raw |
+| Up | `audio.done` | The microphone is done |
+| Down | `transcript.created` | Audio may start |
+| Down | `transcript.partial` with `is_final` false | A guess at the piece being said, revised as you carry on |
+| Down | `transcript.partial` with `is_final` true | A locked piece, which supersedes the guess and whatever it starts at or before |
+| Down | `transcript.done` | The final transcription; the socket closes after it |
+| Down | `error` | Reported to you as a notification |
+
+- **The audio is not JSON.** Every chunk goes up as the bytes the microphone wrote, in a binary frame, and the only text Murmur sends is `audio.done`.
+- **A key it does not know never opens the socket.** The upgrade is answered with `400` and a reason in a body the WebSocket library does not hand over, so it reaches you as *the service refused the connection (400 Bad Request)*.
+
+Both ends of a streamed dictation are bounded, so neither the panel nor the microphone can wait on a service forever: the audio waits ten seconds for a session to be opened for it, and the transcription's tail five seconds after the microphone closes. A dictation that ends before its session is open still reaches the service whole: the chunks held back go up first, and the end of the audio after them.
 
 ## Built from TypeScript
 

@@ -5,7 +5,8 @@ import {
     errorText,
     SAMPLE_RATE,
     type StreamProtocol,
-    type TranscriptionEvent
+    type TranscriptionEvent,
+    unhandled
 } from './provider.js';
 
 const MODEL = 'voxtral-mini-transcribe-realtime-2602';
@@ -76,11 +77,4 @@ export class MistralProtocol implements StreamProtocol {
                 return unhandled(event);
         }
     }
-}
-
-// Keeps the event switch exhaustive at compile time while staying harmless if
-// the API grows an event type at runtime.
-function unhandled(event: never): TranscriptionEvent[] {
-    console.debug(`murmur: ignoring unknown realtime event ${JSON.stringify(event)}`);
-    return [];
 }

@@ -60,7 +60,7 @@ src/lib/prefs/         preferences-only: rows, shortcut capture, dotool diagnost
 src/lib/transcription/ the two ways audio becomes text, and the table of services
 ```
 
-`session.ts` owns the microphone - it records, meters, watches for silence, and hands the audio to a `Transcription`, which is the seam every service comes through: fed chunks, told when the microphone is released, and finally the words. There are two implementations of it. `stream.ts` holds a WebSocket open for the recording and drives a `StreamProtocol` - the endpoint, the frames to send, and the events to make of what comes back, which is all `gemini.ts` and `mistral.ts` are. `openrouter.ts` is the other: it keeps the audio and sends it in one request when the recording ends.
+`session.ts` owns the microphone - it records, meters, watches for silence, and hands the audio to a `Transcription`, which is the seam every service comes through: fed chunks, told when the microphone is released, and finally the words. There are two implementations of it. `stream.ts` holds a WebSocket open for the recording and drives a `StreamProtocol` - the endpoint, the frames to send, and the events to make of what comes back, which is all `gemini.ts`, `mistral.ts` and `xai.ts` are. `openrouter.ts` is the other: it keeps the audio and sends it in one request when the recording ends.
 
 Adding a service means one module on whichever side it belongs, a row in `PROVIDERS`, and its keys in the schema. Nothing else in Murmur knows which one is selected.
 
@@ -96,7 +96,7 @@ Everything past that is the compositor, and the interesting failures are all in 
 - a password field, which must land in the field and **not** in the history page,
 - clicking anywhere outside the panel mid-recording, which must collapse it and hand the keyboard back, whether or not you changed application,
 - a fullscreen window, which the panel has to be visible over,
-- **all three transcription services**, since each speaks its own protocol and only one of them is exercised by a dictation - and OpenRouter is the one that transcribes nothing until the microphone closes. `MURMUR_PROVIDER=openrouter just dev` switches the throwaway session over.
+- **all four transcription services**, since each speaks its own protocol and only one of them is exercised by a dictation - and OpenRouter is the one that transcribes nothing until the microphone closes. `MURMUR_PROVIDER=openrouter just dev` switches the throwaway session over.
 
 `journalctl --user --follow /usr/bin/gnome-shell | grep --ignore-case murmur` shows what the extension reports.
 

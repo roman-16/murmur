@@ -28,6 +28,7 @@ export default class MurmurPreferences extends ExtensionPreferences {
         page.add(geminiGroup(settings));
         page.add(mistralGroup(settings));
         page.add(openrouterGroup(settings));
+        page.add(xaiGroup(settings));
         page.add(recordingGroup(window, settings));
         page.add(insertionGroup(settings));
         window.add(page);
@@ -41,7 +42,9 @@ function transcriptionGroup(settings: Gio.Settings): Adw.PreferencesGroup {
     group.add(makeChoiceRow(settings, Key.transcriptionProvider, {
         title: _('Service'),
         subtitle: _('Where Murmur sends your voice while you speak'),
-        choices: PROVIDER_IDS.map(id => ({label: PROVIDERS[id].label, value: id})),
+        choices: PROVIDER_IDS
+            .map(id => ({label: PROVIDERS[id].label, value: id}))
+            .sort((first, second) => first.label.localeCompare(second.label)),
     }));
     return group;
 }
@@ -80,6 +83,12 @@ function openrouterGroup(settings: Gio.Settings): Adw.PreferencesGroup {
     const group = providerGroup(settings, 'openrouter');
     group.add(apiKeyRow(settings, Key.openrouterApiKey));
     group.add(makeModelRow(settings));
+    return group;
+}
+
+function xaiGroup(settings: Gio.Settings): Adw.PreferencesGroup {
+    const group = providerGroup(settings, 'xai');
+    group.add(apiKeyRow(settings, Key.xaiApiKey));
     return group;
 }
 

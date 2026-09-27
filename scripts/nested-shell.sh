@@ -145,6 +145,9 @@ fi
 if [ -n "\${OPENROUTER_MODEL:-}" ]; then
     gsettings set org.gnome.shell.extensions.murmur openrouter-model "\$OPENROUTER_MODEL"
 fi
+if [ -n "\${XAI_API_KEY:-}" ]; then
+    gsettings set org.gnome.shell.extensions.murmur xai-api-key "\$XAI_API_KEY"
+fi
 if [ -n "\${MURMUR_PROVIDER:-}" ]; then
     gsettings set org.gnome.shell.extensions.murmur transcription-provider "\$MURMUR_PROVIDER"
 fi

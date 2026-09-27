@@ -6,6 +6,7 @@ import {MistralProtocol} from './mistral.js';
 import {OpenRouterTranscription} from './openrouter.js';
 import type {Transcription} from './provider.js';
 import {StreamTranscription} from './stream.js';
+import {XaiProtocol} from './xai.js';
 
 export function transcriptionFor(
     provider: ProviderConfig,
@@ -21,5 +22,8 @@ export function transcriptionFor(
                 new MistralProtocol(provider), onPartial, cancellable);
         case 'openrouter':
             return new OpenRouterTranscription(provider, cancellable);
+        case 'xai':
+            return new StreamTranscription(
+                new XaiProtocol(provider), onPartial, cancellable);
     }
 }

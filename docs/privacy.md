@@ -8,7 +8,8 @@ Murmur transcribes in the cloud. That is a real trade-off, and this page states 
 
 | Service | Host | Key travels as | Sent |
 | --- | --- | --- | --- |
-| Gemini 3.5 Transcribe Live (default) | `generativelanguage.googleapis.com` | `x-goog-api-key` | Streamed over a WebSocket while you speak |
+| Grok Voice Transcribe 2.0 (default) | `api.x.ai` | `Authorization: Bearer` | Streamed over a WebSocket while you speak |
+| Gemini 3.5 Transcribe Live | `generativelanguage.googleapis.com` | `x-goog-api-key` | Streamed over a WebSocket while you speak |
 | Mistral Voxtral Realtime | `api.mistral.ai` | `Authorization: Bearer` | Streamed over a WebSocket while you speak |
 | OpenRouter | `openrouter.ai` | `Authorization: Bearer` | The whole recording in one request when you stop |
 
@@ -16,9 +17,10 @@ That is also everything. No usage statistics, no crash reports, no analytics, no
 
 The preferences window makes one further request, and only while OpenRouter is selected: it asks `openrouter.ai` which models transcribe, so the **Model** list is current. It carries no key and nothing about you.
 
-What happens to that audio afterwards is the service's business, governed by their terms and privacy policy for the account the key belongs to. Two things are worth reading before you pick:
+What happens to that audio afterwards is the service's business, governed by their terms and privacy policy for the account the key belongs to. Four things are worth reading before you pick:
 
-- **Google's free tier trains on what you dictate.** Its pricing page marks *used to improve our products* as yes for the free tier and no for the paid one. A free key is therefore the cheapest option and the least private - and since Gemini is the default service, it is the trade Murmur makes unless you change it.
+- **xAI neither keeps nor trains on your voice**, by its own documentation: audio sent to its voice APIs is processed in real time and never stored or used for training. It bills from the first minute, against credit the account holds.
+- **Google's free tier trains on what you dictate.** Its pricing page marks *used to improve our products* as yes for the free tier and no for the paid one. A free key is therefore the cheapest option and the least private.
 - **Mistral bills from the first minute**, and its terms for your account govern the audio either way.
 - **OpenRouter hands your audio to whichever provider serves the model you picked**, so two sets of terms apply: OpenRouter's and that provider's. Which provider serves a model is on its page at [openrouter.ai](https://openrouter.ai/models?output_modalities=transcription).
 
@@ -61,6 +63,7 @@ Transcription is billed to the account the key belongs to, by the audio you send
 
 | Service | Per minute of audio |
 | --- | --- |
+| Grok Voice Transcribe 2.0 | About $0.0033, which is $0.20 an hour |
 | Gemini 3.5 Transcribe Live | Nothing on the free tier; about $0.009 on the paid one |
 | Mistral Voxtral Realtime | About $0.006 |
 | OpenRouter | The selected model's own price, from about $0.003. Each model's page at [openrouter.ai](https://openrouter.ai/models?output_modalities=transcription) states it, and every request answers with what it cost |

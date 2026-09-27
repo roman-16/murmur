@@ -2,7 +2,7 @@ import GLib from 'gi://GLib';
 
 export const SAMPLE_RATE = 16000;
 
-export type ProviderId = 'gemini' | 'mistral' | 'openrouter';
+export type ProviderId = 'gemini' | 'mistral' | 'openrouter' | 'xai';
 
 export type Provider = {
     keySource: string;
@@ -13,7 +13,7 @@ export type Provider = {
     vendor: string;
 };
 
-export const PROVIDER_IDS: ProviderId[] = ['gemini', 'mistral', 'openrouter'];
+export const PROVIDER_IDS: ProviderId[] = ['gemini', 'mistral', 'openrouter', 'xai'];
 
 export const PROVIDERS: Record<ProviderId, Provider> = {
     gemini: {
@@ -37,6 +37,11 @@ export const PROVIDERS: Record<ProviderId, Provider> = {
         maxSeconds: 600,
         vendor: 'OpenRouter',
     },
+    xai: {
+        keySource: 'console.x.ai',
+        label: 'Grok Voice Transcribe 2.0',
+        vendor: 'xAI',
+    },
 };
 
 export type TranscriptionEvent =
@@ -44,14 +49,16 @@ export type TranscriptionEvent =
     | {kind: 'error'; message: string}
     | {kind: 'transcript'; text: string};
 
+export type Frame = string | Uint8Array;
+
 // What one service says over its own WebSocket: the endpoint, the frames to
 // send, and the events to make of what comes back. Nothing of the microphone
 // and nothing of the connection carrying them.
 export type StreamProtocol = {
-    audio(chunk: Uint8Array): string[];
-    end(): string[];
+    audio(chunk: Uint8Array): Frame[];
+    end(): Frame[];
     readonly headers: [string, string][];
-    open(): string[];
+    open(): Frame[];
     // Whether the service will accept audio yet. What the microphone produces
     // meanwhile is held rather than lost, so no dictation loses its first words.
     readonly ready: boolean;
@@ -76,6 +83,13 @@ export type Transcription = {
 // by the time anything shows, copies or types it.
 export function oneLine(text: string): string {
     return text.replace(/\s+/g, ' ').trim();
+}
+
+// Keeps an event switch exhaustive at compile time while staying harmless if
+// the API grows an event type at runtime.
+export function unhandled(event: never): TranscriptionEvent[] {
+    console.debug(`murmur: ignoring unknown realtime event ${JSON.stringify(event)}`);
+    return [];
 }
 
 export function isProviderId(nick: string): nick is ProviderId {

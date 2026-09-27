@@ -17,7 +17,7 @@ Press `Super+Space`, say what you mean, and the words appear where your cursor a
 
 - **You keep working while it listens.** A panel the size of a notification appears at the bottom of the screen you are working on; it takes nothing over. Look anywhere else - another window, the overview, the window you were already in - and it collapses by itself, leaving a recording indicator with the countdown in the top bar. It is on screen exactly while it has your keyboard, so it is never in the way and never swallowing keys.
 - **It lands where you are looking.** Where there is a field, the transcription is typed into it, in any application, terminals included, with nothing pasted and your clipboard untouched. Which field is decided when you stop, so you can go and find it while you talk.
-- **You watch it happen.** A level that moves with your voice, a countdown, the destination named the whole time, and an optional hands-free stop after silence. With [Gemini 3.5 Transcribe Live](https://ai.google.dev/gemini-api/docs/live-api/live-transcribe) or [Mistral Voxtral](https://mistral.ai) your audio streams over a WebSocket as you speak and the words appear in the panel as they arrive; with [OpenRouter](https://openrouter.ai/models?output_modalities=transcription) the recording goes up when you stop and every transcription model it serves is one key away.
+- **You watch it happen.** A level that moves with your voice, a countdown, the destination named the whole time, and an optional hands-free stop after silence. With [Grok Voice Transcribe 2.0](https://docs.x.ai/developers/model-capabilities/audio/speech-to-text), [Gemini 3.5 Transcribe Live](https://ai.google.dev/gemini-api/docs/live-api/live-transcribe) or [Mistral Voxtral](https://mistral.ai) your audio streams over a WebSocket as you speak and the words appear in the panel as they arrive; with [OpenRouter](https://openrouter.ai/models?output_modalities=transcription) the recording goes up when you stop and every transcription model it serves is one key away.
 - **Nothing is ever lost.** If no text field is focused when you stop, Murmur copies the transcription to the clipboard instead of firing a sentence worth of keystrokes at whatever happens to be in front.
 - **You can go back to what you said.** Every dictation is kept on your machine and listed in the preferences, newest first: click one to copy it, search them, or clear the lot. A field the application reports as a password is never kept.
 
@@ -33,7 +33,7 @@ Then log out and back in, which Wayland requires for a new extension, and enable
 gnome-extensions enable murmur@roman-16.github.io
 ```
 
-You need **GNOME Shell 47 to 50 on Wayland**, **`pw-record`** from PipeWire, and an **API key** for one of the three transcription services. Installing with Nix, from source, from extensions.gnome.org once the listing is approved, updating and uninstalling: → [Installation](docs/installation.md)
+You need **GNOME Shell 47 to 50 on Wayland**, **`pw-record`** from PipeWire, and an **API key** for one of the four transcription services. Installing with Nix, from source, from extensions.gnome.org once the listing is approved, updating and uninstalling: → [Installation](docs/installation.md)
 
 ## Get started
 
@@ -45,7 +45,8 @@ gnome-extensions prefs murmur@roman-16.github.io
 
 | Service | Key from | What it costs |
 | --- | --- | --- |
-| **Gemini 3.5 Transcribe Live** (default) | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) | Nothing on Google's free tier, which uses what you dictate to improve their products; about $0.009 a minute once you pay. A recording runs ten minutes at most |
+| **Grok Voice Transcribe 2.0** (default) | [console.x.ai](https://console.x.ai), once the account holds credit | About $0.0033 a minute ($0.20 an hour) of audio. The words appear as you speak, and a recording runs as long as you set |
+| **Gemini 3.5 Transcribe Live** | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) | Nothing on Google's free tier, which uses what you dictate to improve their products; about $0.009 a minute once you pay. A recording runs ten minutes at most |
 | **Mistral Voxtral Realtime** | [console.mistral.ai](https://console.mistral.ai) | About $0.006 a minute of audio, from the first minute. A recording runs as long as you set |
 | **OpenRouter** | [openrouter.ai/settings/keys](https://openrouter.ai/settings/keys) | One key for every transcription model it serves - Whisper, Nova, Voxtral, Parakeet - at each one's own price. The words arrive when you stop rather than as you speak |
 
@@ -77,7 +78,7 @@ Want to know whether an application is recognised? Turn on GNOME's on-screen key
 
 ## What leaves your machine
 
-Your voice, to the service you picked - `generativelanguage.googleapis.com` by default, or `api.mistral.ai`, or `openrouter.ai` - over a dictation you started. That is the only connection Murmur makes: no telemetry, no analytics, no update pings.
+Your voice, to the service you picked - `api.x.ai` by default, or `generativelanguage.googleapis.com`, `api.mistral.ai` or `openrouter.ai` - over a dictation you started. That is the only connection Murmur makes: no telemetry, no analytics, no update pings.
 
 The audio is never written to disk. The transcription is, on your machine only: the text of each dictation is kept in `~/.local/state/murmur@roman-16.github.io/history.jsonl` so you can read it back later, until you clear it or turn **Remember what I dictate** off. Your API key is stored in dconf like every other GNOME setting, which means unencrypted, because extensions have no keyring access. If a dictation must not reach a third party, Murmur is the wrong tool. → [Privacy](docs/privacy.md)
 

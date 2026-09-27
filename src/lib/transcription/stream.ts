@@ -4,7 +4,7 @@ import Soup from 'gi://Soup?version=3.0';
 
 import {deferred, fromAsync, whenCancelled} from '../async.js';
 import {errorMessage, isCancelled} from '../errors.js';
-import type {StreamProtocol, Transcription} from './provider.js';
+import type {Frame, StreamProtocol, Transcription} from './provider.js';
 
 // A service that has to open a session of its own gets this long to do it. Audio
 // waits meanwhile, so without the bound a service that answered the handshake
@@ -25,6 +25,7 @@ export class StreamTranscription implements Transcription {
     readonly #release: () => void;
 
     #connection: Soup.WebsocketConnection | null = null;
+    #endSent = false;
     #ended = false;
     #http: Soup.Session | null = null;
     #pending: Uint8Array[] = [];
@@ -63,7 +64,7 @@ export class StreamTranscription implements Transcription {
             this.#dispose();
             if (isCancelled(error))
                 throw error;
-            throw new Error(`websocket: ${errorMessage(error)}`);
+            throw new Error(refusal(message) ?? `websocket: ${errorMessage(error)}`);
         }
 
         const connection = this.#connection;
@@ -88,10 +89,8 @@ export class StreamTranscription implements Transcription {
     end(): void {
         if (this.#ended)
             return;
-        this.#flush();
         this.#ended = true;
-        for (const frame of this.#protocol.end())
-            this.#send(frame);
+        this.#flush();
         this.#awaitTail();
     }
 
@@ -99,6 +98,9 @@ export class StreamTranscription implements Transcription {
         return this.#completion.promise;
     }
 
+    // The end of the audio is announced only once the audio held back for a
+    // session still being opened has gone up, or the service would stop
+    // listening before it heard any of it.
     #flush(): void {
         if (!this.#protocol.ready)
             return;
@@ -106,12 +108,15 @@ export class StreamTranscription implements Transcription {
             GLib.source_remove(this.#setupId);
             this.#setupId = 0;
         }
-        if (this.#pending.length === 0)
-            return;
         const pending = this.#pending;
         this.#pending = [];
         for (const chunk of pending)
             this.audio(chunk);
+        if (!this.#ended || this.#endSent)
+            return;
+        this.#endSent = true;
+        for (const frame of this.#protocol.end())
+            this.#send(frame);
     }
 
     // The Live API sends its JSON in binary frames as readily as in text ones,
@@ -178,9 +183,13 @@ export class StreamTranscription implements Transcription {
         });
     }
 
-    #send(message: string): void {
-        if (this.#connection?.get_state() === Soup.WebsocketState.OPEN)
-            this.#connection.send_text(message);
+    #send(frame: Frame): void {
+        if (this.#connection?.get_state() !== Soup.WebsocketState.OPEN)
+            return;
+        if (typeof frame === 'string')
+            this.#connection.send_text(frame);
+        else
+            this.#connection.send_binary(frame);
     }
 
     #finish(): void {
@@ -238,4 +247,15 @@ export class StreamTranscription implements Transcription {
             this.#http = null;
         }
     }
+}
+
+// A service can turn a key away before the socket opens, answering the upgrade
+// with a plain HTTP status. libsoup's own error then says only that the
+// handshake failed, so the status is the explanation there is.
+function refusal(message: Soup.Message): string | null {
+    const status = message.get_status();
+    if (status < Soup.Status.CONTINUE || status === Soup.Status.SWITCHING_PROTOCOLS)
+        return null;
+    const reason = message.get_reason_phrase();
+    return `the service refused the connection (${reason ? `${status} ${reason}` : status})`;
 }
