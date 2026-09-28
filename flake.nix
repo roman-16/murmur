@@ -1,5 +1,5 @@
 {
-  description = "Voice dictation for GNOME: press a shortcut, speak, and the words land in the focused text field";
+  description = "Voice dictation and recording for GNOME: press a shortcut, speak, and the words land in the focused text field, or record everything you hear and say and get its transcript";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
@@ -67,7 +67,7 @@
             passthru.extensionUuid = metadata.uuid;
 
             meta = {
-              description = "Voice dictation for GNOME";
+              description = "Voice dictation and recording for GNOME";
               homepage = metadata.url;
               license = pkgs.lib.licenses.mit;
               platforms = pkgs.lib.platforms.linux;

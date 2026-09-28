@@ -61,7 +61,7 @@ export DEMO_CAPTURE="$tmp/demo"
 export DEMO_DONE_FILE="$tmp/done"
 export DEMO_RECORDING_FILE="$DEMO_CAPTURE.recording"
 export NESTED_EXTENSIONS="scripts/demo/driver@murmur.local"
-export RECORDING_SHORTCUT=${DEMO_SHORTCUT:-<Super>space}
+export DICTATION_SHORTCUT=${DEMO_SHORTCUT:-<Super>space}
 
 scripts/nested-shell.sh scripts/demo/session.sh
 

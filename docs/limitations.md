@@ -12,17 +12,39 @@ Extensions are compiled against the shell's own JavaScript API, which changes ev
 
 ## It needs the network and an API key
 
-Transcription happens on xAI's, Google's, Mistral's or OpenRouter's servers. There is no offline mode and no local model, so no network means no dictation, and every dictation is billed to the key you gave it - or, on Google's free tier, paid for with what you dictate. [Privacy](privacy.md) covers the trade-off in full.
+Transcription happens on xAI's, Mistral's or OpenRouter's servers. There is no offline mode and no local model, so no network means no dictation, and every dictation and recording is billed to the key you gave it. A recording made offline keeps its audio and asks to be transcribed once it can be. [Privacy](privacy.md) covers the trade-off in full.
 
-The four services are the four that exist. OpenRouter opens up every transcription model it serves, but there is no way to point Murmur at a service it does not know, or at something self-hosted, without editing the code.
+The three services are the three that exist. OpenRouter opens up every transcription model it serves, but there is no way to point Murmur at a service it does not know, or at something self-hosted, without editing the code.
 
 ## With OpenRouter, nothing appears until you stop
 
-OpenRouter has no streaming transcription API: the recording is sent in one request when you stop, and the words arrive together a moment later. The panel still shows the level, the countdown and where the text will land, but the transcription itself cannot be watched as it is spoken. Grok, Gemini and Mistral can, which is the reason to pick one of them.
+OpenRouter has no streaming transcription API: the dictation is sent in one request when you stop, and the words arrive together a moment later. The panel still shows the level, the countdown and where the text will land, but the transcription itself cannot be watched as it is spoken. Grok and Mistral can, which is the reason to pick one of them.
 
-## With Gemini or OpenRouter, a recording ends after ten minutes
+## With OpenRouter, a dictation ends after ten minutes
 
-**Maximum recording time** goes no higher than that with Gemini, because Google ends a live transcription session there, nor with OpenRouter, which has to hold the whole recording in memory and hand it to a model in one piece. Grok and Mistral impose nothing of their own, so with either a recording runs for as long as you set, up to a day.
+**Maximum dictation time** goes no higher than that with OpenRouter, which has to hold the whole dictation in memory and hand it to a model in one piece. Grok and Mistral impose nothing of their own, so with either a dictation runs for as long as you set, up to a day.
+
+## A recording ends at the service's limit
+
+A recording goes up in one request when it stops, so it can be only as long as one request takes: three hours with Mistral, whose file model takes no more, and two with OpenRouter, whose uploads stop at 25 MB. The pill's menu says when it will stop, and it is transcribed then like any other. Grok takes a file of 500 MB, nearly two days of this audio, so with it a recording has no limit worth the name.
+
+OpenRouter's providers also give a request about a minute, so a model slow on long audio can fail a recording that is well inside the size. Its audio stays, for a **Retry** or another service.
+
+## A transcript is only what the service returns
+
+Murmur writes the service's text to the file untouched. Nobody is named, nothing is timestamped, and whether it has paragraphs is the model's decision. A recording is one mixed track, so the service cannot tell your voice from the others by where it came from either.
+
+## Over loudspeakers, the others are heard twice
+
+Over loudspeakers your microphone hears the others as well as you, a moment after the desktop audio already did. Speech models cope with the echo, but it does not help them, and headphones give the cleaner transcript.
+
+## A recording hears the default output
+
+The desktop half of a recording is the monitor of your default output, and it follows the default when that changes. An application that plays through a different device than the default is not in the recording.
+
+## Your microphone is recorded even when a call has you muted
+
+A recording takes the microphone straight from PipeWire, not from the call, so muting yourself in Teams, Meet or Discord mutes you for the others and not for the recording.
 
 ## A terminal is one big text field
 
@@ -38,9 +60,9 @@ X11 applications report their fields through ibus, which Murmur learns about fro
 
 ## The panel is not a window
 
-A GNOME Shell extension runs inside the compositor, so it has no client to hand the window manager and everything it draws is shell chrome. The recording panel therefore cannot be alt-tabbed to, minimised, dragged, or pushed behind an application: chrome is always drawn above windows.
+A GNOME Shell extension runs inside the compositor, so it has no client to hand the window manager and everything it draws is shell chrome. The dictation panel therefore cannot be alt-tabbed to, minimised, dragged, or pushed behind an application: chrome is always drawn above windows.
 
-What it does instead is get out of the way. Clicking anything else collapses the panel, leaving the recording indicator and its countdown in the top bar, and clicking that indicator brings the panel back. A window pushed behind a maximised application would show you nothing at all; the top bar keeps the recording in sight.
+What it does instead is get out of the way. Clicking anything else collapses the panel, leaving the indicator and its countdown in the top bar, and clicking that indicator brings the panel back. A window pushed behind a maximised application would show you nothing at all; the top bar keeps the dictation in sight.
 
 ## The panel shows the last four lines
 
@@ -58,18 +80,14 @@ Every dictation is kept in `~/.local/state/murmur@roman-16.github.io/history.jso
 
 Murmur transcribes and inserts. It has no vocabulary for "delete that", no dictation commands and no formatting rules beyond what the model produces. Punctuation is whatever the model infers.
 
-## Tidying up is the model's judgement, not yours
-
-**Tidy up what I say**, on by default with Gemini, has no dial and no vocabulary of your own. It decides what a filler word is, which spoken correction you meant, and where a list belongs - and it may reformat a sentence you wanted verbatim. The only control is the switch.
-
 ## A transcription is always one line
 
 Every line break the model produces is flattened to a space before the transcription is shown, typed or copied, because Murmur types a line break as `Enter`, and `Enter` means *send* in a chat box, *run* in a shell and *search* in a filter. A dictated list therefore arrives with its bullets inline, and there is no way to get the line breaks back, `Ctrl+Enter` included.
 
 ## One language at a time, chosen by the model
 
-There is no language setting. Every service detects the language from what it hears, and none is told which one to expect. Voxtral works well for a single language and less well when you switch mid-sentence; Grok and Gemini are built to follow a switch; what an OpenRouter model does is the model's own business. Nothing in Murmur biases any of them towards the language you actually speak.
+There is no language setting. Every service detects the language from what it hears, and none is told which one to expect. Voxtral works well for a single language and less well when you switch mid-sentence; Grok is built to follow a switch; what an OpenRouter model does is the model's own business. Nothing in Murmur biases any of them towards the language you actually speak.
 
 ## Only one key is guaranteed to reach Murmur
 
-`Enter`, `Ctrl+Enter` and `Esc` reach the panel only while it is on screen, and looking anywhere else collapses it. That is the point, but it means the recording shortcut is the only key that always works. To cancel a recording you have clicked away from, click the top-bar indicator to bring the panel back, then `Esc` or **Cancel**.
+`Enter`, `Ctrl+Enter` and `Esc` reach the panel only while it is on screen, and looking anywhere else collapses it. That is the point, but it means the dictation shortcut is the only key that always works. To cancel a dictation you have clicked away from, click the top-bar indicator to bring the panel back, then `Esc` or **Cancel**.

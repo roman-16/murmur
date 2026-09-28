@@ -5,8 +5,8 @@
 | | |
 | --- | --- |
 | **GNOME Shell 47 to 50** | On a **Wayland** session. Murmur reads which client holds a focused field from the compositor, which an X11 session cannot tell it |
-| **PipeWire `pw-record`** | Captures the microphone. Ships with PipeWire, which is standard on modern GNOME. Murmur tells you if it is missing |
-| **An API key** | Transcription runs on Grok Voice Transcribe 2.0 by default, on Gemini 3.5 Transcribe Live, on Mistral Voxtral Realtime, or on any model OpenRouter transcribes with; each service needs a key of its own, from [console.x.ai](https://console.x.ai), [aistudio.google.com/apikey](https://aistudio.google.com/apikey), [console.mistral.ai](https://console.mistral.ai) or [openrouter.ai/settings/keys](https://openrouter.ai/settings/keys). See [Privacy](privacy.md) for what that means |
+| **GStreamer and PipeWire** | Capture the microphone and, while recording, what the computer plays, and encode the recording. The base and good plugins and PipeWire's GStreamer plugin are what GNOME's own screen recorder uses, so a GNOME desktop usually has them already: `gstreamer1-plugins-base`, `gstreamer1-plugins-good` and `pipewire-gstreamer` on Fedora, `gir1.2-gstreamer-1.0`, `gstreamer1.0-plugins-base`, `gstreamer1.0-plugins-good` and `gstreamer1.0-pipewire` on Debian and Ubuntu, `gst-plugins-base`, `gst-plugins-good` and `gst-plugin-pipewire` on Arch. Murmur names the missing piece when you press a shortcut |
+| **An API key** | Transcription runs on Grok Voice Transcribe 2.0 by default, on Mistral Voxtral, or on any model OpenRouter transcribes with; each service needs a key of its own, from [console.x.ai](https://console.x.ai), [console.mistral.ai](https://console.mistral.ai) or [openrouter.ai/settings/keys](https://openrouter.ai/settings/keys). See [Privacy](privacy.md) for what that means |
 | **[dotool](https://sr.ht/~geb/dotool/)** (recommended) | Types arbitrary Unicode into any application. Without it Murmur falls back to the shell's virtual keyboard, which is limited to your keyboard layout. See [Where the text goes](text-insertion.md) |
 
 Check your session with `echo $XDG_SESSION_TYPE`; it has to say `wayland`.
@@ -56,7 +56,7 @@ environment.systemPackages = [ inputs.murmur.packages.x86_64-linux.default ];
 gnome-extensions enable murmur@roman-16.github.io
 ```
 
-Either way, log out and back in afterwards. `pw-record` comes with `services.pipewire.enable`, and dotool is `pkgs.dotool` plus membership in the group that owns `/dev/uinput`.
+Either way, log out and back in afterwards. GStreamer and its PipeWire plugin come with GNOME itself, whose shell is wrapped with them, and dotool is `pkgs.dotool` plus membership in the group that owns `/dev/uinput`.
 
 On its own, `nix build` writes the extension to `result/share/gnome-shell/extensions/murmur@roman-16.github.io`.
 

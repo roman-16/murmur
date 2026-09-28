@@ -1,5 +1,10 @@
 const CATEGORIES = ['Added', 'Changed', 'Deprecated', 'Removed', 'Fixed', 'Security'];
 const HEADING = /^## \[([^\]]+)\] - (\d{4}-\d{2}-\d{2})( \[YANKED\])?$/;
+// The section a release may open with: the few bullets somebody skims to learn
+// what the release is about, above the ledger saying exactly what moved. It is
+// not a seventh category and holds nothing that is not also an entry below it,
+// so a version section can be read either way round.
+const HIGHLIGHTS = 'Highlights';
 const SOURCE = new URL('../CHANGELOG.md', import.meta.url);
 const VERSION = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 
@@ -13,6 +18,7 @@ export type Release = {
     changes: Section[];
     date: string;
     heading: number;
+    highlights: string[];
     version: string;
     yanked: boolean;
 };
@@ -31,26 +37,31 @@ export function parse(path: string, source: string): Changelog {
     let body: string[] = [];
     let bullets = 0;
     let category = -1;
-    let categoryAt = 0;
     let current: Release | null = null;
+    let open = '';
+    let openAt = 0;
 
-    const endCategory = (release: Release) => {
-        if (category >= 0 && bullets === 0)
-            throw at(categoryAt, `${CATEGORIES[category]} in [${release.version}] has no entries`);
+    // The section being read is finished only once something is filed under it.
+    const settle = (release: Release) => {
+        if (open && bullets === 0)
+            throw at(openAt, `${open} in [${release.version}] has no entries`);
     };
 
     const endRelease = () => {
         if (!current)
             return;
-        endCategory(current);
-        const trimmed = trimBlank(body);
-        if (trimmed.length === 0)
+        settle(current);
+        if (current.changes.length === 0) {
+            if (current.highlights.length > 0)
+                throw at(current.heading, `[${current.version}] is ${HIGHLIGHTS} and nothing else: each of them restates an entry below it`);
             throw at(current.heading, `[${current.version}] has no entries`);
-        releases.push({...current, body: trimmed.join('\n')});
+        }
+        releases.push({...current, body: trimBlank(body).join('\n')});
         body = [];
         bullets = 0;
         category = -1;
         current = null;
+        open = '';
     };
 
     for (const [index, line] of lines.entries()) {
@@ -66,31 +77,39 @@ export function parse(path: string, source: string): Changelog {
 
         if (line.startsWith('### ')) {
             const name = line.slice(4);
-            const next = CATEGORIES.indexOf(name);
-            if (next < 0)
-                throw at(index, `"${name}" is not one of ${CATEGORIES.join(', ')}`);
-            endCategory(release);
-            if (next <= category)
-                throw at(index, `${name} in [${release.version}] belongs above ${CATEGORIES[category]}: the order is ${CATEGORIES.join(', ')}`);
+            settle(release);
+            if (name === HIGHLIGHTS) {
+                if (release.highlights.length > 0)
+                    throw at(index, `a second ${HIGHLIGHTS} in [${release.version}]`);
+                if (category >= 0)
+                    throw at(index, `${HIGHLIGHTS} in [${release.version}] belongs above ${CATEGORIES[category]}: a release says what it is about before what moved`);
+            } else {
+                const next = CATEGORIES.indexOf(name);
+                if (next < 0)
+                    throw at(index, `"${name}" is not ${HIGHLIGHTS} or one of ${CATEGORIES.join(', ')}`);
+                if (next <= category)
+                    throw at(index, `${name} in [${release.version}] belongs above ${CATEGORIES[category]}: the order is ${CATEGORIES.join(', ')}`);
+                category = next;
+                release.changes.push({category: name, entries: []});
+            }
             body.push(line);
             bullets = 0;
-            category = next;
-            categoryAt = index;
-            release.changes.push({category: name, entries: []});
+            open = name;
+            openAt = index;
         } else if (line.startsWith('- ')) {
-            if (category < 0)
-                throw at(index, `entry in [${release.version}] sits outside a category`);
+            if (!open)
+                throw at(index, `entry in [${release.version}] sits outside a section`);
             const text = line.slice(2).trim();
             if (!text)
                 throw at(index, `empty entry in [${release.version}]`);
             body.push(line);
             bullets++;
-            release.changes.at(-1)?.entries.push(text);
+            filed(release, open).push(text);
         } else if (line.trim() === '') {
             body.push(line);
         } else if (line.startsWith('  ') && bullets > 0) {
             body.push(line);
-            const entries = release.changes.at(-1)?.entries ?? [];
+            const entries = filed(release, open);
             entries[entries.length - 1] += ` ${line.trim()}`;
         } else {
             throw at(index, `unexpected line in [${release.version}]: "${line}"`);
@@ -145,7 +164,19 @@ function openRelease(
     if (!isDay(date))
         throw at(index, `[${version}] is dated ${date}, which is not a day`);
 
-    return {body: '', changes: [], date, heading: index, version, yanked: yanked !== undefined};
+    return {
+        body: '',
+        changes: [],
+        date,
+        heading: index,
+        highlights: [],
+        version,
+        yanked: yanked !== undefined,
+    };
+}
+
+function filed(release: Release, section: string): string[] {
+    return section === HIGHLIGHTS ? release.highlights : release.changes.at(-1)?.entries ?? [];
 }
 
 // The versions semantic versioning allows after this one. There are three,

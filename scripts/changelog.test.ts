@@ -29,6 +29,26 @@ test('reads a release', () => {
         {category: 'Fixed', entries: ['The thing no longer does the other thing.']},
     ]);
     expect(release?.body).toBe(shipped.split('\n').slice(1).join('\n').trim());
+    expect(release?.highlights).toEqual([]);
+});
+
+test('reads what a release is about apart from what moved, and publishes both', () => {
+    const [release] = parse('CHANGELOG.md', document(`## [1.4.0] - 2026-08-19
+
+### Highlights
+
+- **The thing** - what it lets somebody do, described at a length that the
+  author chose to wrap.
+
+### Added
+
+- A setting for the thing.`)).releases;
+
+    expect(release?.highlights).toEqual([
+        '**The thing** - what it lets somebody do, described at a length that the author chose to wrap.',
+    ]);
+    expect(release?.changes).toEqual([{category: 'Added', entries: ['A setting for the thing.']}]);
+    expect(release?.body.startsWith('### Highlights\n')).toBe(true);
 });
 
 test('folds a wrapped entry into one line', () => {
@@ -81,7 +101,8 @@ test('rejects a date that is not a day', () => {
 });
 
 test('rejects a category outside the six, or out of order', () => {
-    rejects(document('## [1.4.0] - 2026-08-19\n\n### Improved\n\n- A thing.'), /is not one of Added/);
+    rejects(document('## [1.4.0] - 2026-08-19\n\n### Improved\n\n- A thing.'),
+        /is not Highlights or one of Added/);
     rejects(
         document('## [1.4.0] - 2026-08-19\n\n### Fixed\n\n- A thing.\n\n### Added\n\n- Another.'),
         /Added in \[1\.4\.0\] belongs above Fixed/);
@@ -94,8 +115,21 @@ test('rejects a section with nothing in it', () => {
     rejects(document('## [1.4.0] - 2026-08-19\n\n### Added\n\n- '), /empty entry in \[1\.4\.0\]/);
 });
 
-test('rejects an entry outside a category, and a line that is neither', () => {
-    rejects(document('## [1.4.0] - 2026-08-19\n\n- A thing.'), /sits outside a category/);
+test('rejects highlights anywhere but first, twice, empty, or alone', () => {
+    rejects(
+        document('## [1.4.0] - 2026-08-19\n\n### Added\n\n- A thing.\n\n### Highlights\n\n- **It** - does.'),
+        /Highlights in \[1\.4\.0\] belongs above Added/);
+    rejects(
+        document('## [1.4.0] - 2026-08-19\n\n### Highlights\n\n- One.\n\n### Highlights\n\n- Two.\n\n### Added\n\n- A thing.'),
+        /a second Highlights in \[1\.4\.0\]/);
+    rejects(document('## [1.4.0] - 2026-08-19\n\n### Highlights\n\n### Added\n\n- A thing.'),
+        /Highlights in \[1\.4\.0\] has no entries/);
+    rejects(document('## [1.4.0] - 2026-08-19\n\n### Highlights\n\n- **It** - does.'),
+        /\[1\.4\.0\] is Highlights and nothing else/);
+});
+
+test('rejects an entry outside a section, and a line that is neither', () => {
+    rejects(document('## [1.4.0] - 2026-08-19\n\n- A thing.'), /sits outside a section/);
     rejects(document('## [1.4.0] - 2026-08-19\n\n### Added\n\n- A thing.\n\nA paragraph.'),
         /unexpected line in \[1\.4\.0\]/);
 });

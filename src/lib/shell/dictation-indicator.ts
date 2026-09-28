@@ -5,12 +5,12 @@ import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 
-const ROLE = 'murmur';
+const ROLE = 'murmur-dictation';
 
-// A recording that can be put out of sight needs somewhere to still be seen,
+// A dictation that can be put out of sight needs somewhere to still be seen,
 // which is the problem GNOME already solved for screen recording. Wearing that
 // indicator's style class puts Murmur in the same pill, whatever the theme.
-export class RecordingIndicator {
+export class DictationIndicator {
     onToggle: (() => void) | null = null;
 
     readonly #button: PanelMenu.Button;

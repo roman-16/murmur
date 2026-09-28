@@ -5,7 +5,7 @@ import Gtk from 'gi://Gtk';
 
 import {gettext as _} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
-import {Key, readAccelerator} from '../settings.js';
+import {readAccelerator, type ShortcutKey} from '../settings.js';
 
 const MODIFIER_KEYVALS = [
     Gdk.KEY_Alt_L, Gdk.KEY_Alt_R,
@@ -18,21 +18,22 @@ const MODIFIER_KEYVALS = [
 ];
 
 export function makeShortcutRow(
-    window: Adw.PreferencesWindow, settings: Gio.Settings): Adw.ActionRow {
+    window: Adw.PreferencesWindow, settings: Gio.Settings, key: ShortcutKey,
+    options: {subtitle: string; title: string}): Adw.ActionRow {
     const row = new Adw.ActionRow({
-        title: _('Recording shortcut'),
-        subtitle: _('Opens the recording panel, then stops and inserts the transcription'),
+        title: options.title,
+        subtitle: options.subtitle,
     });
 
     const label = new Gtk.ShortcutLabel({
         valign: Gtk.Align.CENTER,
         disabled_text: _('Disabled'),
     });
-    const sync = () => label.set_accelerator(readAccelerator(settings));
+    const sync = () => label.set_accelerator(readAccelerator(settings, key));
     sync();
 
     const button = new Gtk.Button({valign: Gtk.Align.CENTER, has_frame: false, child: label});
-    button.connect('clicked', () => captureShortcut(window, settings, sync));
+    button.connect('clicked', () => captureShortcut(window, settings, key, sync));
 
     row.add_suffix(button);
     row.activatable_widget = button;
@@ -40,7 +41,8 @@ export function makeShortcutRow(
 }
 
 function captureShortcut(
-    window: Adw.PreferencesWindow, settings: Gio.Settings, onDone: () => void): void {
+    window: Adw.PreferencesWindow, settings: Gio.Settings, key: ShortcutKey,
+    onDone: () => void): void {
     const dialog = new Adw.Window({
         modal: true,
         transient_for: window,
@@ -72,7 +74,7 @@ function captureShortcut(
             return Gdk.EVENT_STOP;
 
         if (mask === 0 && (keyval === Gdk.KEY_BackSpace || keyval === Gdk.KEY_Delete)) {
-            settings.set_strv(Key.toggleRecording, []);
+            settings.set_strv(key, []);
             onDone();
             dialog.close();
             return Gdk.EVENT_STOP;
@@ -80,7 +82,7 @@ function captureShortcut(
         if (!Gtk.accelerator_valid(keyval, mask))
             return Gdk.EVENT_STOP;
 
-        settings.set_strv(Key.toggleRecording, [Gtk.accelerator_name(keyval, mask)]);
+        settings.set_strv(key, [Gtk.accelerator_name(keyval, mask)]);
         onDone();
         dialog.close();
         return Gdk.EVENT_STOP;

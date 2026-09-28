@@ -3,15 +3,14 @@ import type Gio from 'gi://Gio';
 import {isProviderId, PROVIDERS, type ProviderId} from './transcription/provider.js';
 
 export const Key = {
-    geminiApiKey: 'gemini-api-key',
-    geminiSmartTranscription: 'gemini-smart-transcription',
-    maxRecordingSeconds: 'max-recording-seconds',
+    maxDictationSeconds: 'max-dictation-seconds',
     mistralApiKey: 'mistral-api-key',
     openrouterApiKey: 'openrouter-api-key',
     openrouterModel: 'openrouter-model',
     rememberDictations: 'remember-dictations',
     showPanelOnStart: 'show-panel-on-start',
     silenceSeconds: 'silence-timeout-seconds',
+    toggleDictation: 'toggle-dictation',
     toggleRecording: 'toggle-recording',
     transcriptionDelayMs: 'transcription-delay-ms',
     transcriptionProvider: 'transcription-provider',
@@ -19,13 +18,14 @@ export const Key = {
     xaiApiKey: 'xai-api-key',
 } as const;
 
+export type ShortcutKey = typeof Key.toggleDictation | typeof Key.toggleRecording;
+
 export type ProviderConfig =
     | {apiKey: string; delayMs: number; kind: 'mistral'}
-    | {apiKey: string; kind: 'gemini'; smart: boolean}
     | {apiKey: string; kind: 'openrouter'; model: string}
     | {apiKey: string; kind: 'xai'};
 
-export type RecordingConfig = {
+export type DictationConfig = {
     maxSeconds: number;
     provider: ProviderConfig;
     showPanel: boolean;
@@ -33,7 +33,7 @@ export type RecordingConfig = {
     typingSpeed: number;
 };
 
-export function readRecordingConfig(settings: Gio.Settings): RecordingConfig {
+export function readDictationConfig(settings: Gio.Settings): DictationConfig {
     const provider = readProviderConfig(settings);
     return {
         maxSeconds: cappedSeconds(settings, provider.kind),
@@ -51,45 +51,8 @@ export function readProvider(settings: Gio.Settings): ProviderId {
     return isProviderId(nick) ? nick : schemaProvider(settings);
 }
 
-export function readAccelerator(settings: Gio.Settings): string {
-    return settings.get_strv(Key.toggleRecording)[0] ?? '';
-}
-
-export function readIntRange(settings: Gio.Settings, key: string): {lower: number; upper: number} {
-    const schemaKey = settings.settings_schema.get_key(key);
-    const range = schemaKey.get_range().get_child_value(1).get_variant();
-    if (!range)
-        throw new Error(`${key} has no range in the schema`);
-
-    const [lower, upper] = range.deep_unpack() as [number, number];
-    return {lower, upper};
-}
-
-// A service that transcribes only so much at a stretch decides the real
-// ceiling, so the countdown counts down to the earlier of the two.
-function cappedSeconds(settings: Gio.Settings, kind: ProviderId): number {
-    const seconds = settings.get_int(Key.maxRecordingSeconds);
-    const cap = PROVIDERS[kind].maxSeconds;
-    return cap === undefined ? seconds : Math.min(seconds, cap);
-}
-
-function schemaProvider(settings: Gio.Settings): ProviderId {
-    const nick = settings.settings_schema.get_key(Key.transcriptionProvider)
-        .get_default_value()
-        .deep_unpack() as string;
-    if (!isProviderId(nick))
-        throw new Error(`no transcription service is named ${nick}`);
-    return nick;
-}
-
-function readProviderConfig(settings: Gio.Settings): ProviderConfig {
+export function readProviderConfig(settings: Gio.Settings): ProviderConfig {
     switch (readProvider(settings)) {
-        case 'gemini':
-            return {
-                apiKey: settings.get_string(Key.geminiApiKey),
-                kind: 'gemini',
-                smart: settings.get_boolean(Key.geminiSmartTranscription),
-            };
         case 'mistral':
             return {
                 apiKey: settings.get_string(Key.mistralApiKey),
@@ -108,4 +71,35 @@ function readProviderConfig(settings: Gio.Settings): ProviderConfig {
                 kind: 'xai',
             };
     }
+}
+
+export function readAccelerator(settings: Gio.Settings, key: ShortcutKey): string {
+    return settings.get_strv(key)[0] ?? '';
+}
+
+export function readIntRange(settings: Gio.Settings, key: string): {lower: number; upper: number} {
+    const schemaKey = settings.settings_schema.get_key(key);
+    const range = schemaKey.get_range().get_child_value(1).get_variant();
+    if (!range)
+        throw new Error(`${key} has no range in the schema`);
+
+    const [lower, upper] = range.deep_unpack() as [number, number];
+    return {lower, upper};
+}
+
+// A service that transcribes only so much at a stretch decides the real
+// ceiling, so the countdown counts down to the earlier of the two.
+function cappedSeconds(settings: Gio.Settings, kind: ProviderId): number {
+    const seconds = settings.get_int(Key.maxDictationSeconds);
+    const cap = PROVIDERS[kind].dictationSeconds;
+    return cap === undefined ? seconds : Math.min(seconds, cap);
+}
+
+function schemaProvider(settings: Gio.Settings): ProviderId {
+    const nick = settings.settings_schema.get_key(Key.transcriptionProvider)
+        .get_default_value()
+        .deep_unpack() as string;
+    if (!isProviderId(nick))
+        throw new Error(`no transcription service is named ${nick}`);
+    return nick;
 }

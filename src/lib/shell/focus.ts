@@ -64,7 +64,7 @@ export class FocusTracker {
 
     // Read when it matters rather than remembered from the start: the panel
     // never takes a client's text-input focus away, so this stays true for the
-    // whole recording however much the user clicks around.
+    // whole dictation however much the user clicks around.
     current(): Destination {
         const field = focusedInputMethod() || this.#ibusFocused;
         return field

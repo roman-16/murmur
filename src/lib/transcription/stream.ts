@@ -8,7 +8,7 @@ import type {Frame, StreamProtocol, Transcription} from './provider.js';
 
 // A service that has to open a session of its own gets this long to do it. Audio
 // waits meanwhile, so without the bound a service that answered the handshake
-// and nothing else would record for ten minutes and transcribe nothing.
+// and nothing else would listen to a whole dictation and transcribe none of it.
 const SETUP_TIMEOUT_MS = 10000;
 // The tail of a transcription arrives after the microphone is released, so this
 // is how long "Finishing…" can last before Murmur delivers what it has.
@@ -119,7 +119,7 @@ export class StreamTranscription implements Transcription {
             this.#send(frame);
     }
 
-    // The Live API sends its JSON in binary frames as readily as in text ones,
+    // A service may send its JSON in binary frames as readily as in text ones,
     // so the frame type says nothing about whether this is for us.
     #onMessage(bytes: GLib.Bytes): void {
         if (this.#settled)

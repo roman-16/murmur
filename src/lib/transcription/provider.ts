@@ -1,40 +1,41 @@
+import type Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 
 export const SAMPLE_RATE = 16000;
 
-export type ProviderId = 'gemini' | 'mistral' | 'openrouter' | 'xai';
+export type ProviderId = 'mistral' | 'openrouter' | 'xai';
 
 export type Provider = {
+    // Absent where the service streams a dictation of any length, which leaves
+    // it as long as the user sets.
+    dictationSeconds?: number;
     keySource: string;
     label: string;
-    // Absent where the service transcribes a recording of any length, which
-    // leaves it as long as the user sets.
-    maxSeconds?: number;
+    // Absent where the service takes a recording far longer than anyone makes.
+    recordingSeconds?: number;
     vendor: string;
 };
 
-export const PROVIDER_IDS: ProviderId[] = ['gemini', 'mistral', 'openrouter', 'xai'];
+export const PROVIDER_IDS: ProviderId[] = ['mistral', 'openrouter', 'xai'];
 
 export const PROVIDERS: Record<ProviderId, Provider> = {
-    gemini: {
-        keySource: 'aistudio.google.com/apikey',
-        label: 'Gemini 3.5 Transcribe Live',
-        // Google ends a live transcription session after ten minutes.
-        maxSeconds: 600,
-        vendor: 'Gemini',
-    },
     mistral: {
         keySource: 'console.mistral.ai',
-        label: 'Mistral Voxtral Realtime',
+        label: 'Mistral Voxtral',
+        // Voxtral Mini Transcribe 2 takes three hours of audio in one request.
+        recordingSeconds: 3 * 3600,
         vendor: 'Mistral',
     },
     openrouter: {
+        // A dictation is transcribed in one request, so its length is also how
+        // much audio is held in memory and how much a model is asked to take at
+        // once; ten minutes is as far as either goes comfortably.
+        dictationSeconds: 600,
         keySource: 'openrouter.ai/settings/keys',
         label: 'OpenRouter',
-        // The recording is transcribed in one request, so its length is also
-        // how much audio is held in memory and how much a model is asked to
-        // take at once; ten minutes is as far as either goes comfortably.
-        maxSeconds: 600,
+        // An upload is capped at 25 MB, which is two hours and a quarter of the
+        // recording's Opus.
+        recordingSeconds: 2 * 3600,
         vendor: 'OpenRouter',
     },
     xai: {
@@ -66,10 +67,10 @@ export type StreamProtocol = {
     readonly url: string;
 };
 
-// One recording becoming words: it is fed the audio, told when the microphone
+// One dictation becoming words: it is fed the audio, told when the microphone
 // is released, and finally hands over the transcription. Whether that happens
 // over a socket that answers while the speaker talks or in a single request
-// once they are done is the service's business and the recording's business
+// once they are done is the service's business and the dictation's business
 // neither way.
 export type Transcription = {
     audio(chunk: Uint8Array): void;
@@ -77,6 +78,10 @@ export type Transcription = {
     start(): Promise<void>;
     readonly text: Promise<string>;
 };
+
+// One recording on disk becoming the text the service makes of it, untouched.
+export type RecordingTranscriber = (
+    audio: Gio.File, cancellable: Gio.Cancellable) => Promise<string>;
 
 // A line break among typed keystrokes is Enter rather than a character: it sends
 // the message, runs the command, submits the search. So a transcript is one line

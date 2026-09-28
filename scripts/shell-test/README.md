@@ -4,9 +4,9 @@
 just test-shell
 ```
 
-Boots a throwaway, headless GNOME Shell with two screens, builds the recording panel inside it, clicks it with a real pointer, and reports what worked. It takes about half a minute, touches nothing in your session, and needs no key, no network and no microphone. It does need a text editor or a terminal installed, as something to focus.
+Boots a throwaway, headless GNOME Shell with two screens, builds the dictation panel and the recording pill inside it, clicks them with a real pointer, runs GStreamer inside it for a few seconds, and reports what worked. It takes about half a minute, touches nothing in your session, and needs no key and no network. It does need a text editor or a terminal installed, as something to focus, and it hears a second or two of whatever the machine hears, into the session's throwaway cache, which it deletes.
 
-`just test` covers the changelog parser, which is pure and fast. This covers the half of Murmur that only exists inside a compositor, where the interesting failures are: an actor that is drawn but cannot be clicked, a keyboard that is taken and never given back, chrome that outlives the recording.
+`just test` covers the changelog parser, which is pure and fast. This covers the half of Murmur that only exists inside a compositor, where the interesting failures are: an actor that is drawn but cannot be clicked, a keyboard that is taken and never given back, chrome that outlives the dictation.
 
 ## Why a whole compositor
 
@@ -43,10 +43,13 @@ The probe reaches Murmur's modules through `Main.extensionManager.lookup()`, so 
 - The panel collapses both ways it should: when an application comes forward, and when it loses the keyboard it was holding.
 - The panel opens on the monitor holding the focused window, and above a dock that reserves space there. The session has a second screen for exactly this: on one monitor with nothing docked to it, placing the panel where the work is and always placing it on the primary are the same rule.
 - Destroying the panel leaves no chrome and no top-bar indicator, and destroying it twice is safe.
+- The recording pill reaches the top bar with its running time, and a click opens its menu with both levels and the limit. **Stop and transcribe** stops; **Discard…** asks first and discards once confirmed; locking the screen keeps the menu shut and unlocking gives it back; a recording being transcribed says so and has nothing left to stop; destroying it leaves nothing.
+- An empty file is written and answered for, which is what a transcript of nothing and a list of no recordings both are.
+- GStreamer runs inside the compositor: a recording hears the microphone and the desktop and writes an Ogg Opus file, and a dictation's microphone delivers whole samples and then its end. Nothing short of running the pipelines shows that the shell's bindings and every plugin are there.
 - The extension survives being disabled and enabled.
 
 ## What it does not check
 
-Anything that needs the microphone, the network or a key, which is the recording session itself, including everything either transcription service says over its socket. `scripts/changelog.test.ts` covers the changelog parser. Insertion is the one important gap: synthesizing keystrokes into a client and reading them back is a bigger harness than this, and [`CONTRIBUTING.md`](../../CONTRIBUTING.md) lists the manual passes that stand in for it.
+Anything that needs the network or a key: what any transcription service says over its socket or answers to an upload, and what reaches the transcript file. `scripts/changelog.test.ts` covers the changelog parser. Insertion is the one important gap: synthesizing keystrokes into a client and reading them back is a bigger harness than this, and [`CONTRIBUTING.md`](../../CONTRIBUTING.md) lists the manual passes that stand in for it.
 
 It does not run in CI, because a GitHub runner has no GNOME Shell and standing one up there is a flakier thing than the bugs it would catch. Run it before a pull request that touches `src/lib/shell/`.

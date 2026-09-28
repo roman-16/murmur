@@ -24,15 +24,17 @@ Murmur runs **inside the GNOME Shell process**, so a flaw here is a flaw in the 
 - Anything that lets another process or a web page read your API key, your audio or your transcription.
 - Anything that makes Murmur insert or copy text that did not come from your own dictation, or deliver it to the wrong client.
 - Keeping a dictation delivered into a field the client reported as a password, or writing the history anywhere other than the extension's own directory under `$XDG_STATE_HOME`, with the directory at `0700` and the file at `0600`.
-- Failure to release the microphone, or to stop recording on cancel.
+- Failure to release the microphone, or to stop listening on cancel or discard.
+- A recording's audio or transcript, or the list of recordings that still owe one, written readable by anyone but you, or anywhere other than `~/Documents/Murmur` and the extension's own directory under `$XDG_STATE_HOME`.
+- A dictation that carries on onto the lock screen, or a shortcut or a recording's menu that answers there.
 - Certificate or endpoint handling on the connection to a transcription service, or a key reaching the wrong one of them.
-- Command injection or unsafe argument handling in the subprocesses Murmur spawns, `pw-record` and `dotool`.
+- Command injection or unsafe argument handling in the subprocess Murmur spawns, `dotool`, or in the GStreamer pipelines it builds.
 
 ## What is not in scope
 
 - **The API key is stored unencrypted in dconf.** This is documented in [Privacy](docs/privacy.md). GNOME extensions have no access to the system keyring, so every setting, including this one, is readable by anything running as your user. That is the platform, not a defect.
-- **Audio is sent to the transcription service you selected**, xAI, Google, Mistral or OpenRouter. That is what the extension does. Their handling of it is governed by your agreement with them, and Google's free tier states that it uses the audio to improve their products.
+- **Audio is sent to the transcription service you selected**, xAI, Mistral or OpenRouter, and while recording that includes everything the computer plays. That is what the extension does. Their handling of it is governed by your agreement with them.
 - **The transcription is placed on the clipboard** when no text field is focused, where a clipboard manager may keep it. The panel names that destination while you speak, and `Ctrl+Enter` takes it deliberately.
 - **The dictation history is stored unencrypted**, in `~/.local/state/murmur@roman-16.github.io/history.jsonl`, and is readable by anything running as you. This is the same platform limit as the API key, it is documented in [Privacy](docs/privacy.md), and **Remember what I dictate** turns it off. A password field an XWayland client never announced as one is part of that limit rather than a defect in Murmur.
 - **`/dev/uinput` access for dotool.** Granting it is a deliberate local decision, and its consequences belong to dotool.
-- Vulnerabilities in GNOME Shell, mutter, PipeWire, dotool, or the xAI, Gemini, Mistral or OpenRouter APIs themselves. Report those upstream; if Murmur can mitigate one, say so here as well.
+- Vulnerabilities in GNOME Shell, mutter, PipeWire, GStreamer, dotool, or the xAI, Mistral or OpenRouter APIs themselves. Report those upstream; if Murmur can mitigate one, say so here as well.

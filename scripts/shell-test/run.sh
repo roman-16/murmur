@@ -19,7 +19,8 @@ export NESTED_HEADLESS=1
 export NESTED_EXTENSIONS="scripts/shell-test/probe@murmur.local"
 # The probe reaches the extension directly, so the session needs no working
 # shortcut. Naming one nothing binds keeps the run from borrowing yours.
-export RECORDING_SHORTCUT="<Super><Shift><Control><Alt>F12"
+export DICTATION_SHORTCUT="<Super><Shift><Control><Alt>F12"
+export RECORDING_SHORTCUT="<Super><Shift><Control><Alt>F11"
 
 # A shell that dies badly still leaves the report behind, and that is the more
 # useful thing to show, so the run's own status is not the answer here.

@@ -3,13 +3,17 @@ import GLib from 'gi://GLib';
 import {
     endpoint,
     errorText,
+    type RecordingTranscriber,
     SAMPLE_RATE,
     type StreamProtocol,
     type TranscriptionEvent,
     unhandled
 } from './provider.js';
+import {transcribeUpload} from './upload.js';
 
 const MODEL = 'voxtral-mini-transcribe-realtime-2602';
+const RECORDING_MODEL = 'voxtral-mini-latest';
+const RECORDING_URL = 'https://api.mistral.ai/v1/audio/transcriptions';
 const URL = `wss://api.mistral.ai/v1/audio/transcriptions/realtime?model=${MODEL}`;
 
 type ServerEvent =
@@ -77,4 +81,14 @@ export class MistralProtocol implements StreamProtocol {
                 return unhandled(event);
         }
     }
+}
+
+export function mistralRecording(options: {apiKey: string}): RecordingTranscriber {
+    return (audio, cancellable) => transcribeUpload({
+        apiKey: options.apiKey,
+        audio,
+        cancellable,
+        fields: [['model', RECORDING_MODEL]],
+        url: RECORDING_URL,
+    });
 }

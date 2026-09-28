@@ -5,7 +5,7 @@
 | Page | What's in it |
 | --- | --- |
 | [Installation](installation.md) | Every install route, requirements, updating, uninstalling |
-| [Getting started](getting-started.md) | Your API key, your first dictation, the four keys |
+| [Getting started](getting-started.md) | Your API key, your first dictation, the keys, your first recording |
 | [Configuration](configuration.md) | Every setting, what it changes, and its `gsettings` key |
 
 ## Reference
@@ -19,6 +19,6 @@
 
 | Page | What's in it |
 | --- | --- |
-| [How it works](how-it-works.md) | Shortcut to text, step by step, and what runs where |
+| [How it works](how-it-works.md) | Shortcut to text and shortcut to file, step by step, and what runs where |
 | [Privacy](privacy.md) | What leaves your machine, what is stored, what it costs |
 | [Limitations](limitations.md) | What Murmur will not do, and why |

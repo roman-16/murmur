@@ -2,13 +2,16 @@ import {
     endpoint,
     errorText,
     type Frame,
+    type RecordingTranscriber,
     SAMPLE_RATE,
     type StreamProtocol,
     type TranscriptionEvent,
     unhandled
 } from './provider.js';
+import {transcribeUpload} from './upload.js';
 
 const MODEL = 'grok-voice-transcribe-2.0';
+const RECORDING_URL = 'https://api.x.ai/v1/stt';
 const URL = `wss://api.x.ai/v1/stt?model=${MODEL}` +
     `&sample_rate=${SAMPLE_RATE}&encoding=pcm&interim_results=true`;
 
@@ -102,10 +105,20 @@ export class XaiProtocol implements StreamProtocol {
     }
 
     // xAI does not say whether the closing transcript carries the whole
-    // recording or only its tail, so it wins only when it holds at least as
+    // dictation or only its tail, so it wins only when it holds at least as
     // much as the pieces add up to.
     #transcribed(closing: string): string {
         const assembled = this.#displayed();
         return closing.length >= assembled.length ? closing : assembled;
     }
+}
+
+export function xaiRecording(options: {apiKey: string}): RecordingTranscriber {
+    return (audio, cancellable) => transcribeUpload({
+        apiKey: options.apiKey,
+        audio,
+        cancellable,
+        fields: [],
+        url: RECORDING_URL,
+    });
 }

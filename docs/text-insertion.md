@@ -1,6 +1,6 @@
 # Where the text goes
 
-Murmur asks one question the moment you stop: **can anything on screen receive text right now?** The answer decides where the transcription goes, and the panel states the current answer for the whole recording.
+Murmur asks one question the moment you stop: **can anything on screen receive text right now?** The answer decides where the transcription goes, and the panel states the current answer for the whole dictation.
 
 ## The decision
 
@@ -12,7 +12,7 @@ Applications tell the compositor when a text field takes focus, because that is 
 | An X11 client focused an ibus input context | A field is focused, and it has to be typed into |
 | Nothing at all | There is nowhere to put text |
 
-The check runs when the recording ends, and the panel shows the current answer while you speak, updating as you click around. It can, because the panel never takes an application's text-input focus away: it borrows the keyboard from the compositor's stage rather than from the window, so the window stays focused as far as the application is concerned.
+The check runs when the dictation ends, and the panel shows the current answer while you speak, updating as you click around. It can, because the panel never takes an application's text-input focus away: it borrows the keyboard from the compositor's stage rather than from the window, so the window stays focused as far as the application is concerned.
 
 So you can press the shortcut anywhere, start talking, and go and click into the field the words belong in while you are still speaking.
 

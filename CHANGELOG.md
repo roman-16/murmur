@@ -6,6 +6,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 Adding a version section here is what publishes a release, so this file is the one place a version is decided: see [Releasing](CONTRIBUTING.md#releasing). Versions that shipped before this file existed are on the [releases page](https://github.com/roman-16/murmur/releases).
 
+## [2.0.0] - 2026-09-28
+
+### Highlights
+
+- **Record anything you hear and say** - `Super+Alt+Space` records a call, a video or whatever else your computer plays, together with your microphone, and leaves the audio and its transcript side by side in `~/Documents/Murmur`.
+- **Grok by default, Gemini gone** - Grok Voice Transcribe 2.0 transcribes as you speak and is the service Murmur starts with. A setup that used Gemini needs a key from console.x.ai, or another service, after updating.
+
+### Added
+
+- **Grok Voice Transcribe 2.0** joins **Service**: the words appear as you speak, it costs about $0.20 an hour of audio, and xAI ends no dictation of its own.
+- `Super+Alt+Space`, or whatever you set as **Recording shortcut**, records everything your computer plays and your microphone hears - a call in Teams, Meet or Discord, a video, anything - until you press it again, then transcribes it. The audio and the transcript are saved side by side in `~/Documents/Murmur`, named by when the recording started, and the transcript is exactly what the service returned.
+- A pill in the top bar shows how long a recording has run. Its menu shows what the microphone and the desktop audio are hearing, when the recording will stop by itself with Mistral or OpenRouter, **Stop and transcribe** and **Discard…**. A recording carries on while the screen is locked.
+- A notification says when a recording is transcribed, with **Open** and **Copy**. One that could not be transcribed keeps its audio and offers **Retry**, and one that never got that far is offered again the next time you log in.
+
+### Changed
+
+- **Grok Voice Transcribe 2.0 is the service Murmur transcribes with.** An installation that never picked a service, or picked Gemini, switches over on update and needs a key from console.x.ai.
+- **Recording shortcut** is now **Dictation shortcut**, and **Maximum recording time** is **Maximum dictation time**, with `toggle-dictation` and `max-dictation-seconds` as their gsettings keys. A dictation shortcut you had changed becomes the recording shortcut and dictation is back on `Super+Space`, and a maximum you had changed is back at ten minutes: set both again in the preferences.
+- Murmur listens through GStreamer rather than `pw-record`, and needs GStreamer's base and good plugins and PipeWire's GStreamer plugin, which GNOME's own screen recorder already uses.
+
+### Removed
+
+- **Gemini 3.5 Transcribe Live**, and **Tidy up what I say** with it: pick another service under **Service** and add its key.
+
 ## [1.9.0] - 2026-09-14
 
 ### Added

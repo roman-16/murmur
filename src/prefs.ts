@@ -12,6 +12,7 @@ import {makeHistoryPage} from './lib/prefs/history.js';
 import {makeModelRow} from './lib/prefs/model.js';
 import {makeChoiceRow, makePresetRow, makeSpinRow} from './lib/prefs/rows.js';
 import {makeShortcutRow} from './lib/prefs/shortcut.js';
+import {recordingPlace} from './lib/recording-files.js';
 import {Key, readIntRange, readProvider} from './lib/settings.js';
 import {PROVIDER_IDS, PROVIDERS, type ProviderId} from './lib/transcription/provider.js';
 
@@ -22,13 +23,13 @@ export default class MurmurPreferences extends ExtensionPreferences {
         const settings = this.getSettings();
         const page = new Adw.PreferencesPage({
             icon_name: 'audio-input-microphone-symbolic',
-            title: _('Dictation'),
+            title: _('General'),
         });
         page.add(transcriptionGroup(settings));
-        page.add(geminiGroup(settings));
         page.add(mistralGroup(settings));
         page.add(openrouterGroup(settings));
         page.add(xaiGroup(settings));
+        page.add(dictationGroup(window, settings));
         page.add(recordingGroup(window, settings));
         page.add(insertionGroup(settings));
         window.add(page);
@@ -41,25 +42,11 @@ function transcriptionGroup(settings: Gio.Settings): Adw.PreferencesGroup {
     const group = new Adw.PreferencesGroup({title: _('Transcription')});
     group.add(makeChoiceRow(settings, Key.transcriptionProvider, {
         title: _('Service'),
-        subtitle: _('Where Murmur sends your voice while you speak'),
+        subtitle: _('Where Murmur sends your dictations and your recordings'),
         choices: PROVIDER_IDS
             .map(id => ({label: PROVIDERS[id].label, value: id}))
             .sort((first, second) => first.label.localeCompare(second.label)),
     }));
-    return group;
-}
-
-function geminiGroup(settings: Gio.Settings): Adw.PreferencesGroup {
-    const group = providerGroup(settings, 'gemini');
-    group.add(apiKeyRow(settings, Key.geminiApiKey));
-
-    const smart = new Adw.SwitchRow({
-        title: _('Tidy up what I say'),
-        subtitle: _(
-            'Drops filler words, resolves spoken corrections, and formats lists and numbers. Off transcribes word for word'),
-    });
-    settings.bind(Key.geminiSmartTranscription, smart, 'active', Gio.SettingsBindFlags.DEFAULT);
-    group.add(smart);
     return group;
 }
 
@@ -115,24 +102,27 @@ function apiKeyRow(settings: Gio.Settings, key: string): Adw.PasswordEntryRow {
     return row;
 }
 
-function recordingGroup(
+function dictationGroup(
     window: Adw.PreferencesWindow, settings: Gio.Settings): Adw.PreferencesGroup {
-    const group = new Adw.PreferencesGroup({title: _('Recording')});
+    const group = new Adw.PreferencesGroup({title: _('Dictation')});
 
-    group.add(makeShortcutRow(window, settings));
+    group.add(makeShortcutRow(window, settings, Key.toggleDictation, {
+        title: _('Dictation shortcut'),
+        subtitle: _('Opens the dictation panel, then stops and inserts the transcription'),
+    }));
 
     const panelRow = new Adw.SwitchRow({
-        title: _('Show the panel when recording starts'),
+        title: _('Show the panel when a dictation starts'),
         subtitle: _(
-            'Turn this off to start with only the recording indicator in the top bar, over nothing. Click the indicator to open the panel'),
+            'Turn this off to start with only the indicator in the top bar, over nothing. Click the indicator to open the panel'),
     });
     settings.bind(Key.showPanelOnStart, panelRow, 'active', Gio.SettingsBindFlags.DEFAULT);
     group.add(panelRow);
 
-    group.add(maxRecordingRow(settings));
+    group.add(maxDictationRow(settings));
     group.add(makeSpinRow(settings, Key.silenceSeconds, {
         title: _('Stop after silence'),
-        subtitle: _('Seconds of silence that end the recording, or 0 to keep recording'),
+        subtitle: _('Seconds of silence that end a dictation, or 0 to keep listening'),
         step: 1,
     }));
     return group;
@@ -140,27 +130,39 @@ function recordingGroup(
 
 // The ceiling is the service's, so the row cannot be set past what the service
 // would allow: the number here is the number the countdown starts at.
-function maxRecordingRow(settings: Gio.Settings): Adw.SpinRow {
-    const row = makeSpinRow(settings, Key.maxRecordingSeconds, {
-        title: _('Maximum recording time'),
+function maxDictationRow(settings: Gio.Settings): Adw.SpinRow {
+    const row = makeSpinRow(settings, Key.maxDictationSeconds, {
+        title: _('Maximum dictation time'),
         subtitle: '',
         step: 15,
     });
 
     const sync = () => {
-        const {maxSeconds, vendor} = PROVIDERS[readProvider(settings)];
-        row.adjustment.upper = maxSeconds ?? readIntRange(settings, Key.maxRecordingSeconds).upper;
-        row.subtitle = maxSeconds === undefined
-            ? _('Seconds after which recording stops on its own. %s sets no limit of its own, so this is only a safety net for a recording you walked away from')
+        const {dictationSeconds, vendor} = PROVIDERS[readProvider(settings)];
+        row.adjustment.upper =
+            dictationSeconds ?? readIntRange(settings, Key.maxDictationSeconds).upper;
+        row.subtitle = dictationSeconds === undefined
+            ? _('Seconds after which a dictation stops on its own. %s sets no limit of its own, so this is only a safety net for a dictation you walked away from')
                 .replace('%s', vendor)
-            : _('Seconds after which recording stops on its own. %s transcribes at most %d minutes at a stretch, which is as high as this goes')
+            : _('Seconds after which a dictation stops on its own. %s transcribes at most %d minutes at a stretch, which is as high as this goes')
                 .replace('%s', vendor)
-                .replace('%d', String(Math.floor(maxSeconds / 60)));
+                .replace('%d', String(Math.floor(dictationSeconds / 60)));
     };
     sync();
 
     settings.connect(`changed::${Key.transcriptionProvider}`, sync);
     return row;
+}
+
+function recordingGroup(
+    window: Adw.PreferencesWindow, settings: Gio.Settings): Adw.PreferencesGroup {
+    const group = new Adw.PreferencesGroup({title: _('Recording')});
+    group.add(makeShortcutRow(window, settings, Key.toggleRecording, {
+        title: _('Recording shortcut'),
+        subtitle: _('Records everything you hear and say, then transcribes it into %s')
+            .replace('%s', recordingPlace()),
+    }));
+    return group;
 }
 
 function insertionGroup(settings: Gio.Settings): Adw.PreferencesGroup {

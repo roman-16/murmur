@@ -1,32 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <schemalist>
   <enum id="org.gnome.shell.extensions.murmur.provider">
-    <value nick="gemini" value="0"/>
-    <value nick="mistral" value="1"/>
-    <value nick="openrouter" value="2"/>
-    <value nick="xai" value="3"/>
+    <value nick="mistral" value="0"/>
+    <value nick="openrouter" value="1"/>
+    <value nick="xai" value="2"/>
   </enum>
   <schema id="org.gnome.shell.extensions.murmur" path="/org/gnome/shell/extensions/murmur/">
-    <key name="gemini-api-key" type="s">
-      <default>''</default>
-      <summary>Gemini API key</summary>
-      <description>API key used to authenticate with the Gemini Live API for realtime transcription.</description>
-    </key>
-    <key name="gemini-smart-transcription" type="b">
-      <default>true</default>
-      <summary>Tidy up what I say</summary>
-      <description>Whether Gemini cleans the transcription up: filler words dropped, spoken self-corrections resolved, lists and numbers formatted. Off transcribes word for word.</description>
-    </key>
-    <key name="max-recording-seconds" type="i">
+    <key name="max-dictation-seconds" type="i">
       <default>600</default>
       <range min="15" max="86400"/>
-      <summary>Maximum recording time</summary>
-      <description>Seconds after which recording stops on its own and the transcription is inserted. A service that transcribes less than this at a stretch lowers it: with Gemini or OpenRouter selected the preferences go no higher than ten minutes.</description>
+      <summary>Maximum dictation time</summary>
+      <description>Seconds after which a dictation stops on its own and the transcription is inserted. A service that transcribes less than this at a stretch lowers it: with OpenRouter selected the preferences go no higher than ten minutes.</description>
     </key>
     <key name="mistral-api-key" type="s">
       <default>''</default>
       <summary>Mistral API key</summary>
-      <description>API key used to authenticate with the Mistral Voxtral realtime transcription endpoint.</description>
+      <description>API key used to authenticate with Mistral's Voxtral transcription endpoints.</description>
     </key>
     <key name="openrouter-api-key" type="s">
       <default>''</default>
@@ -36,7 +25,7 @@
     <key name="openrouter-model" type="s">
       <default>'meta/muse-voice-transcribe-1.0'</default>
       <summary>OpenRouter model</summary>
-      <description>Which of the transcription models OpenRouter serves transcribes the recording, written as the slug on its model page. The preferences list what OpenRouter currently offers; any slug it accepts can be set here.</description>
+      <description>Which of the transcription models OpenRouter serves transcribes a dictation or a recording, written as the slug on its model page. The preferences list what OpenRouter currently offers; any slug it accepts can be set here.</description>
     </key>
     <key name="remember-dictations" type="b">
       <default>true</default>
@@ -45,30 +34,35 @@
     </key>
     <key name="show-panel-on-start" type="b">
       <default>true</default>
-      <summary>Show the panel when recording starts</summary>
-      <description>Whether a recording opens the panel, which then holds the keyboard so that Enter, Ctrl+Enter and Esc control it. When off, a recording starts collapsed to the indicator in the top bar and nothing is drawn over your work.</description>
+      <summary>Show the panel when a dictation starts</summary>
+      <description>Whether a dictation opens the panel, which then holds the keyboard so that Enter, Ctrl+Enter and Esc control it. When off, a dictation starts collapsed to the indicator in the top bar and nothing is drawn over your work.</description>
     </key>
     <key name="silence-timeout-seconds" type="i">
       <default>0</default>
       <range min="0" max="30"/>
       <summary>Stop after silence</summary>
-      <description>Seconds of uninterrupted silence that end the recording. 0 keeps recording until stopped by hand.</description>
+      <description>Seconds of uninterrupted silence that end a dictation. 0 keeps listening until stopped by hand.</description>
+    </key>
+    <key name="toggle-dictation" type="as">
+      <default><![CDATA[['<Super>space']]]></default>
+      <summary>Dictation shortcut</summary>
+      <description>Shortcut that opens the dictation panel, then stops and inserts the transcription.</description>
     </key>
     <key name="toggle-recording" type="as">
-      <default><![CDATA[['<Super>space']]]></default>
-      <summary>Toggle recording</summary>
-      <description>Shortcut that opens the recording panel, then stops recording and inserts the transcription.</description>
+      <default><![CDATA[['<Super><Alt>space']]]></default>
+      <summary>Recording shortcut</summary>
+      <description>Shortcut that starts recording everything the computer plays and the microphone hears, then stops and transcribes it. The audio and the transcript are saved side by side in the Murmur folder in Documents.</description>
     </key>
     <key name="transcription-delay-ms" type="i">
       <default>2400</default>
       <range min="240" max="2400"/>
       <summary>Transcription delay</summary>
-      <description>Milliseconds of audio Voxtral buffers before transcribing. Higher values give the model more context and better accuracy, lower values show and insert text sooner.</description>
+      <description>Milliseconds of audio Voxtral buffers before transcribing a dictation. Higher values give the model more context and better accuracy, lower values show and insert text sooner.</description>
     </key>
     <key name="transcription-provider" enum="org.gnome.shell.extensions.murmur.provider">
       <default>'xai'</default>
       <summary>Transcription service</summary>
-      <description>Which service transcribes your voice. Each has its own API key.</description>
+      <description>Which service transcribes your dictations and recordings. Each has its own API key.</description>
     </key>
     <key name="typing-speed" type="i">
       <default>2500</default>
@@ -79,7 +73,7 @@
     <key name="xai-api-key" type="s">
       <default>''</default>
       <summary>xAI API key</summary>
-      <description>API key used to authenticate with xAI's streaming speech-to-text endpoint for Grok Voice Transcribe 2.0.</description>
+      <description>API key used to authenticate with xAI's speech-to-text endpoints for Grok Voice Transcribe 2.0.</description>
     </key>
   </schema>
 </schemalist>

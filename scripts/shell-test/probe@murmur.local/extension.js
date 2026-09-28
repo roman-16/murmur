@@ -252,8 +252,10 @@ export default class Probe extends Extension {
             throw new Error(`${MURMUR_UUID} is not loaded`);
 
         const {MurmurPanel} = await import(`file://${murmur.path}/lib/shell/panel.js`);
+        const {DictationIndicator} =
+            await import(`file://${murmur.path}/lib/shell/dictation-indicator.js`);
         const {RecordingIndicator} =
-            await import(`file://${murmur.path}/lib/shell/indicator.js`);
+            await import(`file://${murmur.path}/lib/shell/recording-indicator.js`);
         const {FocusTracker} = await import(`file://${murmur.path}/lib/shell/focus.js`);
         const {History} = await import(`file://${murmur.path}/lib/history.js`);
         const {oneLine} =
@@ -275,6 +277,7 @@ export default class Probe extends Extension {
 
         const fired = [];
         await this.#checkHistory(History);
+        await this.#checkEmptyWrite(murmur.path);
 
         this.#panel = new MurmurPanel();
         this.#panel.destination = {app: 'Text Editor', kind: 'field', password: false};
@@ -290,7 +293,9 @@ export default class Probe extends Extension {
         await this.#checkPlacement(MurmurPanel);
         await this.#checkCollapsedStart(MurmurPanel);
         await this.#checkTranscript(MurmurPanel);
-        await this.#checkTeardown(RecordingIndicator);
+        await this.#checkTeardown(DictationIndicator);
+        await this.#checkRecordingPill(RecordingIndicator);
+        await this.#checkAudio(murmur.path);
         this.#checkExtensionCycle(murmur);
         this.#report();
     }
@@ -352,6 +357,22 @@ export default class Probe extends Extension {
         this.#ok('clearing leaves nothing behind',
             (await history.entries()).length === 0 &&
                 !GLib.file_test(history.path, GLib.FileTest.EXISTS));
+    }
+
+    // A transcript of nothing and a list of no recordings are both an empty
+    // file, and GIO handed no bytes to write asserts and never answers, which
+    // would leave a recording transcribing for ever.
+    async #checkEmptyWrite(path) {
+        const {writePrivately} = await import(`file://${path}/lib/files.js`);
+        const file = Gio.File.new_for_path(
+            GLib.build_filenamev([GLib.get_user_cache_dir(), 'probe', 'empty']));
+        const written = await Promise.race([
+            writePrivately(file, '').then(() => true),
+            this.#settle(2000).then(() => false),
+        ]);
+        this.#ok('nothing to write is written', written &&
+            GLib.file_test(file.get_path(), GLib.FileTest.EXISTS) &&
+            file.query_info('standard::size', Gio.FileQueryInfoFlags.NONE, null).get_size() === 0);
     }
 
     // What made the panel disappear into a dark desktop: the class it wore is
@@ -534,7 +555,7 @@ export default class Probe extends Extension {
         }
     }
 
-    // What "Show the panel when recording starts" turns off: a recording that
+    // What "Show the panel when a dictation starts" turns off: a dictation that
     // draws nothing over the user's work until they ask for it.
     async #checkCollapsedStart(MurmurPanel) {
         this.#panel.destroy();
@@ -605,15 +626,15 @@ export default class Probe extends Extension {
         return height;
     }
 
-    async #checkTeardown(RecordingIndicator) {
-        const indicator = new RecordingIndicator();
+    async #checkTeardown(DictationIndicator) {
+        const indicator = new DictationIndicator();
         indicator.countdown = '9:41';
         await this.#settle();
-        const pill = Main.panel.statusArea['murmur'];
+        const pill = Main.panel.statusArea['murmur-dictation'];
         this.#ok('the indicator reaches the top bar', pill !== undefined);
 
         // The only way back to a panel that has been clicked away, so a press
-        // that lands on it and does nothing loses the recording behind it.
+        // that lands on it and does nothing loses the dictation behind it.
         let toggled = false;
         indicator.onToggle = () => {
             toggled = true;
@@ -632,7 +653,146 @@ export default class Probe extends Extension {
 
         this.#ok('nothing of the panel is left', this.#card() === null);
         this.#ok('nothing of the indicator is left',
-            Main.panel.statusArea['murmur'] === undefined);
+            Main.panel.statusArea['murmur-dictation'] === undefined);
+    }
+
+    // The only surface a recording has, so a click that opens nothing or an
+    // item that does nothing leaves a recording nobody can stop.
+    async #checkRecordingPill(RecordingIndicator) {
+        const before = new Set(Object.keys(Main.panel.statusArea));
+        const indicator = new RecordingIndicator({
+            limit: 'Stops by itself at 3:00:00',
+            transcribing: false,
+        });
+        indicator.elapsed = 4332;
+        const fired = [];
+        indicator.onStop = () => fired.push('stop');
+        indicator.onDiscard = () => fired.push('discard');
+        await this.#settle();
+
+        const role = Object.keys(Main.panel.statusArea)
+            .find(key => !before.has(key) && key.startsWith('murmur-recording-'));
+        const pill = role ? Main.panel.statusArea[role] : undefined;
+        this.#ok('the recording reaches the top bar', pill !== undefined);
+        if (!pill) {
+            indicator.destroy();
+            return;
+        }
+
+        const texts = root => this.#descendants(root, actor => actor instanceof St.Label)
+            .map(label => label.text);
+        this.#ok('the pill shows how long the recording has run',
+            texts(pill).includes('1:12:12'), JSON.stringify(texts(pill)));
+
+        const open = async () => {
+            if (!pill.menu.isOpen) {
+                const [x, y] = this.#centre(pill);
+                await this.#click(x, y);
+            }
+            return pill.menu.isOpen;
+        };
+        const item = text => this.#descendants(pill.menu.actor,
+            actor => actor instanceof St.Label && actor.text === text)[0]?.get_parent() ?? null;
+
+        this.#ok('clicking the pill opens its menu', await open());
+        this.#ok('the menu shows the microphone, the desktop and the limit',
+            ['Microphone', 'Desktop audio', 'Stops by itself at 3:00:00']
+                .every(text => texts(pill.menu.actor).includes(text)),
+            JSON.stringify(texts(pill.menu.actor)));
+
+        const stop = item('Stop and transcribe');
+        if (stop) {
+            const [x, y] = this.#centre(stop);
+            await this.#click(x, y);
+        }
+        this.#ok('Stop and transcribe stops the recording', fired.includes('stop'),
+            JSON.stringify(fired));
+
+        await open();
+        const discard = item('Discard…');
+        if (discard) {
+            const [x, y] = this.#centre(discard);
+            await this.#click(x, y);
+        }
+        const question = 'Discard 1 h 12 min of recording?';
+        const dialogs = Main.layoutManager.modalDialogGroup;
+        this.#ok('discarding asks first', texts(dialogs).includes(question) &&
+            !fired.includes('discard'), JSON.stringify(texts(dialogs)));
+        const confirm = this.#descendants(dialogs,
+            actor => actor instanceof St.Button && actor.label === 'Discard')[0];
+        if (confirm) {
+            const [x, y] = this.#centre(confirm);
+            await this.#click(x, y);
+        }
+        this.#ok('confirming discards the recording', fired.includes('discard'),
+            JSON.stringify(fired));
+        this.#ok('the question goes once answered', !texts(dialogs).includes(question));
+
+        pill.menu.close();
+        indicator.locked = true;
+        await this.#settle();
+        this.#ok('a locked screen leaves the menu shut', !await open());
+        indicator.locked = false;
+        await this.#settle();
+        this.#ok('unlocking gives the menu back', await open());
+        pill.menu.close();
+
+        indicator.transcribing();
+        await this.#settle();
+        this.#ok('the pill says it is transcribing', texts(pill).includes('Transcribing…'),
+            JSON.stringify(texts(pill)));
+        this.#ok('a recording being transcribed has nothing left to stop', !await open());
+
+        indicator.destroy();
+        await this.#settle();
+        this.#ok('nothing of the pill is left', Main.panel.statusArea[role] === undefined);
+    }
+
+    // GStreamer inside the compositor, which nothing short of running it proves
+    // is there with every plugin it needs. It hears a second or two of whatever
+    // the machine hears, into the session's throwaway cache, and deletes it.
+    async #checkAudio(path) {
+        const {Microphone, Recorder} = await import(`file://${path}/lib/shell/audio.js`);
+        const file = Gio.File.new_for_path(
+            GLib.build_filenamev([GLib.get_user_cache_dir(), 'probe.opus']));
+        GLib.mkdir_with_parents(GLib.get_user_cache_dir(), 0o700);
+
+        const heard = new Set();
+        try {
+            const recorder = await Recorder.open(file);
+            recorder.onLevel = source => heard.add(source);
+            await this.#settle(1500);
+            await recorder.finish();
+        } catch (error) {
+            this.#fail('a recording opens', `${error}`);
+            return;
+        }
+        this.#ok('a recording hears the microphone', heard.has('microphone'));
+        this.#ok('a recording hears the desktop', heard.has('desktop'));
+
+        const [, contents] = file.load_contents(null);
+        const head = String.fromCharCode(...contents.slice(0, 40));
+        this.#ok('a recording is an Ogg Opus file',
+            head.startsWith('OggS') && head.includes('OpusHead'), JSON.stringify(head));
+        file.delete(null);
+
+        const microphone = await Microphone.open();
+        let bytes = 0;
+        let ended = false;
+        let whole = true;
+        microphone.listen(chunk => {
+            bytes += chunk.length;
+            whole &&= chunk.length % 2 === 0;
+        }, () => {
+            ended = true;
+        });
+        await this.#settle(1000);
+        microphone.finish();
+        await this.#until(() => ended);
+        microphone.close();
+        this.#ok('a dictation hears the microphone in whole samples', bytes > 0 && whole,
+            `${bytes} bytes`);
+        this.#ok('a dictation hears the end of what it heard', ended);
     }
 
     #checkExtensionCycle(murmur) {

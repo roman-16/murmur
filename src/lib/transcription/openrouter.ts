@@ -4,7 +4,13 @@ import Soup from 'gi://Soup?version=3.0';
 
 import {deferred, fromAsync, whenCancelled} from '../async.js';
 import {errorMessage, isCancelled} from '../errors.js';
-import {errorText, SAMPLE_RATE, type Transcription} from './provider.js';
+import {
+    errorText,
+    type RecordingTranscriber,
+    SAMPLE_RATE,
+    type Transcription
+} from './provider.js';
+import {transcribeUpload} from './upload.js';
 
 const BITS_PER_SAMPLE = 16;
 const CHANNELS = 1;
@@ -15,9 +21,9 @@ const URL = 'https://openrouter.ai/api/v1/audio/transcriptions';
 
 type Answer = {error?: {message?: string} | string; text?: string};
 
-// OpenRouter transcribes a recording in one request rather than while it is
+// OpenRouter transcribes a dictation in one request rather than while it is
 // spoken, so there is nothing to show until the speaker stops: the audio is
-// kept as it is recorded and sent whole the moment the microphone is released.
+// kept as it is heard and sent whole the moment the microphone is released.
 export class OpenRouterTranscription implements Transcription {
     readonly #apiKey: string;
     readonly #cancellable: Gio.Cancellable;
@@ -38,16 +44,14 @@ export class OpenRouterTranscription implements Transcription {
         this.#release = whenCancelled(cancellable, () => this.#abort());
     }
 
-    // Nothing is opened ahead of the recording: the service learns of it when
+    // Nothing is opened ahead of the dictation: the service learns of it when
     // the whole of it arrives.
     async start(): Promise<void> {}
 
-    // The recorder's buffer is its own and is handed on rather than kept, so
-    // what is stored here is a copy of the samples in it.
     audio(chunk: Uint8Array): void {
         if (this.#ended)
             return;
-        this.#chunks.push(chunk.slice());
+        this.#chunks.push(chunk);
         this.#recorded += chunk.length;
     }
 
@@ -167,6 +171,17 @@ export class OpenRouterTranscription implements Transcription {
             this.#http = null;
         }
     }
+}
+
+export function openrouterRecording(
+    options: {apiKey: string; model: string}): RecordingTranscriber {
+    return (audio, cancellable) => transcribeUpload({
+        apiKey: options.apiKey,
+        audio,
+        cancellable,
+        fields: [['model', options.model]],
+        url: URL,
+    });
 }
 
 function parse(data: Uint8Array | null): Answer | null {

@@ -1,21 +1,37 @@
 # How it works
 
-Murmur is a GNOME Shell extension, which means it runs inside the compositor itself. There is no daemon, no tray process and no companion service: the shortcut, the panel, the microphone, the network connection and the insertion are all the same process.
+Murmur is a GNOME Shell extension, which means it runs inside the compositor itself. There is no daemon, no tray process and no companion service: the shortcuts, the panel, the microphone, the network connection and the insertion are all the same process. Audio is captured and encoded by GStreamer, which the shell already carries, on threads of its own, so none of it runs on the thread that draws the screen.
 
 ## One dictation, start to finish
 
 1. **The shortcut fires.** `Super+Space` is a shell keybinding, active in the normal session and in the overview.
 2. **The panel opens** at the bottom of the monitor holding the focused window - the pointer's monitor when nothing is focused - clear of anything docked there, showing the status, the level of your voice, a countdown, the destination, and the transcription as it arrives, alongside an indicator in the top bar. Nothing is grabbed: the panel is drawn as shell chrome and, unless it holds the keyboard, every click and keystroke goes where it would have anyway.
-3. **The microphone opens.** `pw-record` is spawned and writes raw audio to a pipe: 16 kHz, mono, signed 16-bit little-endian, read in 100 ms chunks.
-4. **The service is opened**, authenticated with your API key in a request header. A streaming service gets a WebSocket and is told the audio format and whatever else it takes, in the address or in a first message: the model, the transcription delay, or the language and formatting mode. OpenRouter is opened by being sent the recording, so nothing happens here at all.
-5. **The audio goes up.** Streaming, each chunk goes as it is recorded - raw in a binary frame to xAI, base64-encoded in a JSON message to Google and Mistral; a service that has to finish its own setup first gets the chunks the moment it says it is ready, so no words are lost to the handshake. With OpenRouter the chunks are collected in memory instead. Nothing is buffered to disk either way.
+3. **The microphone opens.** A GStreamer pipeline captures the default PipeWire source and converts it to 16 kHz, mono, signed 16-bit little-endian. GJS cannot run JavaScript on GStreamer's own threads, so what it has heard is collected from the main loop every 100 ms; until the service is ready it waits in the pipeline, so nothing said meanwhile is lost.
+4. **The service is opened**, authenticated with your API key in a request header. A streaming service gets a WebSocket and is told the audio format and whatever else it takes, in the address or in a first message: the model and the transcription delay. OpenRouter is opened by being sent the dictation, so nothing happens here at all.
+5. **The audio goes up.** Streaming, each chunk goes as it is heard - raw in a binary frame to xAI, base64-encoded in a JSON message to Mistral; a service that has to finish its own setup first gets the chunks the moment it says it is ready, so no words are lost to the handshake. With OpenRouter the chunks are collected in memory instead. Nothing is buffered to disk either way.
 6. **Text comes down** and appears in the panel immediately - from a streaming service, which is the only kind that has anything to say before you stop.
-7. **You stop**, or silence or the time limit stops it for you. The microphone is released at once. A streaming connection stays open just long enough to collect the tail of the transcription; OpenRouter is sent the whole recording as a WAV and answers with the whole transcription.
+7. **You stop**, or silence or the time limit stops it for you. The microphone is released at once, once what it had already heard has been handed over. A streaming connection stays open just long enough to collect the tail of the transcription; OpenRouter is sent the whole dictation as a WAV and answers with the whole transcription.
 8. **The destination is read**, now rather than at the start: whichever client holds a focused text field at this moment. See [Where the text goes](text-insertion.md).
 9. **The panel releases the keyboard and closes**, and the text is delivered: typed into the focused field, or copied to the clipboard when there is none, which the panel says before it goes.
 10. **The transcription is appended to the history**, `history.jsonl` in the extension's directory under `$XDG_STATE_HOME`, unless **Remember what I dictate** is off or the field was one the client reported as a password.
 
-`Esc` cancels at any point. The subprocess is signalled, the socket is closed, and nothing is inserted or copied.
+`Esc` cancels at any point. The microphone is closed, the socket is closed, and nothing is inserted or copied.
+
+Locking the screen ends a dictation the same way, because on the lock screen the focused field is the password field.
+
+## One recording, start to finish
+
+1. **The shortcut fires.** `Super+Alt+Space`, a shell keybinding like the dictation's.
+2. **Two files are named** in `~/Documents/Murmur` after the local time: `2026-03-26T22-02-34.opus` is created, readable by you alone, and its name is noted in `untranscribed` in the extension's directory under `$XDG_STATE_HOME`.
+3. **A pipeline starts** with two sources: the default PipeWire source, which is your microphone, and a capture stream that asks WirePlumber for the default sink, which links it to the monitor of whatever your computer plays through and follows the default when it changes. Each is converted to 48 kHz mono and measured by a `level` element, and `audiomixer` mixes the two, keeping them aligned and carrying on with silence where one goes quiet. `opusenc` encodes the mix at 24 kbit/s and `oggmux` writes it to the file as it goes, so hours of audio never pass through the shell's memory.
+4. **A pill appears in the top bar**, with the running time. Its menu shows the two levels, the service's limit when it has one, **Stop and transcribe**, and **Discard…**. The keyboard is never taken.
+5. **You stop**, or the service's limit stops it for you. The end of the stream is sent through the pipeline so the muxer writes the last page, and the file is closed; a source that went quiet gets three seconds to pass the end on before the pipeline closes without it.
+6. **The recording goes up** in one `POST` to the selected service's file endpoint, a form with the audio as its last part, assembled in a temporary file and streamed from there. The pill says *Transcribing…* meanwhile, and a new recording can start beside it.
+7. **The transcript is written** to `2026-03-26T22-02-34.md`, exactly the `text` the service answered with, and the name leaves `untranscribed`. A notification offers **Open** and **Copy**.
+
+A recording carries on while the screen is locked, which is why Murmur declares the `unlock-dialog` session mode: without it GNOME disables every extension when the screen locks. On the lock screen both shortcuts are unbound, a dictation cannot run, and the pill's menu does not open.
+
+When the upload fails, the audio stays and the notification offers **Retry**. When the shell stops mid-recording - a logout, a crash, the extension switched off - the pipeline is closed where it stands, the file is still a playable Ogg file up to that point, and its name is still in `untranscribed`, so the next time Murmur starts it offers **Transcribe** or **Leave it**. A transcript you delete later is never asked for again.
 
 ## Why keys reach the panel, and when they do not
 
@@ -55,21 +71,21 @@ A GNOME extension runs in two places, and they share nothing but files on disk:
 
 Importing a shell type into the preferences, or a GTK type into the shell, crashes at load. `just lint` greps for exactly that and fails the build, so the boundary is enforced rather than remembered.
 
-## How a recording becomes words
+## How a dictation becomes words
 
 Everything about a dictation that you can see - the microphone, the level, the silence, the panel, the destination, the insertion - is the same whichever service transcribes it. What differs is only how the audio travels, and there are two ways:
 
 | | Streaming | One request |
 | --- | --- | --- |
-| Services | Gemini, Grok, Mistral | OpenRouter |
-| Carried by | A WebSocket held open for the recording | One `POST` when the recording ends |
-| Audio sent as | PCM chunks as recorded, raw or base64 | One 16 kHz mono WAV, built in memory |
-| Panel during the recording | The words so far | The level and the countdown |
+| Services | Grok, Mistral | OpenRouter |
+| Carried by | A WebSocket held open for the dictation | One `POST` when the dictation ends |
+| Audio sent as | PCM chunks as heard, raw or base64 | One 16 kHz mono WAV, built in memory |
+| Panel during the dictation | The words so far | The level and the countdown |
 | Bounded by | Ten seconds to open a session, five for the tail | A minute for the model to answer |
 
 ### OpenRouter
 
-One `POST` to `openrouter.ai/api/v1/audio/transcriptions` carrying the chosen model's slug and the recording as base64 WAV, answered with `{"text": …}`. The samples `pw-record` writes are already what the models want, so the conversion is a 44-byte RIFF header in front of them. There is no streaming transcription API to use instead - the request is the whole protocol, which is also why nothing can appear in the panel until you stop.
+One `POST` to `openrouter.ai/api/v1/audio/transcriptions` carrying the chosen model's slug and the dictation as base64 WAV, answered with `{"text": …}`. The samples the microphone delivers are already what the models want, so the conversion is a 44-byte RIFF header in front of them. There is no streaming transcription API to use instead - the request is the whole protocol, which is also why nothing can appear in the panel until you stop.
 
 ### The realtime protocols
 
@@ -85,26 +101,6 @@ Mistral, with `voxtral-mini-transcribe-realtime-2602`, streams text to append:
 | Down | `transcription.text.delta` | More text, appended live |
 | Down | `transcription.done` | The final transcription |
 | Down | `error` | Reported to you as a notification |
-
-Gemini, with `gemini-3.5-transcribe-live`, streams guesses it later replaces:
-
-| Direction | Message | Meaning |
-| --- | --- | --- |
-| Up | `setup` | The model, text output, automatic language detection, whether to tidy up, and that the turns are Murmur's to declare |
-| Up | `realtimeInput.activityStart` | A dictation begins, sent with the first chunk of audio |
-| Up | `realtimeInput.audio` | One base64 chunk of PCM |
-| Up | `realtimeInput.activityEnd` | The microphone is done, so the turn is over |
-| Down | `setupComplete` | Audio may start |
-| Down | `serverContent.interimInputTranscription` | A guess at what is being said, revised as you carry on |
-| Down | `serverContent.inputTranscription` | A finalised segment, which supersedes the guess |
-| Down | `serverContent.generationComplete` | Generation finished; after the turn was closed, that is the transcription |
-
-Four details of that one are worth writing down, because every one of them is invisible until it bites.
-
-- **The turns are declared, not detected.** The service can find the edges of speech itself, and that is the arrangement its documentation recommends - but with its own detection left on, this endpoint accepts an entire dictation and transcribes none of it. Murmur knows when a dictation starts and stops anyway, so it says so: `activityStart` with the first chunk and `activityEnd` when the microphone closes.
-- **Half a sample is a fatal argument.** A read from the microphone can end between the two bytes of a 16-bit sample, and a chunk carrying that half closes the connection with `1007 Request contains an invalid argument`, however small or large the chunks otherwise are. The odd byte waits for the one that completes it.
-- **The JSON arrives in binary frames** as readily as in text ones, so the frame type says nothing about whether a message is for us.
-- **The handshake succeeds whatever the key is.** A key the service rejects arrives as a socket closing with `1007` and a reason of its own words, which is why a close before the microphone was released is reported as an error rather than an empty transcription.
 
 Grok, with `grok-voice-transcribe-2.0`, streams locked pieces placed by where they start in the audio, and guesses in between:
 
@@ -123,6 +119,18 @@ Grok, with `grok-voice-transcribe-2.0`, streams locked pieces placed by where th
 - **A key it does not know never opens the socket.** The upgrade is answered with `400` and a reason in a body the WebSocket library does not hand over, so it reaches you as *the service refused the connection (400 Bad Request)*.
 
 Both ends of a streamed dictation are bounded, so neither the panel nor the microphone can wait on a service forever: the audio waits ten seconds for a session to be opened for it, and the transcription's tail five seconds after the microphone closes. A dictation that ends before its session is open still reaches the service whole: the chunks held back go up first, and the end of the audio after them.
+
+## How a recording becomes words
+
+A recording is one file sent once, to each service's endpoint for files rather than its realtime one, as `multipart/form-data` with any fields first and the audio last, which is where xAI requires it. The audio part is named `recording.ogg`, because OpenAI's upload, which OpenRouter's follows, knows Ogg by that name and not by `.opus`.
+
+| Service | Endpoint | Fields | Limit |
+| --- | --- | --- | --- |
+| Grok | `api.x.ai/v1/stt` | none | 500 MB a file |
+| Mistral | `api.mistral.ai/v1/audio/transcriptions` | `model=voxtral-mini-latest`, Voxtral Mini Transcribe 2 | Three hours a request |
+| OpenRouter | `openrouter.ai/api/v1/audio/transcriptions` | `model`, the one you picked | 25 MB an upload, and about a minute for the provider behind it |
+
+Each answers with JSON whose `text` is the transcription, and that string is the transcript file, byte for byte. Nothing asks for speaker labels or timestamps, since nothing would show them. A request may go ten minutes without a byte moving either way before it counts as hung, which leaves a service room to transcribe hours before it answers.
 
 ## Built from TypeScript
 

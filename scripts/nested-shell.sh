@@ -6,7 +6,8 @@ cd "$(dirname "$0")/.."
 uuid="murmur@roman-16.github.io"
 payload=${1:-}
 [ -z "$payload" ] || payload=$(realpath "$payload")
-shortcut=${RECORDING_SHORTCUT:-<Super>j}
+dictation_shortcut=${DICTATION_SHORTCUT:-<Super>j}
+recording_shortcut=${RECORDING_SHORTCUT:-<Super>k}
 
 # A devbox shell trims XDG_DATA_DIRS to its own profile, which leaves the nested
 # session unable to find, or D-Bus activate, any installed application. Take the
@@ -52,7 +53,7 @@ released=()
 # A key combination belongs to one compositor, and this session matches it
 # before the nested one ever sees the press.
 release() {
-    local schema=$1 key=$2 dir=${3:-} current
+    local shortcut=$1 schema=$2 key=$3 dir=${4:-} current
     current=$(settings "$dir" get "$schema" "$key" 2>/dev/null) || return 0
     [[ $current == *"'$shortcut'"* ]] || return 0
 
@@ -70,12 +71,15 @@ restore() {
     done
 }
 
-release org.gnome.desktop.wm.keybindings switch-input-source
-release org.gnome.desktop.wm.keybindings switch-input-source-backward
 schemas=$(installed_schemas)
-if [ -n "$schemas" ]; then
-    release org.gnome.shell.extensions.murmur toggle-recording "$schemas"
-fi
+for shortcut in "$dictation_shortcut" "$recording_shortcut"; do
+    release "$shortcut" org.gnome.desktop.wm.keybindings switch-input-source
+    release "$shortcut" org.gnome.desktop.wm.keybindings switch-input-source-backward
+    if [ -n "$schemas" ]; then
+        release "$shortcut" org.gnome.shell.extensions.murmur toggle-dictation "$schemas"
+        release "$shortcut" org.gnome.shell.extensions.murmur toggle-recording "$schemas"
+    fi
+done
 
 # Headless has no window to occlude, and a compositor whose window is covered
 # stops painting, which a recording would capture as frozen frames. It gets two
@@ -132,12 +136,10 @@ gsettings set org.gnome.shell disable-user-extensions false
 # A fresh profile is a first login, whose welcome dialog would take the modal
 # and with it every shortcut.
 gsettings set org.gnome.shell welcome-dialog-last-shown-version '99.0'
-gsettings set org.gnome.shell.extensions.murmur toggle-recording "['$shortcut']"
+gsettings set org.gnome.shell.extensions.murmur toggle-dictation "['$dictation_shortcut']"
+gsettings set org.gnome.shell.extensions.murmur toggle-recording "['$recording_shortcut']"
 if [ -n "\${MISTRAL_API_KEY:-}" ]; then
     gsettings set org.gnome.shell.extensions.murmur mistral-api-key "\$MISTRAL_API_KEY"
-fi
-if [ -n "\${GEMINI_API_KEY:-}" ]; then
-    gsettings set org.gnome.shell.extensions.murmur gemini-api-key "\$GEMINI_API_KEY"
 fi
 if [ -n "\${OPENROUTER_API_KEY:-}" ]; then
     gsettings set org.gnome.shell.extensions.murmur openrouter-api-key "\$OPENROUTER_API_KEY"
@@ -163,5 +165,5 @@ gdbus wait --session --timeout 60 org.gnome.Shell
 bash '$payload'
 EOF
 
-echo "nested session: $nested, shortcut $shortcut"
+echo "nested session: $nested, dictation on $dictation_shortcut, recording on $recording_shortcut"
 dbus-run-session -- bash "$tmp/session.sh"
