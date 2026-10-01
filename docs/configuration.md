@@ -25,7 +25,7 @@ Which service transcribes your dictations and your recordings. Only the chosen o
 | Own settings | None | **Transcription delay** | **Model** |
 | Language | Detected by the model, and it follows a switch mid-dictation | Detected by the model | Detected by the model |
 
-Grok is the default, because it is the most accurate of the three while you speak - first on Artificial Analysis's English streaming benchmark in September 2026, with 2.7% of words wrong - and it ends neither a dictation nor a recording of its own. Its key works once the xAI account holds credit.
+Mistral Voxtral is the default. Grok is the most accurate of the three while you speak - first on Artificial Analysis's English streaming benchmark in September 2026, with 2.7% of words wrong - costs less, and ends neither a dictation nor a recording of its own. Its key works once the xAI account holds credit.
 
 A dictation streams to the service's realtime model while you speak. A recording goes up in one request when it stops, to the same service's model for files: Grok's own, Voxtral Mini Transcribe 2 with Mistral, and the model you picked with OpenRouter.
 
@@ -137,7 +137,7 @@ Without it Murmur falls back to the shell's virtual keyboard, which reaches ever
 
 ### Typing speed
 
-Characters per second, 2500 by default: a sentence lands in a few hundredths of a second. At that speed no key is held at all, so the text goes in as fast as dotool can push it through.
+Characters per second, 2000 by default: a sentence lands in a few hundredths of a second. The choices are 10, 20, 50, 100, 200, 500, 1000, 2000 and 5000, and each is the speed the text really goes in at, with dotool and without it. Above a thousand a second no key is held at all.
 
 Lower it if characters get dropped or reordered in a particular application, which some Electron and Java applications do under fast synthetic input.
 
@@ -173,8 +173,8 @@ gsettings set org.gnome.shell.extensions.murmur typing-speed 500
 | `toggle-dictation` | string list | `['<Super>space']` | |
 | `toggle-recording` | string list | `['<Super><Alt>space']` | |
 | `transcription-delay-ms` | integer | 2400 | 240 to 2400 |
-| `transcription-provider` | `mistral`, `openrouter` or `xai` | `xai` | |
-| `typing-speed` | integer | 2500 | 50 to 2500 |
+| `transcription-provider` | `mistral`, `openrouter` or `xai` | `mistral` | |
+| `typing-speed` | integer | 2000 | 10 to 5000 |
 | `xai-api-key` | string | empty | |
 
 A source install has to point `gsettings` at the schema it built, since it is not in the system directory:

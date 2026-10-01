@@ -7,7 +7,7 @@
 - **The shortcut is unset.** The preferences show `Disabled` if it was cleared with `Backspace`.
 - **The screen is locked.** Neither shortcut listens on the lock screen; a recording already running carries on.
 
-## "Set your xAI API key", or Mistral's or OpenRouter's
+## "Set your Mistral API key", or xAI's or OpenRouter's
 
 The service selected under **Service** has no key in the settings. The notification names which one it wants. See [Getting started](getting-started.md).
 

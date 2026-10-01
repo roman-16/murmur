@@ -11,7 +11,7 @@ Adding a version section here is what publishes a release, so this file is the o
 ### Highlights
 
 - **Record anything you hear and say** - `Super+Alt+Space` records a call, a video or whatever else your computer plays, together with your microphone, and leaves the audio and its transcript side by side in `~/Documents/Murmur`.
-- **Grok by default, Gemini gone** - Grok Voice Transcribe 2.0 transcribes as you speak and is the service Murmur starts with. A setup that used Gemini needs a key from console.x.ai, or another service, after updating.
+- **Mistral by default, Gemini gone** - Murmur starts with Mistral Voxtral, and Grok Voice Transcribe 2.0 joins it as a service that transcribes as you speak. A setup that used Gemini needs a key from console.mistral.ai, or another service, after updating.
 
 ### Added
 
@@ -22,9 +22,10 @@ Adding a version section here is what publishes a release, so this file is the o
 
 ### Changed
 
-- **Grok Voice Transcribe 2.0 is the service Murmur transcribes with.** An installation that never picked a service, or picked Gemini, switches over on update and needs a key from console.x.ai.
+- **Mistral Voxtral is the service Murmur transcribes with.** An installation that never picked a service, or picked Gemini, switches over on update and needs a key from console.mistral.ai.
 - **Recording shortcut** is now **Dictation shortcut**, and **Maximum recording time** is **Maximum dictation time**, with `toggle-dictation` and `max-dictation-seconds` as their gsettings keys. A dictation shortcut you had changed becomes the recording shortcut and dictation is back on `Super+Space`, and a maximum you had changed is back at ten minutes: set both again in the preferences.
 - Murmur listens through GStreamer rather than `pw-record`, and needs GStreamer's base and good plugins and PipeWire's GStreamer plugin, which GNOME's own screen recorder already uses.
+- **Typing speed** offers 10, 20, 50, 100, 200, 500, 1000, 2000 and 5000 characters a second, and starts at 2000 rather than as fast as dotool goes. Each is the speed the text really goes in at. A speed you had set stays as it was.
 
 ### Removed
 

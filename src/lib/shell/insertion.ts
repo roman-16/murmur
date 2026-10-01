@@ -9,7 +9,7 @@ import {isCancelled} from '../errors.js';
 const TICK_MS = 10;
 
 // Characters the virtual keyboard cannot reach on most layouts, mapped to
-// plain-ASCII equivalents. dotool types the originals as they are.
+// plain-ASCII equivalents.
 const NORMALIZE = new Map<string, string>([
     ...mapTo('\u2018\u2019\u201a\u201b\u2039\u203a', "'"),
     ...mapTo('\u201c\u201d\u201e\u201f\u00ab\u00bb', '"'),
@@ -23,14 +23,11 @@ function mapTo(characters: string, replacement: string): [string, string][] {
 
 export type Pace = {
     charsPerTick: number;
-    delayMs: number;
     holdMs: number;
+    periodMs: number;
     tickMs: number;
 };
 
-// Turn a target rate into the pacing each typing engine needs: dotool sleeps
-// whole milliseconds per key (hold, then delay), while the virtual keyboard
-// emits a batch of characters per timer tick.
 export function typingPace(charsPerSecond: number): Pace {
     const periodMs = 1000 / charsPerSecond;
     // dotool counts a hold in whole milliseconds, so above a thousand characters
@@ -41,14 +38,12 @@ export function typingPace(charsPerSecond: number): Pace {
     const tickMs = Math.max(TICK_MS, Math.round(periodMs));
     return {
         charsPerTick: Math.max(1, Math.round((charsPerSecond * tickMs) / 1000)),
-        delayMs: Math.max(0, Math.round(periodMs) - holdMs),
         holdMs,
+        periodMs,
         tickMs,
     };
 }
 
-// Try each dotool tier, then the virtual keyboard. A tier that is unavailable
-// fails before emitting input, so falling through never double-types.
 export async function insertText(
     text: string, pace: Pace, cancellable: Gio.Cancellable): Promise<void> {
     const script = dotoolScript(text, pace);
@@ -61,14 +56,30 @@ export async function insertText(
     await typeWithVirtualKeyboard(text, pace, cancellable);
 }
 
+// dotool sleeps whole milliseconds after each character, so a rate between
+// them is kept by moving the pause from character to character: at two
+// thousand a second, every other one carries a millisecond.
 function dotoolScript(text: string, pace: Pace): string {
-    const commands = [
-        `keydelay ${pace.delayMs}`,
-        `keyhold ${pace.holdMs}`,
-        `typedelay ${pace.delayMs}`,
-        `typehold ${pace.holdMs}`,
-        `type ${text}`,
-    ];
+    const commands = [`typehold ${pace.holdMs}`];
+    let delayMs = -1;
+    let run = '';
+
+    [...text].forEach((character, index) => {
+        const characterDelayMs = Math.max(0,
+            Math.round((index + 1) * pace.periodMs) -
+            Math.round(index * pace.periodMs) -
+            pace.holdMs);
+        if (characterDelayMs !== delayMs) {
+            if (run)
+                commands.push(`type ${run}`);
+            commands.push(`typedelay ${characterDelayMs}`);
+            delayMs = characterDelayMs;
+            run = '';
+        }
+        run += character;
+    });
+    if (run)
+        commands.push(`type ${run}`);
     return `${commands.join('\n')}\n`;
 }
 

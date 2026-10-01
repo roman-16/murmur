@@ -8,8 +8,8 @@ Murmur transcribes in the cloud. That is a real trade-off, and this page states 
 
 | Service | Host | Key travels as | A dictation is sent | A recording is sent |
 | --- | --- | --- | --- | --- |
-| Grok Voice Transcribe 2.0 (default) | `api.x.ai` | `Authorization: Bearer` | Streamed over a WebSocket while you speak | Whole, in one request, when you stop |
-| Mistral Voxtral | `api.mistral.ai` | `Authorization: Bearer` | Streamed over a WebSocket while you speak | Whole, in one request, when you stop |
+| Grok Voice Transcribe 2.0 | `api.x.ai` | `Authorization: Bearer` | Streamed over a WebSocket while you speak | Whole, in one request, when you stop |
+| Mistral Voxtral (default) | `api.mistral.ai` | `Authorization: Bearer` | Streamed over a WebSocket while you speak | Whole, in one request, when you stop |
 | OpenRouter | `openrouter.ai` | `Authorization: Bearer` | Whole, in one request, when you stop | Whole, in one request, when you stop |
 
 That is also everything. No usage statistics, no crash reports, no analytics, no update checks, and nothing that identifies Murmur as the client. Murmur contacts one host, and only over a dictation or a recording you started.

@@ -60,13 +60,13 @@
       <description>Milliseconds of audio Voxtral buffers before transcribing a dictation. Higher values give the model more context and better accuracy, lower values show and insert text sooner.</description>
     </key>
     <key name="transcription-provider" enum="org.gnome.shell.extensions.murmur.provider">
-      <default>'xai'</default>
+      <default>'mistral'</default>
       <summary>Transcription service</summary>
       <description>Which service transcribes your dictations and recordings. Each has its own API key.</description>
     </key>
     <key name="typing-speed" type="i">
-      <default>2500</default>
-      <range min="50" max="2500"/>
+      <default>2000</default>
+      <range min="10" max="5000"/>
       <summary>Typing speed</summary>
       <description>Characters per second used to insert the transcription. Lower it if characters get dropped or reordered.</description>
     </key>

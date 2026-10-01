@@ -48,8 +48,8 @@ gnome-extensions prefs murmur@roman-16.github.io
 
 | Service | Key from | What it costs |
 | --- | --- | --- |
-| **Grok Voice Transcribe 2.0** (default) | [console.x.ai](https://console.x.ai), once the account holds credit | Dictation about $0.20 an hour of audio, recording about $0.10 an hour. The words appear as you speak, a dictation runs as long as you set, and a recording as long as you like |
-| **Mistral Voxtral** | [console.mistral.ai](https://console.mistral.ai) | Dictation about $0.36 an hour, recording about $0.18 an hour, from the first minute. A dictation runs as long as you set, a recording three hours at most |
+| **Grok Voice Transcribe 2.0** | [console.x.ai](https://console.x.ai), once the account holds credit | Dictation about $0.20 an hour of audio, recording about $0.10 an hour. The words appear as you speak, a dictation runs as long as you set, and a recording as long as you like |
+| **Mistral Voxtral** (default) | [console.mistral.ai](https://console.mistral.ai) | Dictation about $0.36 an hour, recording about $0.18 an hour, from the first minute. A dictation runs as long as you set, a recording three hours at most |
 | **OpenRouter** | [openrouter.ai/settings/keys](https://openrouter.ai/settings/keys) | One key for every transcription model it serves - Whisper, Nova, Voxtral, Parakeet - at each one's own price. A dictation's words arrive when you stop rather than as you speak; a dictation runs ten minutes at most, a recording two hours |
 
 That is the whole setup. Put the cursor where the words belong, press `Super+Space`, and speak. Or press `Super+Alt+Space` to record.
@@ -84,7 +84,7 @@ Want to know whether an application is recognised? Turn on GNOME's on-screen key
 
 ## What leaves your machine
 
-Your voice, and while recording everything your computer plays, to the service you picked - `api.x.ai` by default, or `api.mistral.ai` or `openrouter.ai` - over a dictation or recording you started. That is the only connection Murmur makes: no telemetry, no analytics, no update pings.
+Your voice, and while recording everything your computer plays, to the service you picked - `api.mistral.ai` by default, or `api.x.ai` or `openrouter.ai` - over a dictation or recording you started. That is the only connection Murmur makes: no telemetry, no analytics, no update pings.
 
 Dictation audio is never written to disk. The transcription is, on your machine only: the text of each dictation is kept in `~/.local/state/murmur@roman-16.github.io/history.jsonl` so you can read it back later, until you clear it or turn **Remember what I dictate** off. A recording is written to disk whole: its audio and its transcript are saved side by side in `~/Documents/Murmur`, readable by you alone, and stay there until you delete them. Your API key is stored in dconf like every other GNOME setting, which means unencrypted, because extensions have no keyring access. If what you say must not reach a third party, Murmur is the wrong tool. → [Privacy](docs/privacy.md)
 

@@ -16,7 +16,7 @@ import {recordingPlace} from './lib/recording-files.js';
 import {Key, readIntRange, readProvider} from './lib/settings.js';
 import {PROVIDER_IDS, PROVIDERS, type ProviderId} from './lib/transcription/provider.js';
 
-const TYPING_SPEEDS = [50, 100, 250, 500, 1000, 2500];
+const TYPING_SPEEDS = [10, 20, 50, 100, 200, 500, 1000, 2000, 5000];
 
 export default class MurmurPreferences extends ExtensionPreferences {
     override async fillPreferencesWindow(window: Adw.PreferencesWindow): Promise<void> {
@@ -79,8 +79,6 @@ function xaiGroup(settings: Gio.Settings): Adw.PreferencesGroup {
     return group;
 }
 
-// One group per service, and only the chosen one is on screen: a key and a
-// knob that belong to a service nobody selected are noise.
 function providerGroup(settings: Gio.Settings, id: ProviderId): Adw.PreferencesGroup {
     const {keySource, label} = PROVIDERS[id];
     const group = new Adw.PreferencesGroup({
@@ -128,8 +126,6 @@ function dictationGroup(
     return group;
 }
 
-// The ceiling is the service's, so the row cannot be set past what the service
-// would allow: the number here is the number the countdown starts at.
 function maxDictationRow(settings: Gio.Settings): Adw.SpinRow {
     const row = makeSpinRow(settings, Key.maxDictationSeconds, {
         title: _('Maximum dictation time'),
