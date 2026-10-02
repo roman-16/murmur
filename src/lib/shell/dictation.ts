@@ -14,8 +14,6 @@ import {notify} from './notify.js';
 import {MurmurPanel, type PanelAction} from './panel.js';
 import {Session} from './session.js';
 
-// Speech into whatever field has the focus: the panel, the countdown, and the
-// words delivered when it stops.
 export class Dictation {
     readonly #focusTracker: FocusTracker;
     readonly #history: History;
@@ -37,7 +35,6 @@ export class Dictation {
 
     destroy(): void {
         this.cancel();
-        this.#focusTracker.onChanged = null;
         this.#focusTracker.destroy();
     }
 
@@ -98,12 +95,10 @@ export class Dictation {
             if (this.#session === session) {
                 this.#session = null;
                 this.#cancellable = null;
-                focusTracker.onChanged = null;
             }
         }
     }
 
-    // Nothing is typed, copied or kept.
     cancel(): void {
         this.#cancellable?.cancel();
         this.#closeUi();
@@ -112,9 +107,7 @@ export class Dictation {
     async #deliver(
         transcript: string, destination: Destination, pace: Pace,
         cancellable: Gio.Cancellable): Promise<void> {
-        this.#clearCountdown();
-        this.#indicator?.destroy();
-        this.#indicator = null;
+        this.#endListening();
         this.#panel?.releaseKeyboard();
 
         if (!transcript.trim()) {
@@ -172,11 +165,16 @@ export class Dictation {
     }
 
     #closeUi(): void {
+        this.#endListening();
+        this.#panel?.destroy();
+        this.#panel = null;
+    }
+
+    #endListening(): void {
         this.#clearCountdown();
         this.#indicator?.destroy();
         this.#indicator = null;
-        this.#panel?.destroy();
-        this.#panel = null;
+        this.#focusTracker.onChanged = null;
     }
 
     #startCountdown(maxSeconds: number): void {

@@ -31,6 +31,11 @@ Adding a version section here is what publishes a release, so this file is the o
 
 - **Gemini 3.5 Transcribe Live**, and **Tidy up what I say** with it: pick another service under **Service** and add its key.
 
+### Fixed
+
+- When Mistral is too busy to take a dictation, the notification says so and to try again in a moment, instead of showing a gRPC error dump.
+- With Mistral or Grok, a dictation the service sends nothing back for ends with a notification saying so, instead of the panel closing with nothing typed.
+
 ## [1.9.0] - 2026-09-14
 
 ### Added

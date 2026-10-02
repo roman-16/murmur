@@ -14,9 +14,6 @@ const SETUP_TIMEOUT_MS = 10000;
 // is how long "Finishing…" can last before Murmur delivers what it has.
 const TAIL_TIMEOUT_MS = 5000;
 
-// A service that transcribes while the speaker talks, over a socket that carries
-// audio one way and words the other. The words reach the panel as they arrive,
-// and the last of them is what the dictation says.
 export class StreamTranscription implements Transcription {
     readonly #cancellable: Gio.Cancellable;
     readonly #completion = deferred<string>();
@@ -24,6 +21,7 @@ export class StreamTranscription implements Transcription {
     readonly #protocol: StreamProtocol;
     readonly #release: () => void;
 
+    #answered = false;
     #connection: Soup.WebsocketConnection | null = null;
     #endSent = false;
     #ended = false;
@@ -132,6 +130,7 @@ export class StreamTranscription implements Transcription {
         for (const event of this.#protocol.receive(new TextDecoder().decode(data))) {
             switch (event.kind) {
                 case 'done':
+                    this.#answered = true;
                     this.#text = event.text;
                     this.#finish();
                     return;
@@ -139,6 +138,7 @@ export class StreamTranscription implements Transcription {
                     this.#fail(event.message);
                     return;
                 case 'transcript':
+                    this.#answered = true;
                     this.#text = event.text;
                     this.#onPartial(this.#text);
                     break;
@@ -195,10 +195,12 @@ export class StreamTranscription implements Transcription {
     #finish(): void {
         if (this.#settled)
             return;
-        // Nothing arrived because the service never opened a session for the
-        // audio, which is worth saying rather than closing on an empty panel.
         if (!this.#protocol.ready) {
             this.#fail('the service did not start a transcription session');
+            return;
+        }
+        if (!this.#answered) {
+            this.#fail('the service sent nothing back');
             return;
         }
         this.#settled = true;

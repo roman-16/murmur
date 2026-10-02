@@ -11,6 +11,9 @@ import {
 } from './provider.js';
 import {transcribeUpload} from './upload.js';
 
+// Mistral passes a rejection by the admission control of the vLLM engine behind
+// it through as a gRPC dump, which names the exception and says nothing else.
+const BUSY = /\b(?:MaxQueuedTokensError|QueueOverflowError)\b/;
 const MODEL = 'voxtral-mini-transcribe-realtime-2602';
 const RECORDING_MODEL = 'voxtral-mini-latest';
 const RECORDING_URL = 'https://api.mistral.ai/v1/audio/transcriptions';
@@ -67,7 +70,7 @@ export class MistralProtocol implements StreamProtocol {
 
         switch (event.type) {
             case 'error':
-                return [{kind: 'error', message: errorText(event.error)}];
+                return [{kind: 'error', message: explained(errorText(event.error))}];
             case 'transcription.done':
                 if (typeof event.text === 'string' && event.text.length >= this.#text.length)
                     this.#text = event.text;
@@ -91,4 +94,8 @@ export function mistralRecording(options: {apiKey: string}): RecordingTranscribe
         fields: [['model', RECORDING_MODEL]],
         url: RECORDING_URL,
     });
+}
+
+function explained(message: string): string {
+    return BUSY.test(message) ? 'Mistral is busy right now; try again in a moment' : message;
 }
