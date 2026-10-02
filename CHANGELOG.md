@@ -33,8 +33,9 @@ Adding a version section here is what publishes a release, so this file is the o
 
 ### Fixed
 
-- When Mistral is too busy to take a dictation, the notification says so and to try again in a moment, instead of showing a gRPC error dump.
+- When Mistral is busy or drops a dictation, the notification says so in plain words instead of showing a gRPC error dump.
 - With Mistral or Grok, a dictation the service sends nothing back for ends with a notification saying so, instead of the panel closing with nothing typed.
+- A dictation the service fails partway through leaves what it had already transcribed on the clipboard and in your **History**, instead of losing it.
 
 ## [1.9.0] - 2026-09-14
 

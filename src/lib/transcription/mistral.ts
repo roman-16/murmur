@@ -11,9 +11,11 @@ import {
 } from './provider.js';
 import {transcribeUpload} from './upload.js';
 
-// Mistral passes a rejection by the admission control of the vLLM engine behind
-// it through as a gRPC dump, which names the exception and says nothing else.
+// Mistral passes a failure of the servers behind its realtime endpoint through
+// as the dump of a Python gRPC error. A rejection by the admission control of
+// their vLLM engine names the exception and says nothing else.
 const BUSY = /\b(?:MaxQueuedTokensError|QueueOverflowError)\b/;
+const GRPC = /status = StatusCode\.(\w+)\s+details = "([^"]*)"/;
 const MODEL = 'voxtral-mini-transcribe-realtime-2602';
 const RECORDING_MODEL = 'voxtral-mini-latest';
 const RECORDING_URL = 'https://api.mistral.ai/v1/audio/transcriptions';
@@ -97,5 +99,13 @@ export function mistralRecording(options: {apiKey: string}): RecordingTranscribe
 }
 
 function explained(message: string): string {
-    return BUSY.test(message) ? 'Mistral is busy right now; try again in a moment' : message;
+    if (BUSY.test(message))
+        return 'Mistral is busy right now; try again in a moment';
+    const grpc = GRPC.exec(message);
+    if (!grpc)
+        return message;
+    const [, status = '', details = ''] = grpc;
+    if (status === 'UNAVAILABLE')
+        return 'Mistral dropped the dictation; try again';
+    return `Mistral failed: ${details.trim() || status}`;
 }

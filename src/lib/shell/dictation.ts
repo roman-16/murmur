@@ -69,11 +69,13 @@ export class Dictation {
 
         const cancellable = new Gio.Cancellable();
         this.#cancellable = cancellable;
+        let heard = '';
         const session = new Session(config, {
             onLevel: level => {
                 panel.level = level;
             },
             onPartial: text => {
+                heard = text;
                 panel.transcript = text;
             },
             onSilence: () => this.#stop(),
@@ -89,8 +91,15 @@ export class Dictation {
                 cancellable);
         } catch (error) {
             this.#closeUi();
-            if (!cancellable.is_cancelled())
-                notify({body: errorMessage(error), title: 'The dictation failed'});
+            if (!cancellable.is_cancelled()) {
+                const reason = errorMessage(error);
+                notify({
+                    body: this.#keepHeard(heard)
+                        ? `${reason}\nWhat was transcribed so far is on the clipboard.`
+                        : reason,
+                    title: 'The dictation failed',
+                });
+            }
         } finally {
             if (this.#session === session) {
                 this.#session = null;
@@ -142,6 +151,15 @@ export class Dictation {
             return;
         this.#history.append(transcript)
             .catch(error => console.error(`murmur: history: ${errorMessage(error)}`));
+    }
+
+    #keepHeard(heard: string): boolean {
+        const destination = this.#focusTracker.current();
+        if (!heard || (destination.kind === 'field' && destination.password))
+            return false;
+        copyText(heard);
+        this.#remember(heard, destination);
+        return true;
     }
 
     #onPanelAction(action: PanelAction): void {
