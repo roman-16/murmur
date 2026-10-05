@@ -94,7 +94,7 @@ export class OpenRouterTranscription implements Transcription {
                 message, GLib.PRIORITY_DEFAULT, this.#cancellable, callback),
             result => http.send_and_read_finish(result));
 
-        const status = message.get_status();
+        const status = message.status_code;
         const answer = parse(reply.get_data());
         if (answer?.error)
             throw new Error(errorText(answer.error));

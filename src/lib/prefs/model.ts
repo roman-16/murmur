@@ -71,7 +71,7 @@ async function fetchModels(): Promise<Model[]> {
         callback => http.send_and_read_async(message, GLib.PRIORITY_DEFAULT, null, callback),
         result => http.send_and_read_finish(result));
 
-    const status = message.get_status();
+    const status = message.status_code;
     if (status !== Soup.Status.OK)
         throw new Error(`openrouter.ai answered ${status}`);
 

@@ -95,7 +95,7 @@ async function send(
             message, GLib.PRIORITY_DEFAULT, upload.cancellable, callback),
         result => http.send_and_read_finish(result));
 
-    const status = message.get_status();
+    const status = message.status_code;
     const answer = parse(reply.get_data());
     if (status < 200 || status >= 300) {
         const reason = answer?.error ?? answer?.message ?? answer?.detail;

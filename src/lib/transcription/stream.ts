@@ -255,7 +255,7 @@ export class StreamTranscription implements Transcription {
 // with a plain HTTP status. libsoup's own error then says only that the
 // handshake failed, so the status is the explanation there is.
 function refusal(message: Soup.Message): string | null {
-    const status = message.get_status();
+    const status = message.status_code;
     if (status < Soup.Status.CONTINUE || status === Soup.Status.SWITCHING_PROTOCOLS)
         return null;
     const reason = message.get_reason_phrase();
