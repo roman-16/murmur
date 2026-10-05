@@ -11,14 +11,12 @@ import {
 } from './provider.js';
 import {transcribeUpload} from './upload.js';
 
-// Mistral passes a failure of the servers behind its realtime endpoint through
-// as the dump of a Python gRPC error. A rejection by the admission control of
-// their vLLM engine names the exception and says nothing else.
 const BUSY = /\b(?:MaxQueuedTokensError|QueueOverflowError)\b/;
 const GRPC = /status = StatusCode\.(\w+)\s+details = "([^"]*)"/;
 const MODEL = 'voxtral-mini-transcribe-realtime-2602';
 const RECORDING_MODEL = 'voxtral-mini-latest';
 const RECORDING_URL = 'https://api.mistral.ai/v1/audio/transcriptions';
+const SERVER_FAULTS = new Set(['ABORTED', 'DATA_LOSS', 'DEADLINE_EXCEEDED', 'INTERNAL', 'UNAVAILABLE', 'UNKNOWN']);
 const URL = `wss://api.mistral.ai/v1/audio/transcriptions/realtime?model=${MODEL}`;
 
 type ServerEvent =
@@ -98,14 +96,19 @@ export function mistralRecording(options: {apiKey: string}): RecordingTranscribe
     });
 }
 
+// Mistral passes a failure of the servers behind its realtime endpoint through
+// as the dump of a Python gRPC error. A rejection by the admission control of
+// their vLLM engine names the exception and says nothing else, and a fault on
+// their side is detailed with the Python exception behind it, so the status is
+// all that tells someone dictating what happened.
 function explained(message: string): string {
-    if (BUSY.test(message))
-        return 'Mistral is busy right now; try again in a moment';
     const grpc = GRPC.exec(message);
+    const [, status = '', details = ''] = grpc ?? [];
+    if (BUSY.test(message) || status === 'RESOURCE_EXHAUSTED')
+        return 'Mistral is busy right now; try again in a moment';
     if (!grpc)
         return message;
-    const [, status = '', details = ''] = grpc;
-    if (status === 'UNAVAILABLE')
+    if (SERVER_FAULTS.has(status))
         return 'Mistral dropped the dictation; try again';
     return `Mistral failed: ${details.trim() || status}`;
 }
