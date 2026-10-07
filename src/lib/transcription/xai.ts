@@ -10,10 +10,9 @@ import {
 } from './provider.js';
 import {transcribeUpload} from './upload.js';
 
-const MODEL = 'grok-voice-transcribe-2.0';
 const RECORDING_URL = 'https://api.x.ai/v1/stt';
-const URL = `wss://api.x.ai/v1/stt?model=${MODEL}` +
-    `&sample_rate=${SAMPLE_RATE}&encoding=pcm&interim_results=true`;
+// xAI names no alias for its newest model; a request that names none gets it.
+const URL = `wss://api.x.ai/v1/stt?sample_rate=${SAMPLE_RATE}&encoding=pcm&interim_results=true`;
 
 type Segment = {start: number; text: string};
 

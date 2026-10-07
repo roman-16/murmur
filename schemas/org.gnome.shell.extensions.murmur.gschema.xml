@@ -73,7 +73,7 @@
     <key name="xai-api-key" type="s">
       <default>''</default>
       <summary>xAI API key</summary>
-      <description>API key used to authenticate with xAI's speech-to-text endpoints for Grok Voice Transcribe 2.0.</description>
+      <description>API key used to authenticate with xAI's speech-to-text endpoints for Grok.</description>
     </key>
   </schema>
 </schemalist>

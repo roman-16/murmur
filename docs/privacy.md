@@ -8,7 +8,7 @@ Murmur transcribes in the cloud. That is a real trade-off, and this page states 
 
 | Service | Host | Key travels as | A dictation is sent | A recording is sent |
 | --- | --- | --- | --- | --- |
-| Grok Voice Transcribe 2.0 | `api.x.ai` | `Authorization: Bearer` | Streamed over a WebSocket while you speak | Whole, in one request, when you stop |
+| Grok | `api.x.ai` | `Authorization: Bearer` | Streamed over a WebSocket while you speak | Whole, in one request, when you stop |
 | Mistral Voxtral (default) | `api.mistral.ai` | `Authorization: Bearer` | Streamed over a WebSocket while you speak | Whole, in one request, when you stop |
 | OpenRouter | `openrouter.ai` | `Authorization: Bearer` | Whole, in one request, when you stop | Whole, in one request, when you stop |
 
@@ -72,6 +72,6 @@ Transcription is billed to the account the key belongs to, by the audio you send
 
 | Service | An hour of dictation | An hour of recording |
 | --- | --- | --- |
-| Grok Voice Transcribe 2.0 | About $0.20 | About $0.10 |
+| Grok | About $0.20 | About $0.10 |
 | Mistral Voxtral | About $0.36 | About $0.18 |
 | OpenRouter | The selected model's own price, from about $0.18. Each model's page at [openrouter.ai](https://openrouter.ai/models?output_modalities=transcription) states it, and every request answers with what it cost | The same |

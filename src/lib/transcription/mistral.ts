@@ -13,7 +13,7 @@ import {transcribeUpload} from './upload.js';
 
 const BUSY = /\b(?:MaxQueuedTokensError|QueueOverflowError)\b/;
 const GRPC = /status = StatusCode\.(\w+)\s+details = "([^"]*)"/;
-const MODEL = 'voxtral-mini-transcribe-realtime-2602';
+const MODEL = 'voxtral-mini-realtime-latest';
 const RECORDING_MODEL = 'voxtral-mini-latest';
 const RECORDING_URL = 'https://api.mistral.ai/v1/audio/transcriptions';
 const SERVER_FAULTS = new Set(['ABORTED', 'DATA_LOSS', 'DEADLINE_EXCEEDED', 'INTERNAL', 'UNAVAILABLE', 'UNKNOWN']);
@@ -24,8 +24,6 @@ type ServerEvent =
     | {text?: string; type: 'transcription.done'}
     | {text?: string; type: 'transcription.text.delta'};
 
-// Voxtral streams the transcription as deltas to append and finishes with the
-// whole of it, so the text is simply everything that has arrived.
 export class MistralProtocol implements StreamProtocol {
     readonly headers: [string, string][];
     readonly ready = true;

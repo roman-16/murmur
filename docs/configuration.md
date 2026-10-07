@@ -14,7 +14,7 @@ Every setting takes effect on the next dictation or recording. Nothing needs a r
 
 Which service transcribes your dictations and your recordings. Only the chosen one's settings are on screen; the others' keys stay where they are, so switching back is one click.
 
-| | Grok Voice Transcribe 2.0 | Mistral Voxtral | OpenRouter |
+| | Grok | Mistral Voxtral | OpenRouter |
 | --- | --- | --- | --- |
 | Key from | [console.x.ai](https://console.x.ai), once the account holds credit | [console.mistral.ai](https://console.mistral.ai) | [openrouter.ai/settings/keys](https://openrouter.ai/settings/keys) |
 | Dictation costs | About $0.20 an hour of audio | About $0.36 an hour of audio | The model's own price, on its [model page](https://openrouter.ai/models?output_modalities=transcription) |
@@ -87,7 +87,7 @@ How high it goes is the selected service's business, so the number you set is al
 
 | Service | This row goes up to |
 | --- | --- |
-| Grok Voice Transcribe 2.0 | **86400 seconds**, a day. xAI publishes no limit; the ceiling is Murmur declining to offer a dictation with no end at all |
+| Grok | **86400 seconds**, a day. xAI publishes no limit; the ceiling is Murmur declining to offer a dictation with no end at all |
 | Mistral Voxtral | **86400 seconds**, a day. Mistral imposes nothing; the ceiling is Murmur declining to offer a dictation with no end at all |
 | OpenRouter | **600 seconds**. The whole dictation is sent in one request, so its length is also how much audio is held in memory and how much a model is asked to take at once |
 

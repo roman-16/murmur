@@ -91,7 +91,7 @@ One `POST` to `openrouter.ai/api/v1/audio/transcriptions` carrying the chosen mo
 
 A streaming service is a WebSocket that eats raw audio and emits text, so each one is a single module that speaks its own protocol.
 
-Mistral, with `voxtral-mini-transcribe-realtime-2602`, streams text to append:
+Mistral, with `voxtral-mini-realtime-latest`, streams text to append:
 
 | Direction | Message | Meaning |
 | --- | --- | --- |
@@ -102,11 +102,11 @@ Mistral, with `voxtral-mini-transcribe-realtime-2602`, streams text to append:
 | Down | `transcription.done` | The final transcription |
 | Down | `error` | Reported to you as a notification |
 
-Grok, with `grok-voice-transcribe-2.0`, streams locked pieces placed by where they start in the audio, and guesses in between:
+Grok, with whichever model xAI serves by default, streams locked pieces placed by where they start in the audio, and guesses in between:
 
 | Direction | Message | Meaning |
 | --- | --- | --- |
-| Up | The address | The model, 16 kHz PCM, and that guesses are wanted: `?model=grok-voice-transcribe-2.0&sample_rate=16000&encoding=pcm&interim_results=true` |
+| Up | The address | 16 kHz PCM, and that guesses are wanted: `?sample_rate=16000&encoding=pcm&interim_results=true` |
 | Up | A binary frame | One chunk of PCM, raw |
 | Up | `audio.done` | The microphone is done |
 | Down | `transcript.created` | Audio may start |
