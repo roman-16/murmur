@@ -660,10 +660,7 @@ export default class Probe extends Extension {
     // item that does nothing leaves a recording nobody can stop.
     async #checkRecordingPill(RecordingIndicator) {
         const before = new Set(Object.keys(Main.panel.statusArea));
-        const indicator = new RecordingIndicator({
-            limit: 'Stops by itself at 3:00:00',
-            transcribing: false,
-        });
+        const indicator = new RecordingIndicator({transcribing: false});
         indicator.elapsed = 4332;
         const fired = [];
         indicator.onStop = () => fired.push('stop');
@@ -695,9 +692,8 @@ export default class Probe extends Extension {
             actor => actor instanceof St.Label && actor.text === text)[0]?.get_parent() ?? null;
 
         this.#ok('clicking the pill opens its menu', await open());
-        this.#ok('the menu shows the microphone, the desktop and the limit',
-            ['Microphone', 'Desktop audio', 'Stops by itself at 3:00:00']
-                .every(text => texts(pill.menu.actor).includes(text)),
+        this.#ok('the menu shows the microphone and the desktop',
+            ['Microphone', 'Desktop audio'].every(text => texts(pill.menu.actor).includes(text)),
             JSON.stringify(texts(pill.menu.actor)));
 
         const stop = item('Stop and transcribe');
@@ -742,6 +738,10 @@ export default class Probe extends Extension {
         this.#ok('the pill says it is transcribing', texts(pill).includes('Transcribing…'),
             JSON.stringify(texts(pill)));
         this.#ok('a recording being transcribed has nothing left to stop', !await open());
+        indicator.transcribing({of: 6, piece: 2});
+        await this.#settle();
+        this.#ok('the pill counts the pieces it transcribes',
+            texts(pill).includes('Transcribing\u2026 2 of 6'), JSON.stringify(texts(pill)));
 
         indicator.destroy();
         await this.#settle();
@@ -752,7 +752,8 @@ export default class Probe extends Extension {
     // is there with every plugin it needs. It hears a second or two of whatever
     // the machine hears, into the session's throwaway cache, and deletes it.
     async #checkAudio(path) {
-        const {Microphone, Recorder} = await import(`file://${path}/lib/shell/audio.js`);
+        const {cutPiece, Microphone, piecesOf, Recorder} =
+            await import(`file://${path}/lib/shell/audio.js`);
         const file = Gio.File.new_for_path(
             GLib.build_filenamev([GLib.get_user_cache_dir(), 'probe.opus']));
         GLib.mkdir_with_parents(GLib.get_user_cache_dir(), 0o700);
@@ -774,6 +775,7 @@ export default class Probe extends Extension {
         const head = String.fromCharCode(...contents.slice(0, 40));
         this.#ok('a recording is an Ogg Opus file',
             head.startsWith('OggS') && head.includes('OpusHead'), JSON.stringify(head));
+        await this.#checkPieces(file, cutPiece, piecesOf);
         file.delete(null);
 
         const microphone = await Microphone.open();
@@ -793,6 +795,35 @@ export default class Probe extends Extension {
         this.#ok('a dictation hears the microphone in whole samples', bytes > 0 && whole,
             `${bytes} bytes`);
         this.#ok('a dictation hears the end of what it heard', ended);
+    }
+
+    // A recording goes to the service in pieces, cut out of the file by
+    // GStreamer inside the compositor; here the pieces are half a second long.
+    async #checkPieces(file, cutPiece, piecesOf) {
+        const cancellable = new Gio.Cancellable();
+        let pieces;
+        try {
+            pieces = await piecesOf(file, 0.5, cancellable);
+        } catch (error) {
+            this.#fail('a recording is planned as pieces', `${error}`);
+            return;
+        }
+        this.#ok('a recording is planned as pieces end to end',
+            pieces.length >= 3 && pieces[0].start === 0 && pieces.every((piece, index) =>
+                piece.end > piece.start && (index === 0 || piece.start === pieces[index - 1].end)),
+            JSON.stringify(pieces));
+
+        const middle = pieces[1];
+        try {
+            const piece = await cutPiece(file, middle, cancellable);
+            const [cut] = await piecesOf(piece, Infinity, cancellable);
+            piece.delete(null);
+            this.#ok('a piece is cut out of the recording at its own length',
+                Math.abs(cut.end - (middle.end - middle.start)) < 0.05,
+                `${cut.end} s for ${JSON.stringify(middle)}`);
+        } catch (error) {
+            this.#fail('a piece is cut out of the recording at its own length', `${error}`);
+        }
     }
 
     #checkExtensionCycle(murmur) {

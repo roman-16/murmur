@@ -16,8 +16,8 @@ Adding a version section here is what publishes a release, so this file is the o
 ### Added
 
 - **Grok** joins **Service**, with xAI's newest transcription model: the words appear as you speak, it costs about $0.20 an hour of audio, and xAI ends no dictation of its own.
-- `Super+Alt+Space`, or whatever you set as **Recording shortcut**, records everything your computer plays and your microphone hears - a call in Teams, Meet or Discord, a video, anything - until you press it again, then transcribes it. The audio and the transcript are saved side by side in `~/Documents/Murmur`, named by when the recording started, and the transcript is exactly what the service returned.
-- A pill in the top bar shows how long a recording has run. Its menu shows what the microphone and the desktop audio are hearing, when the recording will stop by itself with Mistral or OpenRouter, **Stop and transcribe** and **Discard…**. A recording carries on while the screen is locked.
+- `Super+Alt+Space`, or whatever you set as **Recording shortcut**, records everything your computer plays and your microphone hears - a call in Teams, Meet or Discord, a video, anything - until you press it again, however long that is, then transcribes it. The audio and the transcript are saved side by side in `~/Documents/Murmur`, named by when the recording started, and the transcript is exactly what the service returned.
+- A pill in the top bar shows how long a recording has run. Its menu shows what the microphone and the desktop audio are hearing, **Stop and transcribe** and **Discard…**. A recording carries on while the screen is locked.
 - A notification says when a recording is transcribed, with **Open** and **Copy**. One that could not be transcribed keeps its audio and offers **Retry**, and one that never got that far is offered again the next time you log in.
 
 ### Changed

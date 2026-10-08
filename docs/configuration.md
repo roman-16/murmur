@@ -21,13 +21,13 @@ Which service transcribes your dictations and your recordings. Only the chosen o
 | Recording costs | About $0.10 an hour of audio | About $0.18 an hour of audio | The same model, at the same price |
 | Dictated text appears | While you speak | While you speak | When you stop |
 | Longest dictation | As long as you set; xAI publishes no session limit | As long as you set; Mistral ends no session of its own | 10 minutes |
-| Longest recording | As long as you like; a file can be 500 MB, which is nearly two days of this audio | 3 hours, which Voxtral Mini Transcribe 2 takes in one request | 2 hours, since an upload can be 25 MB |
+| Longest recording | As long as you like | As long as you like | As long as you like |
 | Own settings | None | **Transcription delay** | **Model** |
 | Language | Detected by the model, and it follows a switch mid-dictation | Detected by the model | Detected by the model |
 
-Mistral Voxtral is the default. Grok is the most accurate of the three while you speak - first on Artificial Analysis's English streaming benchmark in September 2026, with 2.7% of words wrong - costs less, and ends neither a dictation nor a recording of its own. Its key works once the xAI account holds credit.
+Mistral Voxtral is the default. Grok is the most accurate of the three while you speak - first on Artificial Analysis's English streaming benchmark in September 2026, with 2.7% of words wrong - costs less, and ends no dictation of its own. Its key works once the xAI account holds credit.
 
-A dictation streams to the service's realtime model while you speak. A recording goes up in one request when it stops, to the same service's model for files: Grok's own, Voxtral Mini Transcribe 2 with Mistral, and the model you picked with OpenRouter.
+A dictation streams to the service's realtime model while you speak. A recording goes up when it stops, in pieces of at most ten minutes, to the same service's model for files: Grok's own, Voxtral Mini Transcribe 2 with Mistral, and the model you picked with OpenRouter.
 
 OpenRouter is one key for every transcription model it serves - Whisper, Deepgram Nova, Voxtral, Parakeet, and whatever it adds next. It has no streaming transcription API, so nothing appears in the panel while you speak: the dictation is sent when you stop, and the words arrive a moment later. Everything else - the level, the countdown, the destination, the keys - is unchanged. The providers behind it give a request about a minute, so a model slow on hours of audio can fail a long recording; its audio stays, for a **Retry** or another service.
 
@@ -105,9 +105,9 @@ Silence is measured in audio time rather than wall-clock time, so a slow network
 
 Starts recording everything the computer plays and the microphone hears, then stops and transcribes it. `Super+Alt+Space` by default, and a system shortcut like the dictation's, except on the lock screen, where no shortcut of Murmur's is listening.
 
-The audio and the transcript are saved side by side in the `Murmur` folder of your Documents folder, `~/Documents/Murmur` unless your desktop names Documents something else. That is not a setting. The transcript is exactly what the service returned, and the audio is Ogg Opus, mono, at 24 kbit/s.
+The audio and the transcript are saved side by side in the `Murmur` folder of your Documents folder, `~/Documents/Murmur` unless your desktop names Documents something else. That is not a setting. The transcript is exactly what the service returned, piece after piece, and the audio is Ogg Opus, mono, at 24 kbit/s.
 
-A recording has no settings of its own beyond the shortcut: it runs until you stop it, or until the service's limit in the table above, and has no silence stop, since a call has silences in it.
+A recording has no settings of its own beyond the shortcut: it runs until you stop it, and has no silence stop, since a call has silences in it.
 
 ## History
 

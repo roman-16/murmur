@@ -60,11 +60,11 @@ src/lib/prefs/         preferences-only: rows, shortcut capture, dotool diagnost
 src/lib/transcription/ the ways audio becomes text, and the table of services
 ```
 
-`audio.ts` is everything Murmur hears, through GStreamer pipelines inside the shell: a `Microphone` for a dictation, whose samples are collected from the main loop because GJS cannot run on GStreamer's threads, and a `Recorder` that mixes the microphone with the default output's monitor into an Opus file as it goes.
+`audio.ts` is everything Murmur hears, through GStreamer pipelines inside the shell: a `Microphone` for a dictation, whose samples are collected from the main loop because GJS cannot run on GStreamer's threads, a `Recorder` that mixes the microphone with the default output's monitor into an Opus file as it goes, and the pieces a recording is cut into for transcription.
 
 A dictation is `dictation.ts`, the panel and the delivery, around `session.ts`, which meters the microphone, watches for silence, and hands the audio to a `Transcription` - the seam every service's dictation comes through: fed chunks, told when the microphone is released, and finally the words. There are two implementations of it. `stream.ts` holds a WebSocket open for the dictation and drives a `StreamProtocol` - the endpoint, the frames to send, and the events to make of what comes back, which is most of `mistral.ts` and `xai.ts`. `openrouter.ts` is the other: it keeps the audio and sends it in one request when the dictation ends.
 
-A recording is `recording.ts`, the pill and the notifications, around `recording-files.ts`, which names the files and remembers which still owe a transcript. Its seam is a `RecordingTranscriber`, an audio file in and the service's text out, and each service's is a few lines over `upload.ts`, which streams the file up as a form.
+A recording is `recording.ts`, the pill and the notifications, around `recording-files.ts`, which names the files and remembers which still owe a transcript. A recording longer than ten minutes goes to the service in pieces, and its seam is a `RecordingTranscriber`, one piece's audio file in and the service's text out. Each service's is a few lines over `upload.ts`, which streams the file up as a form and sends it again when the service is busy.
 
 Adding a service means one module holding both halves, a row in `PROVIDERS`, and its keys in the schema. Nothing else in Murmur knows which one is selected.
 

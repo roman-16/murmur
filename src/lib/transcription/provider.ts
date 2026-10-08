@@ -9,7 +9,6 @@ export type Provider = {
     dictationSeconds?: number;
     keySource: string;
     label: string;
-    recordingSeconds?: number;
     vendor: string;
 };
 
@@ -19,17 +18,12 @@ export const PROVIDERS: Record<ProviderId, Provider> = {
     mistral: {
         keySource: 'console.mistral.ai',
         label: 'Mistral Voxtral',
-        // Mistral transcribes at most three hours of audio in one request.
-        recordingSeconds: 3 * 3600,
         vendor: 'Mistral',
     },
     openrouter: {
         dictationSeconds: 600,
         keySource: 'openrouter.ai/settings/keys',
         label: 'OpenRouter',
-        // An upload is capped at 25 MB, which is two hours and a quarter of the
-        // recording's Opus.
-        recordingSeconds: 2 * 3600,
         vendor: 'OpenRouter',
     },
     xai: {

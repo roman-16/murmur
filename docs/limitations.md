@@ -24,11 +24,11 @@ OpenRouter has no streaming transcription API: the dictation is sent in one requ
 
 **Maximum dictation time** goes no higher than that with OpenRouter, which has to hold the whole dictation in memory and hand it to a model in one piece. Grok and Mistral impose nothing of their own, so with either a dictation runs for as long as you set, up to a day.
 
-## A recording ends at the service's limit
+## A long recording goes up in pieces
 
-A recording goes up in one request when it stops, so it can be only as long as one request takes: three hours with Mistral, whose file model takes no more, and two with OpenRouter, whose uploads stop at 25 MB. The pill's menu says when it will stop, and it is transcribed then like any other. Grok takes a file of 500 MB, nearly two days of this audio, so with it a recording has no limit worth the name.
+Every service takes only so much audio in one request, and how much depends on the model and on how busy the service is: Mistral has turned away 35 minutes in one request while taking the same audio in shorter pieces, and OpenAI's newer models take no more than 23 minutes. A recording is therefore sent in pieces of at most ten minutes, cut where it is quietest in the minute before each mark, and the transcript is their texts in order. A word spoken across the quietest half-second of a whole minute is the one thing that can fall between two pieces.
 
-OpenRouter's providers also give a request about a minute, so a model slow on long audio can fail a recording that is well inside the size. Its audio stays, for a **Retry** or another service.
+OpenRouter's providers give a request about a minute, so a model slow on ten minutes of audio can still fail a piece. The audio stays, for a **Retry** or another service.
 
 ## A transcript is only what the service returns
 

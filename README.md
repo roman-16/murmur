@@ -49,8 +49,8 @@ gnome-extensions prefs murmur@roman-16.github.io
 | Service | Key from | What it costs |
 | --- | --- | --- |
 | **Grok** | [console.x.ai](https://console.x.ai), once the account holds credit | Dictation about $0.20 an hour of audio, recording about $0.10 an hour. The words appear as you speak, a dictation runs as long as you set, and a recording as long as you like |
-| **Mistral Voxtral** (default) | [console.mistral.ai](https://console.mistral.ai) | Dictation about $0.36 an hour, recording about $0.18 an hour, from the first minute. A dictation runs as long as you set, a recording three hours at most |
-| **OpenRouter** | [openrouter.ai/settings/keys](https://openrouter.ai/settings/keys) | One key for every transcription model it serves - Whisper, Nova, Voxtral, Parakeet - at each one's own price. A dictation's words arrive when you stop rather than as you speak; a dictation runs ten minutes at most, a recording two hours |
+| **Mistral Voxtral** (default) | [console.mistral.ai](https://console.mistral.ai) | Dictation about $0.36 an hour, recording about $0.18 an hour, from the first minute. A dictation runs as long as you set |
+| **OpenRouter** | [openrouter.ai/settings/keys](https://openrouter.ai/settings/keys) | One key for every transcription model it serves - Whisper, Nova, Voxtral, Parakeet - at each one's own price. A dictation's words arrive when you stop rather than as you speak; a dictation runs ten minutes at most |
 
 That is the whole setup. Put the cursor where the words belong, press `Super+Space`, and speak. Or press `Super+Alt+Space` to record.
 
@@ -104,9 +104,9 @@ Dictation audio is never written to disk. The transcription is, on your machine 
 ## Good to know
 
 - **A terminal is one big text field.** It tells the compositor it accepts text whenever it is focused and nothing finer, so Murmur will happily deliver a sentence to vim in normal mode.
-- **Dictation and recording are billed to your key.** Murmur sends only what it records, and the ten-minute default keeps a forgotten dictation from running away. A recording runs until you stop it, or until the service's limit.
+- **Dictation and recording are billed to your key.** Murmur sends only what it records, and the ten-minute default keeps a forgotten dictation from running away. A recording runs until you stop it.
 - **Tell people you are recording.** A recording holds everyone in the call, and their voices go to the service too.
-- **A transcript is what the service sends back.** Murmur writes it to the file untouched: no speaker names, no timestamps, no headings, only whatever the model produced.
+- **A transcript is what the service sends back.** Murmur writes it to the file untouched, piece after piece for a long recording: no speaker names, no timestamps, no headings, only whatever the model produced.
 - **OpenRouter cannot transcribe as you speak.** It has no streaming transcription API, so with it the panel shows the level and the countdown while you talk, and the words all arrive when you stop. What it gives instead is the choice: every transcription model it serves, behind one key.
 - **A dictation always arrives as one line.** Line breaks are flattened to spaces before anything is typed, so a transcription can never press `Enter` in a chat box, a prompt or a shell. A tidied list keeps its bullets, inline.
 - **The panel is not a window.** It cannot be alt-tabbed or pushed behind an application, because a GNOME Shell extension draws inside the compositor rather than opening a window. Clicking anything else collapses it to the top bar instead, which a window behind a maximised application could not do.

@@ -11,8 +11,8 @@ gnome-extensions prefs murmur@roman-16.github.io
 | **Service** | Key from | Good to know |
 | --- | --- | --- |
 | **Grok** | [console.x.ai](https://console.x.ai) | The most accurate while you speak. About $0.20 an hour dictating and $0.10 an hour recording, and the key works once the account holds credit. A dictation runs as long as you set, a recording as long as you like |
-| **Mistral Voxtral** | [console.mistral.ai](https://console.mistral.ai) | The default. About $0.36 an hour dictating and $0.18 an hour recording, billed from the first minute, and how far text trails your voice is yours to set. A recording runs three hours at most |
-| **OpenRouter** | [openrouter.ai/settings/keys](https://openrouter.ai/settings/keys) | One key for every transcription model it serves - Whisper, Nova, Voxtral, Parakeet - which you pick under **Model**. It cannot transcribe while you speak, so the words arrive when you stop. A dictation runs ten minutes at most, a recording two hours |
+| **Mistral Voxtral** | [console.mistral.ai](https://console.mistral.ai) | The default. About $0.36 an hour dictating and $0.18 an hour recording, billed from the first minute, and how far text trails your voice is yours to set |
+| **OpenRouter** | [openrouter.ai/settings/keys](https://openrouter.ai/settings/keys) | One key for every transcription model it serves - Whisper, Nova, Voxtral, Parakeet - which you pick under **Model**. It cannot transcribe while you speak, so the words arrive when you stop. A dictation runs ten minutes at most |
 
 Choose it under **Service**, paste your key into **API key** below it, and that is the whole setup. Each service keeps its own key, so switching back and forth costs nothing.
 
@@ -93,8 +93,8 @@ A transcription is always one line, so a list the model makes arrives inline, an
 A dictation is you talking into a field. A recording is everything: whatever your computer plays - the other people in a Teams, Meet or Discord call, a video, a talk - and your microphone, mixed into one file for as long as it takes.
 
 1. Press **Super+Alt+Space**. A pill with a headset and a running time appears in the top bar, and nothing else: the keyboard stays with whatever you were doing.
-2. Carry on. Click the pill to see what the **Microphone** and the **Desktop audio** are hearing, which is the quick way to know the call is really being picked up. With Mistral or OpenRouter the menu also says when the recording will stop by itself, three and two hours in.
-3. Press **Super+Alt+Space** again, or **Stop and transcribe** in the pill's menu. The pill says *Transcribing…* while the service works, and a notification says when it is done: **Open** shows the transcript, **Copy** puts it on the clipboard.
+2. Carry on. Click the pill to see what the **Microphone** and the **Desktop audio** are hearing, which is the quick way to know the call is really being picked up.
+3. Press **Super+Alt+Space** again, or **Stop and transcribe** in the pill's menu. The pill says *Transcribing…* while the service works, counting the pieces of a recording longer than ten minutes, and a notification says when it is done: **Open** shows the transcript, **Copy** puts it on the clipboard.
 
 **Discard…** in the menu throws the recording away, after asking.
 

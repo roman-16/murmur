@@ -79,12 +79,11 @@ The recording listens to the monitor of your default output, so sound played thr
 
 ## A recording stops on its own
 
-- **The service's limit was reached**: three hours with Mistral, two with OpenRouter. The pill's menu says when. What was recorded is transcribed.
 - **The audio source went away**, which a notification reports as *The recording stopped* with the reason. What was recorded up to then is transcribed.
 
 ## "The recording could not be transcribed"
 
-The audio is in `~/Documents/Murmur` whatever the reason, and **Retry** sends it again. The notification carries the service's own words: a key it refused, a file larger than it takes, or, with OpenRouter, a provider that ran out of time on a long recording, in which case another model or another service is the fix. A recording whose notification was dismissed is offered again when you next log in.
+The audio is in `~/Documents/Murmur` whatever the reason, and **Retry** sends it again. The notification carries the service's own words: a key it refused, a service that stayed busy through three more tries, or, with OpenRouter, a provider that ran out of time on a piece, in which case another model or another service is the fix. A recording whose notification was dismissed is offered again when you next log in.
 
 ## Reading the log
 

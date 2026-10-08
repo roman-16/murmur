@@ -8,9 +8,9 @@ Murmur transcribes in the cloud. That is a real trade-off, and this page states 
 
 | Service | Host | Key travels as | A dictation is sent | A recording is sent |
 | --- | --- | --- | --- | --- |
-| Grok | `api.x.ai` | `Authorization: Bearer` | Streamed over a WebSocket while you speak | Whole, in one request, when you stop |
-| Mistral Voxtral (default) | `api.mistral.ai` | `Authorization: Bearer` | Streamed over a WebSocket while you speak | Whole, in one request, when you stop |
-| OpenRouter | `openrouter.ai` | `Authorization: Bearer` | Whole, in one request, when you stop | Whole, in one request, when you stop |
+| Grok | `api.x.ai` | `Authorization: Bearer` | Streamed over a WebSocket while you speak | In pieces of at most ten minutes, one request each, when you stop |
+| Mistral Voxtral (default) | `api.mistral.ai` | `Authorization: Bearer` | Streamed over a WebSocket while you speak | In pieces of at most ten minutes, one request each, when you stop |
+| OpenRouter | `openrouter.ai` | `Authorization: Bearer` | Whole, in one request, when you stop | In pieces of at most ten minutes, one request each, when you stop |
 
 That is also everything. No usage statistics, no crash reports, no analytics, no update checks, and nothing that identifies Murmur as the client. Murmur contacts one host, and only over a dictation or a recording you started.
 
@@ -68,7 +68,7 @@ A recording carries on while the screen is locked, and its pill stays in the top
 
 ## What it costs
 
-Transcription is billed to the account the key belongs to, by the audio you send. Murmur sends only what it hears between pressing a shortcut and stopping. **Maximum dictation time**, ten minutes by default, caps what a forgotten dictation can spend, and **Stop after silence** ends a dictation you walked away from. A recording runs until you stop it or the service's limit ends it, and the pill in the top bar is the reminder that it is running.
+Transcription is billed to the account the key belongs to, by the audio you send. Murmur sends only what it hears between pressing a shortcut and stopping. **Maximum dictation time**, ten minutes by default, caps what a forgotten dictation can spend, and **Stop after silence** ends a dictation you walked away from. A recording runs until you stop it, and the pill in the top bar is the reminder that it is running.
 
 | Service | An hour of dictation | An hour of recording |
 | --- | --- | --- |

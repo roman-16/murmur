@@ -24,10 +24,10 @@ Locking the screen ends a dictation the same way, because on the lock screen the
 1. **The shortcut fires.** `Super+Alt+Space`, a shell keybinding like the dictation's.
 2. **Two files are named** in `~/Documents/Murmur` after the local time: `2026-03-26T22-02-34.opus` is created, readable by you alone, and its name is noted in `untranscribed` in the extension's directory under `$XDG_STATE_HOME`.
 3. **A pipeline starts** with two sources: the default PipeWire source, which is your microphone, and a capture stream that asks WirePlumber for the default sink, which links it to the monitor of whatever your computer plays through and follows the default when it changes. Each is converted to 48 kHz mono and measured by a `level` element, and `audiomixer` mixes the two, keeping them aligned and carrying on with silence where one goes quiet. The pipeline keeps time by the system's monotonic clock, the one PipeWire stamps every captured buffer with, and each source asks PipeWire for as many buffers as it allows, so nothing captured is dropped while a source waits its turn. `opusenc` encodes the mix at 24 kbit/s and `oggmux` writes it to the file as it goes, so hours of audio never pass through the shell's memory.
-4. **A pill appears in the top bar**, with the running time. Its menu shows the two levels, the service's limit when it has one, **Stop and transcribe**, and **Discard…**. The keyboard is never taken.
-5. **You stop**, or the service's limit stops it for you. The end of the stream is sent through the pipeline so the muxer writes the last page, and the file is closed; a source that went quiet gets three seconds to pass the end on before the pipeline closes without it.
-6. **The recording goes up** in one `POST` to the selected service's file endpoint, a form with the audio as its last part, assembled in a temporary file and streamed from there. The pill says *Transcribing…* meanwhile, and a new recording can start beside it.
-7. **The transcript is written** to `2026-03-26T22-02-34.md`, exactly the `text` the service answered with, and the name leaves `untranscribed`. A notification offers **Open** and **Copy**.
+4. **A pill appears in the top bar**, with the running time. Its menu shows the two levels, **Stop and transcribe**, and **Discard…**. The keyboard is never taken.
+5. **You stop.** The end of the stream is sent through the pipeline so the muxer writes the last page, and the file is closed; a source that went quiet gets three seconds to pass the end on before the pipeline closes without it.
+6. **The recording goes up** in pieces of at most ten minutes. A longer recording is cut where it is quietest in the minute before each ten-minute mark, so no word is split, and each piece is decoded and encoded again into a temporary file of its own. Each piece is one `POST` to the selected service's file endpoint, a form with the audio as its last part, assembled in a temporary file and streamed from there, and a piece the service turns away as busy or rate-limited, or that never reaches it, is sent again after 30, 60 and 120 seconds, or sooner when the service says when. The pill says *Transcribing…* meanwhile, *Transcribing… 2 of 6* for a recording in pieces, and a new recording can start beside it.
+7. **The transcript is written** to `2026-03-26T22-02-34.md`, the `text` the service answered with for each piece, in order and joined by spaces, and the name leaves `untranscribed`. A notification offers **Open** and **Copy**.
 
 A recording carries on while the screen is locked, which is why Murmur declares the `unlock-dialog` session mode: without it GNOME disables every extension when the screen locks. On the lock screen both shortcuts are unbound, a dictation cannot run, and the pill's menu does not open.
 
@@ -122,15 +122,15 @@ Both ends of a streamed dictation are bounded, so neither the panel nor the micr
 
 ## How a recording becomes words
 
-A recording is one file sent once, to each service's endpoint for files rather than its realtime one, as `multipart/form-data` with any fields first and the audio last, which is where xAI requires it. The audio part is named `recording.ogg`, because OpenAI's upload, which OpenRouter's follows, knows Ogg by that name and not by `.opus`.
+A recording is sent in pieces of at most ten minutes, each in one request to the service's endpoint for files rather than its realtime one, as `multipart/form-data` with any fields first and the audio last, which is where xAI requires it. The audio part is named `recording.ogg`, because OpenAI's upload, which OpenRouter's follows, knows Ogg by that name and not by `.opus`.
 
 | Service | Endpoint | Fields | Limit |
 | --- | --- | --- | --- |
 | Grok | `api.x.ai/v1/stt` | none | 500 MB a file |
-| Mistral | `api.mistral.ai/v1/audio/transcriptions` | `model=voxtral-mini-latest`, Voxtral Mini Transcribe 2 | Three hours a request |
-| OpenRouter | `openrouter.ai/api/v1/audio/transcriptions` | `model`, the one you picked | 25 MB an upload, and about a minute for the provider behind it |
+| Mistral | `api.mistral.ai/v1/audio/transcriptions` | `model=voxtral-mini-latest`, Voxtral Mini Transcribe 2 | Turns away long files as out of capacity: 35 minutes failed where 20 went through |
+| OpenRouter | `openrouter.ai/api/v1/audio/transcriptions` | `model`, the one you picked | 25 MB an upload, the model's own length, 23 minutes for OpenAI's newer ones, and about a minute for the provider behind it |
 
-Each answers with JSON whose `text` is the transcription, and that string is the transcript file, byte for byte. Nothing asks for speaker labels or timestamps, since nothing would show them. A request may go ten minutes without a byte moving either way before it counts as hung, which leaves a service room to transcribe hours before it answers.
+Ten minutes stays well under the shortest of those limits. Each answers with JSON whose `text` is the transcription, and the transcript file is those strings in order, each trimmed and joined by a space. Nothing asks for speaker labels or timestamps, since nothing would show them. A request may go ten minutes without a byte moving either way before it counts as hung, which leaves a slow model room to transcribe a piece before it answers.
 
 ## Built from TypeScript
 

@@ -17,9 +17,6 @@ const LEVEL_MS = 100;
 // transcribed keeps its pill while the next one records.
 let serial = 0;
 
-// A recording in the top bar: how long it has run, and a menu with what it
-// hears and the two ways to end it. The pill stays while the recording is being
-// transcribed, and is what says so.
 export class RecordingIndicator {
     onDiscard: (() => void) | null = null;
     onStop: (() => void) | null = null;
@@ -33,7 +30,7 @@ export class RecordingIndicator {
     #locked = false;
     #transcribing = false;
 
-    constructor(options: {limit: string | null; transcribing: boolean}) {
+    constructor(options: {transcribing: boolean}) {
         this.#button = new PanelMenu.Button(0, 'Murmur recording', false);
         this.#button.add_style_class_name('screen-recording-indicator');
 
@@ -47,8 +44,6 @@ export class RecordingIndicator {
         const microphone = meterRow(menu, 'Microphone');
         const desktop = meterRow(menu, 'Desktop audio');
         this.#levels = {desktop, microphone};
-        if (options.limit)
-            menu.addMenuItem(new PopupMenu.PopupMenuItem(options.limit, {reactive: false}));
         menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
         menuItem(menu, 'Stop and transcribe', () => this.onStop?.());
         menuItem(menu, 'Discard…', () => this.#confirmDiscard());
@@ -87,12 +82,14 @@ export class RecordingIndicator {
         });
     }
 
-    transcribing(): void {
+    transcribing(progress: {of: number; piece: number} | null = null): void {
         this.#transcribing = true;
         this.#closeDialog();
         this.#button.menu.close();
         this.#syncSensitive();
-        this.#label.text = 'Transcribing…';
+        this.#label.text = progress
+            ? `Transcribing… ${progress.piece} of ${progress.of}`
+            : 'Transcribing…';
     }
 
     #confirmDiscard(): void {

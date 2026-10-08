@@ -1,4 +1,7 @@
 import type Gio from 'gi://Gio';
+import GLib from 'gi://GLib';
+
+import {cancellation} from './errors.js';
 
 // GIO's async methods take a callback and a matching *_finish call. Wrapping
 // them here keeps the call sites awaitable without patching prototypes that the
@@ -32,6 +35,25 @@ export function whenCancelled(cancellable: Gio.Cancellable, cancel: () => void):
         cancellable.disconnect(id);
         id = 0;
     };
+}
+
+export function wait(seconds: number, cancellable: Gio.Cancellable): Promise<void> {
+    return new Promise((resolve, reject) => {
+        if (cancellable.is_cancelled()) {
+            reject(cancellation());
+            return;
+        }
+        let release = () => {};
+        const id = GLib.timeout_add(GLib.PRIORITY_DEFAULT, Math.round(seconds * 1000), () => {
+            release();
+            resolve();
+            return GLib.SOURCE_REMOVE;
+        });
+        release = whenCancelled(cancellable, () => {
+            GLib.source_remove(id);
+            reject(cancellation());
+        });
+    });
 }
 
 export type Deferred<T> = {

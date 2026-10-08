@@ -1,20 +1,26 @@
-import type Gio from 'gi://Gio';
+import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import type Gst from 'gi://Gst?version=1.0';
 
-import {deferred} from '../async.js';
-import {errorMessage} from '../errors.js';
+import {deferred, fromAsync, whenCancelled} from '../async.js';
+import {cancellation, errorMessage} from '../errors.js';
+import {deleteFile} from '../files.js';
 import {SAMPLE_RATE} from '../transcription/provider.js';
 
 export type Source = 'desktop' | 'microphone';
+
+export type Stretch = {end: number; start: number};
 
 type Gstreamer = typeof Gst;
 
 type Handlers = {
     onEnd: () => void;
     onError: (message: string) => void;
-    onLevel?: (source: Source, level: number) => void;
+    onLevel?: (level: Level) => void;
+    onPrerolled?: () => void;
 };
+
+type Level = {decibels: number; element: string; seconds: number};
 
 type ValueArray = {get_nth(index: number): unknown};
 
@@ -27,9 +33,13 @@ const LEVEL_INTERVAL_NS = 100 * 1000 * 1000;
 // room with nobody talking in it.
 const METER_RANGE_DB = 50;
 const MIX_CAPS = 'audio/x-raw,format=F32LE,rate=48000,channels=1';
+const NS_PER_SECOND = 1000 * 1000 * 1000;
 // Xiph's recommendation for a podcast, and the rate from which Opus is fullband.
 const OPUS_BITRATE = 24000;
+const PIECE_BITRATE = 32000;
 const PULL_MS = 100;
+const QUIET_INTERVAL_NS = 500 * 1000 * 1000;
+const QUIET_SEARCH_SECONDS = 60;
 const SPEECH_CAPS =
     `audio/x-raw,format=S16LE,rate=${SAMPLE_RATE},channels=1,layout=interleaved`;
 
@@ -37,6 +47,7 @@ const SPEECH_CAPS =
 // milliseconds at a short quantum, and drops what it captures while a source
 // that holds them all is waiting. Its converter allows 32 at most.
 const CAPTURE = 'pipewiresrc min-buffers=32';
+const DECODED = 'oggdemux ! opusdec ! audioconvert';
 // WirePlumber links a capture stream that asks for a sink to the monitor of the
 // default output, and follows it when the default changes.
 const DESKTOP = `${CAPTURE} stream-properties="props,stream.capture.sink=true"`;
@@ -47,9 +58,13 @@ const PACKAGES: Record<string, string> = {
     audioconvert: "GStreamer's base plugins",
     audiomixer: "GStreamer's base plugins",
     audioresample: "GStreamer's base plugins",
+    fakesink: 'GStreamer',
     filesink: 'GStreamer',
+    filesrc: 'GStreamer',
     level: "GStreamer's good plugins",
+    oggdemux: "GStreamer's base plugins",
     oggmux: "GStreamer's base plugins",
+    opusdec: "GStreamer's base plugins",
     opusenc: "GStreamer's base plugins",
     pipewiresrc: "PipeWire's GStreamer plugin",
 };
@@ -58,6 +73,75 @@ let gstreamer: Promise<Gstreamer> | null = null;
 
 export function meterFromDecibels(decibels: number): number {
     return Math.min(1, Math.max(0, (decibels + METER_RANGE_DB) / METER_RANGE_DB));
+}
+
+export async function piecesOf(
+    audio: Gio.File, longest: number, cancellable: Gio.Cancellable): Promise<Stretch[]> {
+    const whole = await Playback.open(
+        `filesrc name=recording ! ${DECODED} ! fakesink`, {recording: audio}, cancellable);
+    const seconds = whole.seconds;
+    whole.close();
+    if (seconds === null)
+        return [{end: Infinity, start: 0}];
+
+    const pieces: Stretch[] = [];
+    let start = 0;
+    while (seconds - start > longest) {
+        const mark = start + longest;
+        const end = await quietestMoment(audio, {
+            end: mark,
+            start: Math.max(start + longest / 2, mark - QUIET_SEARCH_SECONDS),
+        }, cancellable);
+        pieces.push({end, start});
+        start = end;
+    }
+    pieces.push({end: seconds, start});
+    return pieces;
+}
+
+export async function cutPiece(
+    audio: Gio.File, piece: Stretch, cancellable: Gio.Cancellable): Promise<Gio.File> {
+    const [file, stream] = await fromAsync(
+        callback => Gio.file_new_tmp_async('murmur-XXXXXX.ogg', GLib.PRIORITY_DEFAULT,
+            cancellable, callback),
+        result => Gio.file_new_tmp_finish(result));
+    try {
+        await fromAsync(
+            callback => stream.close_async(GLib.PRIORITY_DEFAULT, cancellable, callback),
+            result => stream.close_finish(result));
+        const playback = await Playback.open(
+            `filesrc name=recording ! ${DECODED} ! audioresample ! ` +
+            `opusenc bitrate=${PIECE_BITRATE} ! oggmux ! filesink name=piece`,
+            {piece: file, recording: audio}, cancellable);
+        try {
+            await playback.play(piece);
+        } finally {
+            playback.close();
+        }
+        return file;
+    } catch (error) {
+        await deleteFile(file).catch(() => {});
+        throw error;
+    }
+}
+
+async function quietestMoment(
+    audio: Gio.File, within: Stretch, cancellable: Gio.Cancellable): Promise<number> {
+    const quietest = {decibels: Infinity, seconds: within.end};
+    const playback = await Playback.open(
+        `filesrc name=recording ! ${DECODED} ! level interval=${QUIET_INTERVAL_NS} ! fakesink`,
+        {recording: audio}, cancellable, ({decibels, seconds}) => {
+            if (seconds <= within.start || seconds >= within.end || decibels >= quietest.decibels)
+                return;
+            quietest.decibels = decibels;
+            quietest.seconds = seconds;
+        });
+    try {
+        await playback.play(within);
+    } finally {
+        playback.close();
+    }
+    return quietest.seconds;
 }
 
 export class Microphone {
@@ -189,7 +273,10 @@ export class Recorder {
         const recorder = new Recorder(pipeline);
         handlers.onEnd = () => recorder.#ended.resolve();
         handlers.onError = message => recorder.#fail(message);
-        handlers.onLevel = (source, level) => recorder.onLevel?.(source, level);
+        handlers.onLevel = ({decibels, element}) => {
+            if (element === 'desktop' || element === 'microphone')
+                recorder.onLevel?.(element, meterFromDecibels(decibels));
+        };
 
         pipeline.byName('file')?.set_property('location', path);
         pipeline.start();
@@ -235,6 +322,70 @@ export class Recorder {
     }
 }
 
+class Playback {
+    readonly #ended = deferred<void>();
+    readonly #pipeline: Pipeline;
+    readonly #prerolled = deferred<void>();
+    readonly #release: () => void;
+
+    static async open(
+        description: string, files: Record<string, Gio.File>, cancellable: Gio.Cancellable,
+        onLevel?: (level: Level) => void): Promise<Playback> {
+        const handlers: Handlers = {onEnd: () => {}, onError: () => {}, onLevel};
+        const pipeline = await Pipeline.launch(description, handlers);
+        for (const [name, file] of Object.entries(files)) {
+            const path = file.get_path();
+            if (!path) {
+                pipeline.close();
+                throw new Error(`${file.get_uri()} is not a local file`);
+            }
+            pipeline.byName(name)?.set_property('location', path);
+        }
+
+        const playback = new Playback(pipeline, cancellable);
+        handlers.onEnd = () => playback.#ended.resolve();
+        handlers.onError = message => playback.#fail(new Error(message));
+        handlers.onPrerolled = () => playback.#prerolled.resolve();
+        try {
+            pipeline.pause();
+            await playback.#prerolled.promise;
+        } catch (error) {
+            playback.close();
+            throw error;
+        }
+        return playback;
+    }
+
+    private constructor(pipeline: Pipeline, cancellable: Gio.Cancellable) {
+        this.#pipeline = pipeline;
+        this.#ended.promise.catch(() => {});
+        this.#prerolled.promise.catch(() => {});
+        this.#release = whenCancelled(cancellable, () => this.#fail(cancellation()));
+        if (cancellable.is_cancelled())
+            this.#fail(cancellation());
+    }
+
+    get seconds(): number | null {
+        return this.#pipeline.seconds;
+    }
+
+    async play(stretch: Stretch): Promise<void> {
+        this.#pipeline.seek(stretch);
+        this.#pipeline.start();
+        await this.#ended.promise;
+    }
+
+    close(): void {
+        this.#release();
+        this.#pipeline.close();
+    }
+
+    #fail(error: unknown): void {
+        this.#ended.reject(error);
+        this.#prerolled.reject(error);
+    }
+}
+
 class Pipeline {
     readonly #bin: Gst.Pipeline;
     readonly #bus: Gst.Bus;
@@ -270,12 +421,26 @@ class Pipeline {
         return this.#bin.get_by_name(name);
     }
 
+    get seconds(): number | null {
+        const [known, duration] = this.#bin.query_duration(this.#gst.Format.TIME);
+        return known && Number(duration) > 0 ? Number(duration) / NS_PER_SECOND : null;
+    }
+
+    pause(): void {
+        this.#enter(this.#gst.State.PAUSED);
+    }
+
     start(): void {
-        if (this.#bin.set_state(this.#gst.State.PLAYING) !== this.#gst.StateChangeReturn.FAILURE)
-            return;
-        const reason = this.#bus.pop_filtered(this.#gst.MessageType.ERROR)?.parse_error()[0]?.message;
-        this.close();
-        throw new Error(reason ?? 'the audio could not be opened');
+        this.#enter(this.#gst.State.PLAYING);
+    }
+
+    seek(stretch: Stretch): void {
+        const {Format, SeekFlags, SeekType} = this.#gst;
+        const sought = this.#bin.seek(1.0, Format.TIME, SeekFlags.FLUSH | SeekFlags.ACCURATE,
+            SeekType.SET, Math.round(stretch.start * NS_PER_SECOND),
+            SeekType.SET, Math.round(stretch.end * NS_PER_SECOND));
+        if (!sought)
+            throw new Error('the recording could not be cut');
     }
 
     end(): void {
@@ -292,27 +457,42 @@ class Pipeline {
         this.#bin.set_state(this.#gst.State.NULL);
     }
 
+    #enter(state: Gst.State): void {
+        if (this.#bin.set_state(state) !== this.#gst.StateChangeReturn.FAILURE)
+            return;
+        const reason = this.#bus.pop_filtered(this.#gst.MessageType.ERROR)?.parse_error()[0]?.message;
+        this.close();
+        throw new Error(reason ?? 'the audio could not be opened');
+    }
+
     #onMessage(message: Gst.Message, handlers: Handlers): void {
         const {MessageType} = this.#gst;
         switch (message.type) {
+            case MessageType.ASYNC_DONE:
+                handlers.onPrerolled?.();
+                break;
+            case MessageType.ELEMENT: {
+                const structure = message.get_structure();
+                if (structure?.get_name() !== 'level')
+                    break;
+                const decibels = (structure.get_value('rms') as ValueArray | null)?.get_nth(0);
+                const [, streamTime] = structure.get_uint64('stream-time');
+                const [, duration] = structure.get_uint64('duration');
+                if (typeof decibels === 'number') {
+                    handlers.onLevel?.({
+                        decibels,
+                        element: message.src?.get_name() ?? '',
+                        seconds: (streamTime + duration / 2) / NS_PER_SECOND,
+                    });
+                }
+                break;
+            }
             case MessageType.EOS:
                 handlers.onEnd();
                 break;
             case MessageType.ERROR: {
                 const [error, debug] = message.parse_error();
                 handlers.onError(error?.message ?? debug);
-                break;
-            }
-            case MessageType.ELEMENT: {
-                const source = message.src?.get_name();
-                const structure = message.get_structure();
-                if (structure?.get_name() !== 'level')
-                    break;
-                if (source !== 'desktop' && source !== 'microphone')
-                    break;
-                const decibels = (structure.get_value('rms') as ValueArray | null)?.get_nth(0);
-                if (typeof decibels === 'number')
-                    handlers.onLevel?.(source, meterFromDecibels(decibels));
                 break;
             }
         }

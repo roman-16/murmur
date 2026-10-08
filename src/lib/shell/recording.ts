@@ -3,20 +3,22 @@ import GLib from 'gi://GLib';
 
 import {fromAsync} from '../async.js';
 import {errorMessage, isCancelled} from '../errors.js';
+import {deleteFile} from '../files.js';
 import {type RecordingFile, RecordingFiles} from '../recording-files.js';
 import {readProviderConfig} from '../settings.js';
-import {PROVIDERS} from '../transcription/provider.js';
+import {PROVIDERS, type RecordingTranscriber} from '../transcription/provider.js';
 import {recordingTranscriberFor} from '../transcription/transcription.js';
-import {Recorder} from './audio.js';
+import {cutPiece, piecesOf, Recorder, type Stretch} from './audio.js';
 import {copyText} from './clipboard.js';
-import {clock, duration} from './clock.js';
+import {duration} from './clock.js';
 import {notify} from './notify.js';
 import {RecordingIndicator} from './recording-indicator.js';
+
+const PIECE_SECONDS = 600;
 
 type Active = {
     file: RecordingFile;
     indicator: RecordingIndicator;
-    limitSeconds: number | undefined;
     recorder: Recorder;
     startedUs: number;
     tickId: number;
@@ -78,7 +80,7 @@ export class Recordings {
 
         this.#starting = true;
         try {
-            await this.#start(PROVIDERS[provider.kind].recordingSeconds);
+            await this.#start();
         } catch (error) {
             notify({body: errorMessage(error), title: 'The recording could not start'});
         } finally {
@@ -102,7 +104,7 @@ export class Recordings {
         }
     }
 
-    async #start(limitSeconds: number | undefined): Promise<void> {
+    async #start(): Promise<void> {
         const file = await this.#files.create();
         let recorder: Recorder;
         try {
@@ -117,14 +119,10 @@ export class Recordings {
             return;
         }
 
-        const indicator = this.#indicator({
-            limit: limitSeconds === undefined ? null : `Stops by itself at ${clock(limitSeconds)}`,
-            transcribing: false,
-        });
+        const indicator = this.#indicator({transcribing: false});
         const active: Active = {
             file,
             indicator,
-            limitSeconds,
             recorder,
             startedUs: GLib.get_monotonic_time(),
             tickId: 0,
@@ -166,12 +164,23 @@ export class Recordings {
     async #transcribe(
         file: RecordingFile, seconds: number | null,
         shown: RecordingIndicator | null = null): Promise<void> {
-        const indicator = shown ?? this.#indicator({limit: null, transcribing: true});
+        const indicator = shown ?? this.#indicator({transcribing: true});
         try {
             const provider = readProviderConfig(this.#settings);
             if (!provider.apiKey)
                 throw new Error(`Set your ${PROVIDERS[provider.kind].vendor} API key in the extension preferences`);
-            const text = await recordingTranscriberFor(provider)(file.audio, this.#cancellable);
+            const transcriber = recordingTranscriberFor(provider);
+            const pieces = await piecesOf(file.audio, PIECE_SECONDS, this.#cancellable);
+            const texts: string[] = [];
+            for (const [index, piece] of pieces.entries()) {
+                if (pieces.length === 1) {
+                    texts.push(await transcriber(file.audio, this.#cancellable));
+                    continue;
+                }
+                indicator.transcribing({of: pieces.length, piece: index + 1});
+                texts.push(await this.#transcribePiece(transcriber, file.audio, piece));
+            }
+            const text = texts.map(piece => piece.trim()).filter(Boolean).join(' ');
             await this.#files.save(file, text);
             this.#announce(file, seconds, text);
         } catch (error) {
@@ -184,6 +193,16 @@ export class Recordings {
             });
         } finally {
             this.#drop(indicator);
+        }
+    }
+
+    async #transcribePiece(
+        transcriber: RecordingTranscriber, audio: Gio.File, piece: Stretch): Promise<string> {
+        const cut = await cutPiece(audio, piece, this.#cancellable);
+        try {
+            return await transcriber(cut, this.#cancellable);
+        } finally {
+            await deleteFile(cut).catch(() => {});
         }
     }
 
@@ -208,7 +227,7 @@ export class Recordings {
             .catch(error => console.error(`murmur: recording: ${errorMessage(error)}`));
     }
 
-    #indicator(options: {limit: string | null; transcribing: boolean}): RecordingIndicator {
+    #indicator(options: {transcribing: boolean}): RecordingIndicator {
         const indicator = new RecordingIndicator(options);
         indicator.locked = this.#locked;
         this.#indicators.add(indicator);
@@ -222,12 +241,7 @@ export class Recordings {
     }
 
     #tick(active: Active): void {
-        const seconds = elapsedSeconds(active);
-        active.indicator.elapsed = seconds;
-        if (active.limitSeconds !== undefined && seconds >= active.limitSeconds) {
-            void this.#stop(active);
-            return;
-        }
+        active.indicator.elapsed = elapsedSeconds(active);
         active.tickId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => {
             active.tickId = 0;
             this.#tick(active);
