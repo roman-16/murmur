@@ -33,10 +33,14 @@ const PULL_MS = 100;
 const SPEECH_CAPS =
     `audio/x-raw,format=S16LE,rate=${SAMPLE_RATE},channels=1,layout=interleaved`;
 
+// PipeWire gives a stream two buffers unless it asks for more, a few
+// milliseconds at a short quantum, and drops what it captures while a source
+// that holds them all is waiting. Its converter allows 32 at most.
+const CAPTURE = 'pipewiresrc min-buffers=32';
 // WirePlumber links a capture stream that asks for a sink to the monitor of the
 // default output, and follows it when the default changes.
-const DESKTOP = 'pipewiresrc stream-properties="props,stream.capture.sink=true"';
-const MICROPHONE = 'pipewiresrc';
+const DESKTOP = `${CAPTURE} stream-properties="props,stream.capture.sink=true"`;
+const MICROPHONE = CAPTURE;
 
 const PACKAGES: Record<string, string> = {
     appsink: "GStreamer's base plugins",
@@ -56,7 +60,6 @@ export function meterFromDecibels(decibels: number): number {
     return Math.min(1, Math.max(0, (decibels + METER_RANGE_DB) / METER_RANGE_DB));
 }
 
-// The microphone of a dictation, as whole samples of speech.
 export class Microphone {
     readonly #pipeline: Pipeline;
     readonly #sink: Gst.Element;
@@ -108,7 +111,6 @@ export class Microphone {
         });
     }
 
-    // Stops hearing; what was already heard still arrives, and then the end.
     finish(): void {
         this.#pipeline.end();
     }
@@ -163,8 +165,6 @@ export class Microphone {
     }
 }
 
-// Everything the computer plays and the microphone hears, mixed into one Opus
-// file as it happens.
 export class Recorder {
     onFailure: ((message: string) => void) | null = null;
     onLevel: ((source: Source, level: number) => void) | null = null;
@@ -255,6 +255,11 @@ class Pipeline {
     private constructor(gst: Gstreamer, bin: Gst.Pipeline, handlers: Handlers) {
         this.#bin = bin;
         this.#gst = gst;
+        // pipewiresrc stamps each buffer with the monotonic time it was captured
+        // at and holds it until the pipeline's clock reaches that time. The clock
+        // it offers counts the device's samples and drifts from those stamps, so
+        // the hold would grow for as long as the pipeline runs.
+        bin.use_clock(gst.SystemClock.obtain());
         this.#bus = bin.get_bus();
         this.#bus.add_signal_watch();
         this.#busId = this.#bus.connect('message',
