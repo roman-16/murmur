@@ -98,7 +98,7 @@ A dictation is you talking into a field. A recording is everything: whatever you
 
 **Discard…** in the menu throws the recording away, after asking.
 
-Both files land in `~/Documents/Murmur`, named by the moment the recording started:
+Both files land in the recordings folder, `~/Documents/Murmur` unless you [chose another](configuration.md#recordings-folder), named by the moment the recording started:
 
 | File | What it is |
 | --- | --- |

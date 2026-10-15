@@ -7,6 +7,7 @@ export const Key = {
     mistralApiKey: 'mistral-api-key',
     openrouterApiKey: 'openrouter-api-key',
     openrouterModel: 'openrouter-model',
+    recordingFolder: 'recording-folder',
     rememberDictations: 'remember-dictations',
     showPanelOnStart: 'show-panel-on-start',
     silenceSeconds: 'silence-timeout-seconds',
@@ -87,8 +88,6 @@ export function readIntRange(settings: Gio.Settings, key: string): {lower: numbe
     return {lower, upper};
 }
 
-// A service that transcribes only so much at a stretch decides the real
-// ceiling, so the countdown counts down to the earlier of the two.
 function cappedSeconds(settings: Gio.Settings, kind: ProviderId): number {
     const seconds = settings.get_int(Key.maxDictationSeconds);
     const cap = PROVIDERS[kind].dictationSeconds;

@@ -8,6 +8,7 @@ import {
 
 import {History} from './lib/history.js';
 import {makeDotoolStatusRow} from './lib/prefs/dotool-status.js';
+import {makeRecordingFolderRow} from './lib/prefs/folder.js';
 import {makeHistoryPage} from './lib/prefs/history.js';
 import {makeModelRow} from './lib/prefs/model.js';
 import {makeChoiceRow, makePresetRow, makeSpinRow} from './lib/prefs/rows.js';
@@ -153,11 +154,18 @@ function maxDictationRow(settings: Gio.Settings): Adw.SpinRow {
 function recordingGroup(
     window: Adw.PreferencesWindow, settings: Gio.Settings): Adw.PreferencesGroup {
     const group = new Adw.PreferencesGroup({title: _('Recording')});
-    group.add(makeShortcutRow(window, settings, Key.toggleRecording, {
+    const shortcut = makeShortcutRow(window, settings, Key.toggleRecording, {
         title: _('Recording shortcut'),
-        subtitle: _('Records everything you hear and say, then transcribes it into %s')
-            .replace('%s', recordingPlace()),
-    }));
+        subtitle: '',
+    });
+    const sync = () => {
+        shortcut.subtitle = _('Records everything you hear and say, then transcribes it into %s')
+            .replace('%s', recordingPlace(settings));
+    };
+    sync();
+    settings.connect(`changed::${Key.recordingFolder}`, sync);
+    group.add(shortcut);
+    group.add(makeRecordingFolderRow(window, settings));
     return group;
 }
 

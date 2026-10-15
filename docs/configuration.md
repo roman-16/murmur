@@ -105,9 +105,15 @@ Silence is measured in audio time rather than wall-clock time, so a slow network
 
 Starts recording everything the computer plays and the microphone hears, then stops and transcribes it. `Super+Alt+Space` by default, and a system shortcut like the dictation's, except on the lock screen, where no shortcut of Murmur's is listening.
 
-The audio and the transcript are saved side by side in the `Murmur` folder of your Documents folder, `~/Documents/Murmur` unless your desktop names Documents something else. That is not a setting. The transcript is exactly what the service returned, piece after piece, and the audio is Ogg Opus, mono, at 24 kbit/s.
+The audio and the transcript are saved side by side in the **Recordings folder**. The transcript is exactly what the service returned, piece after piece, and the audio is Ogg Opus, mono, at 24 kbit/s.
 
-A recording has no settings of its own beyond the shortcut: it runs until you stop it, and has no silence stop, since a call has silences in it.
+A recording runs until you stop it, and has no silence stop, since a call has silences in it.
+
+### Recordings folder
+
+Where a recording's audio and transcript are saved, `~/Documents/Murmur` by default. **Choose** picks a folder, and **Reset** goes back to the default. The folder is created on the first recording if it does not exist yet.
+
+The folder is read as a recording starts, so a recording stays where it started even when the folder changes while it runs, and its notifications name the folder it is in. From the command line, a path starting with `~/` is in your home folder.
 
 ## History
 
@@ -154,6 +160,7 @@ gsettings set org.gnome.shell.extensions.murmur openrouter-model meta/muse-voice
 gsettings set org.gnome.shell.extensions.murmur remember-dictations false
 gsettings set org.gnome.shell.extensions.murmur toggle-dictation "['<Super>space']"
 gsettings set org.gnome.shell.extensions.murmur toggle-recording "['<Super><Alt>space']"
+gsettings set org.gnome.shell.extensions.murmur recording-folder '~/Notes/Calls'
 gsettings set org.gnome.shell.extensions.murmur show-panel-on-start false
 gsettings set org.gnome.shell.extensions.murmur transcription-delay-ms 500
 gsettings set org.gnome.shell.extensions.murmur max-dictation-seconds 120
@@ -167,6 +174,7 @@ gsettings set org.gnome.shell.extensions.murmur typing-speed 500
 | `mistral-api-key` | string | empty | |
 | `openrouter-api-key` | string | empty | |
 | `openrouter-model` | string | `meta/muse-voice-transcribe-1.0` | Any model slug OpenRouter transcribes with |
+| `recording-folder` | string | `~/Documents/Murmur` | Any folder; a leading `~` is your home folder |
 | `remember-dictations` | boolean | `true` | |
 | `show-panel-on-start` | boolean | `true` | |
 | `silence-timeout-seconds` | integer | 0 | 0 to 30 |

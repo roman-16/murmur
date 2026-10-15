@@ -15,7 +15,7 @@
 
 Press `Super+Space`, say what you mean, and the words appear where your cursor already is: in a browser, an editor, a chat box or a terminal. No window to switch to, no daemon in the background, and nothing to paste afterwards.
 
-Press `Super+Alt+Space` instead and Murmur records everything your computer plays and your microphone hears - a call in Teams, Meet or Discord, a video, anything - until you press it again. Then it transcribes the lot, and the audio and the transcript sit side by side in `~/Documents/Murmur`.
+Press `Super+Alt+Space` instead and Murmur records everything your computer plays and your microphone hears - a call in Teams, Meet or Discord, a video, anything - until you press it again. Then it transcribes the lot, and the audio and the transcript sit side by side in `~/Documents/Murmur`, or the folder you choose.
 
 - **You keep working while it listens.** A panel the size of a notification appears at the bottom of the screen you are working on; it takes nothing over. Look anywhere else - another window, the overview, the window you were already in - and it collapses by itself, leaving an indicator with the countdown in the top bar. It is on screen exactly while it has your keyboard, so it is never in the way and never swallowing keys.
 - **It lands where you are looking.** Where there is a field, the transcription is typed into it, in any application, terminals included, with nothing pasted and your clipboard untouched. Which field is decided when you stop, so you can go and find it while you talk.
@@ -86,7 +86,7 @@ Want to know whether an application is recognised? Turn on GNOME's on-screen key
 
 Your voice, and while recording everything your computer plays, to the service you picked - `api.mistral.ai` by default, or `api.x.ai` or `openrouter.ai` - over a dictation or recording you started. That is the only connection Murmur makes: no telemetry, no analytics, no update pings.
 
-Dictation audio is never written to disk. The transcription is, on your machine only: the text of each dictation is kept in `~/.local/state/murmur@roman-16.github.io/history.jsonl` so you can read it back later, until you clear it or turn **Remember what I dictate** off. A recording is written to disk whole: its audio and its transcript are saved side by side in `~/Documents/Murmur`, readable by you alone, and stay there until you delete them. Your API key is stored in dconf like every other GNOME setting, which means unencrypted, because extensions have no keyring access. If what you say must not reach a third party, Murmur is the wrong tool. → [Privacy](docs/privacy.md)
+Dictation audio is never written to disk. The transcription is, on your machine only: the text of each dictation is kept in `~/.local/state/murmur@roman-16.github.io/history.jsonl` so you can read it back later, until you clear it or turn **Remember what I dictate** off. A recording is written to disk whole: its audio and its transcript are saved side by side in the recordings folder, `~/Documents/Murmur` unless you choose another, readable by you alone, and stay there until you delete them. Your API key is stored in dconf like every other GNOME setting, which means unencrypted, because extensions have no keyring access. If what you say must not reach a third party, Murmur is the wrong tool. → [Privacy](docs/privacy.md)
 
 ## Documentation
 

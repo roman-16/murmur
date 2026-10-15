@@ -2,6 +2,7 @@ import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 
 import {createPrivately, deleteFile, exists, readText, writePrivately} from './files.js';
+import {Key} from './settings.js';
 
 const AUDIO = '.opus';
 const NAME = /^(\d{4})-(\d{2})-(\d{2})T(\d{2})-(\d{2})-(\d{2})$/;
@@ -10,33 +11,27 @@ const TRANSCRIPT = '.md';
 export type RecordingFile = {
     audio: Gio.File;
     name: string;
+    place: string;
     startedAt: GLib.DateTime | null;
     transcript: Gio.File;
 };
 
-// A recording is its audio and its transcript side by side in Murmur's folder
-// in Documents, named by the local time it started, which sorts as it reads.
-// Which recordings still owe a transcript is kept apart from them, in the
-// extension's state, so a transcript someone deleted is not asked for again.
 export class RecordingFiles {
-    readonly #folder: Gio.File;
+    readonly #settings: Gio.Settings;
     readonly #untranscribed: Gio.File;
 
     #pending: Promise<unknown> = Promise.resolve();
 
-    constructor(uuid: string) {
-        this.#folder = recordingFolder();
+    constructor(settings: Gio.Settings, uuid: string) {
+        this.#settings = settings;
         this.#untranscribed = Gio.File.new_for_path(
             GLib.build_filenamev([GLib.get_user_state_dir(), uuid, 'untranscribed']));
     }
 
-    get place(): string {
-        return recordingPlace();
-    }
-
     async create(): Promise<RecordingFile> {
         const name = GLib.DateTime.new_now_local().format('%Y-%m-%dT%H-%M-%S') ?? 'recording';
-        const recording = recordingOf(this.#folder.get_child(`${name}${AUDIO}`));
+        const folder = recordingFolder(this.#settings);
+        const recording = recordingOf(folder.get_child(`${name}${AUDIO}`));
         await createPrivately(recording.audio);
         const path = recording.audio.get_path();
         await this.#change(paths => (path ? [...paths, path] : paths));
@@ -72,8 +67,6 @@ export class RecordingFiles {
         return (await readText(this.#untranscribed)).split('\n').filter(Boolean);
     }
 
-    // Read, changed and written back while nothing else is, so two changes that
-    // overlap cannot settle on whichever read first.
     #change(change: (paths: string[]) => string[]): Promise<void> {
         const write = async () => {
             const paths = change(await this.#paths());
@@ -85,25 +78,39 @@ export class RecordingFiles {
     }
 }
 
-// The folder as a person would write it.
-export function recordingPlace(): string {
-    const path = recordingFolder().get_path() ?? '';
-    const home = GLib.get_home_dir();
-    return path.startsWith(`${home}/`) ? `~${path.slice(home.length)}` : path;
+export function recordingPlace(settings: Gio.Settings): string {
+    return placeOf(recordingFolder(settings));
 }
 
-function recordingFolder(): Gio.File {
-    const documents = GLib.get_user_special_dir(GLib.UserDirectory.DIRECTORY_DOCUMENTS) ??
-        GLib.build_filenamev([GLib.get_home_dir(), 'Documents']);
-    return Gio.File.new_for_path(GLib.build_filenamev([documents, 'Murmur']));
+export function recordingFolder(settings: Gio.Settings): Gio.File {
+    return folderAt(settings.get_string(Key.recordingFolder) || defaultRecordingFolder(settings));
+}
+
+export function defaultRecordingFolder(settings: Gio.Settings): string {
+    return settings.get_default_value(Key.recordingFolder)?.unpack() as string;
+}
+
+function folderAt(path: string): Gio.File {
+    if (path === '~' || path.startsWith('~/'))
+        return Gio.File.new_for_path(`${GLib.get_home_dir()}${path.slice(1)}`);
+    return Gio.File.new_for_path(path);
+}
+
+function placeOf(folder: Gio.File | null): string {
+    const path = folder?.get_path() ?? '';
+    const home = GLib.get_home_dir();
+    if (path === home)
+        return '~';
+    return path.startsWith(`${home}/`) ? `~${path.slice(home.length)}` : path;
 }
 
 function recordingOf(audio: Gio.File): RecordingFile {
     const basename = audio.get_basename() ?? '';
     const name = basename.endsWith(AUDIO) ? basename.slice(0, -AUDIO.length) : basename;
-    const transcript = audio.get_parent()?.get_child(`${name}${TRANSCRIPT}`) ??
+    const folder = audio.get_parent();
+    const transcript = folder?.get_child(`${name}${TRANSCRIPT}`) ??
         Gio.File.new_for_path(`${name}${TRANSCRIPT}`);
-    return {audio, name, startedAt: startedAt(name), transcript};
+    return {audio, name, place: placeOf(folder), startedAt: startedAt(name), transcript};
 }
 
 function startedAt(name: string): GLib.DateTime | null {

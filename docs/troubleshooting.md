@@ -83,7 +83,7 @@ The recording listens to the monitor of your default output, so sound played thr
 
 ## "The recording could not be transcribed"
 
-The audio is in `~/Documents/Murmur` whatever the reason, and **Retry** sends it again. The notification carries the service's own words: a key it refused, a service that stayed busy through three more tries, or, with OpenRouter, a provider that ran out of time on a piece, in which case another model or another service is the fix. A recording whose notification was dismissed is offered again when you next log in.
+The audio is in the recordings folder, which the notification names, whatever the reason, and **Retry** sends it again. The notification carries the service's own words: a key it refused, a service that stayed busy through three more tries, or, with OpenRouter, a provider that ran out of time on a piece, in which case another model or another service is the fix. A recording whose notification was dismissed is offered again when you next log in.
 
 ## Reading the log
 

@@ -34,7 +34,7 @@ If what you say must not reach a third party, Murmur is the wrong tool, and a lo
 | Your other settings | The same place | Shortcuts, delays, limits |
 | A dictation's transcription | `~/.local/state/murmur@roman-16.github.io/history.jsonl` | **Unencrypted**, one line per dictation, oldest first, the newest 500 kept |
 | A dictation's audio | Nowhere | It goes from the microphone to the network and is never written to disk. With OpenRouter it is held in memory until you stop, and released once it has been sent |
-| A recording's audio | `~/Documents/Murmur/`, as `2026-03-26T22-02-34.opus` | Written as it is recorded, readable by you alone, and kept until you delete it |
+| A recording's audio | The [recordings folder](configuration.md#recordings-folder), `~/Documents/Murmur/` unless you chose another, as `2026-03-26T22-02-34.opus` | Written as it is recorded, readable by you alone, and kept until you delete it |
 | A recording's transcript | Beside its audio, as `2026-03-26T22-02-34.md` | Exactly what the service returned, readable by you alone, kept until you delete it |
 | Which recordings still owe a transcript | `~/.local/state/murmur@roman-16.github.io/untranscribed` | The paths of recordings whose transcription has not come back yet, so they can be offered again; a path leaves once its transcript is written |
 

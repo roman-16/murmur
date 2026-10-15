@@ -27,6 +27,11 @@
       <summary>OpenRouter model</summary>
       <description>Which of the transcription models OpenRouter serves transcribes a dictation or a recording, written as the slug on its model page. The preferences list what OpenRouter currently offers; any slug it accepts can be set here.</description>
     </key>
+    <key name="recording-folder" type="s">
+      <default>'~/Documents/Murmur'</default>
+      <summary>Recordings folder</summary>
+      <description>Folder a recording's audio and transcript are saved in, side by side. A leading ~ is the home folder. A recording stays in the folder it started in.</description>
+    </key>
     <key name="remember-dictations" type="b">
       <default>true</default>
       <summary>Remember what I dictate</summary>
@@ -51,7 +56,7 @@
     <key name="toggle-recording" type="as">
       <default><![CDATA[['<Super><Alt>space']]]></default>
       <summary>Recording shortcut</summary>
-      <description>Shortcut that starts recording everything the computer plays and the microphone hears, then stops and transcribes it. The audio and the transcript are saved side by side in the Murmur folder in Documents.</description>
+      <description>Shortcut that starts recording everything the computer plays and the microphone hears, then stops and transcribes it. The audio and the transcript are saved side by side in the recordings folder.</description>
     </key>
     <key name="transcription-delay-ms" type="i">
       <default>2400</default>

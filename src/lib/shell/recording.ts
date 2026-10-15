@@ -24,9 +24,6 @@ type Active = {
     tickId: number;
 };
 
-// Everything the computer plays and the microphone hears, recorded until it is
-// stopped and then transcribed into a file beside the audio. One records at a
-// time; the one before it may still be transcribing meanwhile.
 export class Recordings {
     readonly #cancellable = new Gio.Cancellable();
     readonly #files: RecordingFiles;
@@ -38,12 +35,10 @@ export class Recordings {
     #starting = false;
 
     constructor(settings: Gio.Settings, uuid: string) {
-        this.#files = new RecordingFiles(uuid);
+        this.#files = new RecordingFiles(settings, uuid);
         this.#settings = settings;
     }
 
-    // What is recording is closed where it stands: the audio up to here stays
-    // on disk, and is offered for transcription the next time Murmur starts.
     destroy(): void {
         this.#cancellable.cancel();
         const active = this.#active;
@@ -96,7 +91,7 @@ export class Recordings {
                     {label: 'Transcribe', run: () => void this.#transcribe(file, null)},
                     {label: 'Leave it', run: () => void this.#forget(file)},
                 ],
-                body: `The audio is in ${this.#files.place}.`,
+                body: `The audio is in ${file.place}.`,
                 title: when
                     ? `A recording from ${when} was never transcribed`
                     : `${file.name} was never transcribed`,
@@ -188,7 +183,7 @@ export class Recordings {
                 return;
             notify({
                 actions: [{label: 'Retry', run: () => void this.#transcribe(file, seconds)}],
-                body: `${errorMessage(error)}\nThe audio is in ${this.#files.place}.`,
+                body: `${errorMessage(error)}\nThe audio is in ${file.place}.`,
                 title: 'The recording could not be transcribed',
             });
         } finally {
