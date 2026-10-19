@@ -8,7 +8,7 @@ import {
     type TranscriptionEvent,
     unhandled
 } from './provider.js';
-import {transcribeUpload} from './upload.js';
+import {textOf, transcribeUpload} from './upload.js';
 
 const RECORDING_URL = 'https://api.x.ai/v1/stt';
 // xAI names no alias for its newest model; a request that names none gets it.
@@ -113,11 +113,11 @@ export class XaiProtocol implements StreamProtocol {
 }
 
 export function xaiRecording(options: {apiKey: string}): RecordingTranscriber {
-    return (audio, cancellable) => transcribeUpload({
+    return async (audio, cancellable) => textOf(await transcribeUpload({
         apiKey: options.apiKey,
         audio,
         cancellable,
         fields: [],
         url: RECORDING_URL,
-    });
+    }));
 }

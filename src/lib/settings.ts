@@ -52,8 +52,9 @@ export function readProvider(settings: Gio.Settings): ProviderId {
     return isProviderId(nick) ? nick : schemaProvider(settings);
 }
 
-export function readProviderConfig(settings: Gio.Settings): ProviderConfig {
-    switch (readProvider(settings)) {
+export function readProviderConfig(
+    settings: Gio.Settings, id: ProviderId = readProvider(settings)): ProviderConfig {
+    switch (id) {
         case 'mistral':
             return {
                 apiKey: settings.get_string(Key.mistralApiKey),

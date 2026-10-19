@@ -85,6 +85,14 @@ The recording listens to the monitor of your default output, so sound played thr
 
 The audio is in the recordings folder, which the notification names, whatever the reason, and **Retry** sends it again. The notification carries the service's own words: a key it refused, a service that stayed busy through three more tries, or, with OpenRouter, a provider that ran out of time on a piece, in which case another model or another service is the fix. A recording whose notification was dismissed is offered again when you next log in.
 
+## A transcript came out wrong
+
+Transcribe it again from **Transcribe a file** in the preferences, with another service: the one that got it wrong mostly gets it wrong the same way. Several languages at once, voices over music or game sound, and people talking over each other are the hard cases for every service.
+
+## "Murmur isn't running"
+
+**Transcribe a file** hands the file to the shell, so it needs Murmur switched on in Extensions. After an update, the shell runs the previous version until you log out and back in.
+
 ## Reading the log
 
 Everything Murmur reports goes to the shell's journal:

@@ -110,3 +110,9 @@ The recording carries on while the screen is locked, and the pill stays in the l
 A recording that cannot be transcribed - no network, a key that was refused - keeps its audio, and the notification offers **Retry**. One that never got that far, because the session ended mid-recording or the notification was dismissed, is offered again the next time you log in, with **Transcribe** or **Leave it**.
 
 Tell the people you are recording. Their voices go to the service as well as yours.
+
+## Transcribe a file, or a recording again
+
+**Transcribe a file** under **Recording** in the preferences opens a file chooser in the recordings folder. Pick any audio - a recording whose transcript came out wrong, a voice memo, a downloaded talk - and the service chosen beside it transcribes it, with the same pill and notification as a recording. The transcript lands beside the audio.
+
+The service that got a recording wrong mostly gets it wrong the same way again, so pick another one for a second try. → [Transcribe a file](configuration.md#transcribe-a-file)

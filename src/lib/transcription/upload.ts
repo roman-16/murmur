@@ -20,14 +20,14 @@ export type Upload = {
     url: string;
 };
 
-type Answer = {detail?: unknown; error?: unknown; message?: unknown; text?: unknown};
+export type Answer = Record<string, unknown>;
 
-type Reply = {text: string} | {reason: string; retry: boolean; retryAfter: number | null};
+type Reply = {answer: Answer} | {reason: string; retry: boolean; retryAfter: number | null};
 
 // A recording goes up as a form with the audio as its last part, which is where
 // xAI requires it. The form is assembled in a file of its own and streamed
 // from there, so hours of audio never pass through the compositor's memory.
-export async function transcribeUpload(upload: Upload): Promise<string> {
+export async function transcribeUpload(upload: Upload): Promise<Answer> {
     const boundary = `murmur-${GLib.uuid_string_random()}`;
     const [form, stream] = await fromAsync(
         callback => Gio.file_new_tmp_async('murmur-XXXXXX.form', GLib.PRIORITY_DEFAULT,
@@ -48,8 +48,8 @@ export async function transcribeUpload(upload: Upload): Promise<string> {
                 callback => form.read_async(GLib.PRIORITY_DEFAULT, upload.cancellable, callback),
                 result => form.read_finish(result));
             const reply = await send(upload, `multipart/form-data; boundary=${boundary}`, body, size);
-            if ('text' in reply)
-                return reply.text;
+            if ('answer' in reply)
+                return reply.answer;
             const delay = RETRY_DELAYS_SECONDS[attempt];
             if (!reply.retry || delay === undefined)
                 throw new Error(reply.reason);
@@ -127,9 +127,15 @@ async function send(
             retryAfter: retryAfter(message),
         };
     }
-    if (typeof answer?.text !== 'string')
+    if (!answer)
         throw new Error('the service sent no transcription');
-    return {text: answer.text};
+    return {answer};
+}
+
+export function textOf(answer: Answer): string {
+    if (typeof answer.text !== 'string')
+        throw new Error('the service sent no transcription');
+    return answer.text;
 }
 
 function retryAfter(message: Soup.Message): number | null {
@@ -142,7 +148,8 @@ function parse(data: Uint8Array | null): Answer | null {
     if (!data)
         return null;
     try {
-        return JSON.parse(new TextDecoder().decode(data)) as Answer;
+        const answer: unknown = JSON.parse(new TextDecoder().decode(data));
+        return typeof answer === 'object' && answer !== null ? answer as Answer : null;
     } catch {
         return null;
     }

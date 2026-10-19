@@ -4,17 +4,19 @@ Murmur transcribes in the cloud. That is a real trade-off, and this page states 
 
 ## What leaves your machine
 
-**Your voice, while you dictate, and everything your computer plays while you record.** Audio goes over an encrypted connection to the service you chose, along with your API key in a request header. That is the only network connection Murmur makes.
+**Your voice, while you dictate, everything your computer plays while you record, and any audio file you choose to transcribe.** Audio goes over an encrypted connection to the service you chose, along with your API key in a request header. That is the only network connection Murmur makes.
 
-| Service | Host | Key travels as | A dictation is sent | A recording is sent |
+| Service | Host | Key travels as | A dictation is sent | A recording or a file is sent |
 | --- | --- | --- | --- | --- |
 | Grok | `api.x.ai` | `Authorization: Bearer` | Streamed over a WebSocket while you speak | In pieces of at most ten minutes, one request each, when you stop |
 | Mistral Voxtral (default) | `api.mistral.ai` | `Authorization: Bearer` | Streamed over a WebSocket while you speak | In pieces of at most ten minutes, one request each, when you stop |
 | OpenRouter | `openrouter.ai` | `Authorization: Bearer` | Whole, in one request, when you stop | In pieces of at most ten minutes, one request each, when you stop |
 
-That is also everything. No usage statistics, no crash reports, no analytics, no update checks, and nothing that identifies Murmur as the client. Murmur contacts one host, and only over a dictation or a recording you started.
+That is also everything. No usage statistics, no crash reports, no analytics, no update checks, and nothing that identifies Murmur as the client. Murmur contacts the host of the service you chose, or of the one you pick for a file, and only over a dictation, a recording or a file transcription you started.
 
 The preferences window makes one further request, and only while OpenRouter is selected: it asks `openrouter.ai` which models transcribe, so the **Model** list is current. It carries no key and nothing about you.
+
+Any program running as you can ask Murmur to transcribe a file, through the same D-Bus call **Transcribe a file** uses, just as it could read your key from dconf and send the file itself. An app sandboxed by Flatpak reaches it only when it has been granted access to `org.gnome.Shell`.
 
 What happens to that audio afterwards is the service's business, governed by their terms and privacy policy for the account the key belongs to. Three things are worth reading before you pick:
 
@@ -36,6 +38,7 @@ If what you say must not reach a third party, Murmur is the wrong tool, and a lo
 | A dictation's audio | Nowhere | It goes from the microphone to the network and is never written to disk. With OpenRouter it is held in memory until you stop, and released once it has been sent |
 | A recording's audio | The [recordings folder](configuration.md#recordings-folder), `~/Documents/Murmur/` unless you chose another, as `2026-03-26T22-02-34.opus` | Written as it is recorded, readable by you alone, and kept until you delete it |
 | A recording's transcript | Beside its audio, as `2026-03-26T22-02-34.md` | Exactly what the service returned, readable by you alone, kept until you delete it |
+| A file's transcript | Beside the file, as `interview.md` for `interview.m4a` | Readable by you alone. One already there is replaced, after asking |
 | Which recordings still owe a transcript | `~/.local/state/murmur@roman-16.github.io/untranscribed` | The paths of recordings whose transcription has not come back yet, so they can be offered again; a path leaves once its transcript is written |
 
 The folder is the Documents folder your desktop names, `~/Documents` unless it is called something else in your language, and Murmur creates `Murmur` inside it readable by you alone. While a recording is being sent, the upload is assembled in a temporary file of the same privacy and deleted afterwards.

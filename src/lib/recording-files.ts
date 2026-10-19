@@ -104,9 +104,10 @@ function placeOf(folder: Gio.File | null): string {
     return path.startsWith(`${home}/`) ? `~${path.slice(home.length)}` : path;
 }
 
-function recordingOf(audio: Gio.File): RecordingFile {
+export function recordingOf(audio: Gio.File): RecordingFile {
     const basename = audio.get_basename() ?? '';
-    const name = basename.endsWith(AUDIO) ? basename.slice(0, -AUDIO.length) : basename;
+    const extension = basename.lastIndexOf('.');
+    const name = extension > 0 ? basename.slice(0, extension) : basename;
     const folder = audio.get_parent();
     const transcript = folder?.get_child(`${name}${TRANSCRIPT}`) ??
         Gio.File.new_for_path(`${name}${TRANSCRIPT}`);

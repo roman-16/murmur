@@ -9,7 +9,7 @@ import {
     type TranscriptionEvent,
     unhandled
 } from './provider.js';
-import {transcribeUpload} from './upload.js';
+import {type Answer, textOf, transcribeUpload} from './upload.js';
 
 const BUSY = /\b(?:MaxQueuedTokensError|QueueOverflowError)\b/;
 const GRPC = /status = StatusCode\.(\w+)\s+details = "([^"]*)"/;
@@ -85,13 +85,29 @@ export class MistralProtocol implements StreamProtocol {
 }
 
 export function mistralRecording(options: {apiKey: string}): RecordingTranscriber {
-    return (audio, cancellable) => transcribeUpload({
+    return async (audio, cancellable) => spaced(await transcribeUpload({
         apiKey: options.apiKey,
         audio,
         cancellable,
-        fields: [['model', RECORDING_MODEL]],
+        fields: [['model', RECORDING_MODEL], ['timestamp_granularities', 'segment']],
         url: RECORDING_URL,
-    });
+    }));
+}
+
+// Mistral transcribes a file in windows of about half a minute and runs them
+// together without a space where one ends on a full stop, in its text and in
+// the first segment of each window alike, so the words are put back together
+// from the segments.
+function spaced(answer: Answer): string {
+    const {segments} = answer;
+    if (!Array.isArray(segments) || segments.length === 0)
+        return textOf(answer);
+    return segments
+        .map(segment => (segment as {text?: unknown}).text)
+        .filter(text => typeof text === 'string')
+        .map(text => text.trim())
+        .filter(Boolean)
+        .join(' ');
 }
 
 // Mistral passes a failure of the servers behind its realtime endpoint through

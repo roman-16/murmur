@@ -34,6 +34,8 @@ OpenRouter's providers give a request about a minute, so a model slow on ten min
 
 Murmur writes the service's text to the file untouched. Nobody is named, nothing is timestamped, and whether it has paragraphs is the model's decision. A recording is one mixed track, so the service cannot tell your voice from the others by where it came from either.
 
+Asking the same service again gets much the same transcript, mistakes included. Transcribing a file again is for trying another service or another model.
+
 ## Over loudspeakers, the others are heard twice
 
 Over loudspeakers your microphone hears the others as well as you, a moment after the desktop audio already did. Speech models cope with the echo, but it does not help them, and headphones give the cleaner transcript.

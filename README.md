@@ -23,6 +23,7 @@ Press `Super+Alt+Space` instead and Murmur records everything your computer play
 - **Nothing is ever lost.** If no text field is focused when you stop, Murmur copies the transcription to the clipboard instead of firing a sentence worth of keystrokes at whatever happens to be in front.
 - **You can go back to what you said.** Every dictation is kept on your machine and listed in the preferences, newest first: click one to copy it, search them, or clear the lot. A field the application reports as a password is never kept.
 - **A recording stays out of the way for hours.** It lives in the top bar alone, as a pill with how long it has run; its menu shows what the microphone and the desktop are hearing, and stops or discards it. It carries on while the screen is locked. When you stop it, a notification opens the transcript or copies it, and a recording that could not be transcribed keeps its audio and asks again.
+- **Any audio file, any time.** **Transcribe a file** in the preferences sends a recording again, or a voice memo or a talk from anywhere, to the service you pick, and saves the transcript beside it.
 
 ## Install
 

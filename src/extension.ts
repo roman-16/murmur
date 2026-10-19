@@ -8,6 +8,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {errorMessage} from './lib/errors.js';
 import {History} from './lib/history.js';
 import {Key, type ShortcutKey} from './lib/settings.js';
+import {MurmurBus} from './lib/shell/bus.js';
 import {Dictation} from './lib/shell/dictation.js';
 import {withdrawAll} from './lib/shell/notify.js';
 import {Recordings} from './lib/shell/recording.js';
@@ -17,6 +18,7 @@ const SHORTCUTS: ShortcutKey[] = [Key.toggleDictation, Key.toggleRecording];
 export default class MurmurExtension extends Extension {
     readonly #bound = new Set<ShortcutKey>();
 
+    #bus: MurmurBus | null = null;
     #dictation: Dictation | null = null;
     #history: History | null = null;
     #recordings: Recordings | null = null;
@@ -29,6 +31,7 @@ export default class MurmurExtension extends Extension {
         this.#settings = settings;
         this.#history = new History(this.uuid);
         this.#recordings = new Recordings(settings, this.uuid);
+        this.#bus = new MurmurBus(this.#recordings);
 
         this.#settingsChangedIds = SHORTCUTS.map(key =>
             settings.connect(`changed::${key}`, () => this.#syncShortcuts()));
@@ -54,6 +57,8 @@ export default class MurmurExtension extends Extension {
         this.#settingsChangedIds = [];
         this.#unbindShortcuts();
 
+        this.#bus?.destroy();
+        this.#bus = null;
         this.#dictation?.destroy();
         this.#dictation = null;
         this.#recordings?.destroy();

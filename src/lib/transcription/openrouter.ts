@@ -10,7 +10,7 @@ import {
     SAMPLE_RATE,
     type Transcription
 } from './provider.js';
-import {transcribeUpload} from './upload.js';
+import {textOf, transcribeUpload} from './upload.js';
 
 const BITS_PER_SAMPLE = 16;
 const CHANNELS = 1;
@@ -175,13 +175,13 @@ export class OpenRouterTranscription implements Transcription {
 
 export function openrouterRecording(
     options: {apiKey: string; model: string}): RecordingTranscriber {
-    return (audio, cancellable) => transcribeUpload({
+    return async (audio, cancellable) => textOf(await transcribeUpload({
         apiKey: options.apiKey,
         audio,
         cancellable,
         fields: [['model', options.model]],
         url: URL,
-    });
+    }));
 }
 
 function parse(data: Uint8Array | null): Answer | null {

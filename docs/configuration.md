@@ -115,6 +115,22 @@ Where a recording's audio and transcript are saved, `~/Documents/Murmur` by defa
 
 The folder is read as a recording starts, so a recording stays where it started even when the folder changes while it runs, and its notifications name the folder it is in. From the command line, a path starting with `~/` is in your home folder.
 
+### Transcribe a file
+
+Transcribes an audio file you choose - a recording again, or audio from anywhere else, in any format GStreamer plays - with the service picked beside it. The list holds the services that have a key, and follows **Service** until you pick another. The file chooser opens in the recordings folder.
+
+The transcript is saved beside the audio under the same name, `interview.md` for `interview.m4a`. When one is already there, Murmur asks before replacing it, and replaces it only once the new transcript is done. The file is transcribed the way a recording is, with its pill, its notification and **Retry**, and billed the same.
+
+The same service gives the same words for the same audio, so a recording transcribed again by the service that got it wrong mostly comes back wrong the same way. Pick another service, or another OpenRouter model.
+
+A script can ask for the same thing over D-Bus, with the file's full path and `mistral`, `openrouter` or `xai`:
+
+```bash
+gdbus call --session --dest org.gnome.Shell --object-path /org/gnome/Shell/Extensions/Murmur --method org.gnome.Shell.Extensions.Murmur.Transcribe ~/Downloads/interview.m4a xai
+```
+
+It answers `()` once the transcription has started, or with the reason it refused: a file that is not there or is not audio, a service with no key, the recording still running, or a file already being transcribed.
+
 ## History
 
 ### Remember what I dictate

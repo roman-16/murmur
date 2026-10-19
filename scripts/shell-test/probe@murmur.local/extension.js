@@ -295,8 +295,9 @@ export default class Probe extends Extension {
         await this.#checkTranscript(MurmurPanel);
         await this.#checkTeardown(DictationIndicator);
         await this.#checkRecordingPill(RecordingIndicator);
-        await this.#checkAudio(murmur.path);
-        this.#checkExtensionCycle(murmur);
+        const recorded = await this.#checkAudio(murmur.path);
+        await this.#checkBus(murmur, recorded);
+        recorded?.delete(null);
         this.#report();
     }
 
@@ -766,7 +767,7 @@ export default class Probe extends Extension {
             await recorder.finish();
         } catch (error) {
             this.#fail('a recording opens', `${error}`);
-            return;
+            return null;
         }
         this.#ok('a recording hears the microphone', heard.has('microphone'));
         this.#ok('a recording hears the desktop', heard.has('desktop'));
@@ -776,7 +777,6 @@ export default class Probe extends Extension {
         this.#ok('a recording is an Ogg Opus file',
             head.startsWith('OggS') && head.includes('OpusHead'), JSON.stringify(head));
         await this.#checkPieces(file, cutPiece, piecesOf);
-        file.delete(null);
 
         const microphone = await Microphone.open();
         let bytes = 0;
@@ -795,6 +795,73 @@ export default class Probe extends Extension {
         this.#ok('a dictation hears the microphone in whole samples', bytes > 0 && whole,
             `${bytes} bytes`);
         this.#ok('a dictation hears the end of what it heard', ended);
+        return file;
+    }
+
+    // What Transcribe a file in the preferences sends, sent the way they send
+    // it: over the session bus to org.gnome.Shell, which is this process. The
+    // file that is accepted is never uploaded, because Murmur is disabled the
+    // moment its pill appears, long before the file is cut and sent.
+    async #checkBus(murmur, recorded) {
+        const call = (path, service) => new Promise(resolve => {
+            Gio.DBus.session.call('org.gnome.Shell', '/org/gnome/Shell/Extensions/Murmur',
+                'org.gnome.Shell.Extensions.Murmur', 'Transcribe',
+                new GLib.Variant('(ss)', [path, service]), null, Gio.DBusCallFlags.NONE, -1,
+                null, (connection, result) => {
+                    try {
+                        connection.call_finish(result);
+                        resolve(null);
+                    } catch (error) {
+                        Gio.DBusError.strip_remote_error(error);
+                        resolve(error.message);
+                    }
+                });
+        });
+        const settings = murmur.stateObj.getSettings();
+        const keys = ['mistral-api-key', 'xai-api-key'];
+        const saved = keys.map(key => settings.get_string(key));
+        settings.set_string('mistral-api-key', 'probe');
+        settings.set_string('xai-api-key', '');
+
+        const cache = GLib.get_user_cache_dir();
+        const notes = GLib.build_filenamev([cache, 'probe-notes.txt']);
+        GLib.file_set_contents(notes, 'not a sound in here\n');
+        const missing = GLib.build_filenamev([cache, 'nowhere', 'probe.opus']);
+        const audio = recorded?.get_path() ?? missing;
+
+        const refused = [
+            ['an unknown service', audio, 'whisper', 'No transcription service is named whisper'],
+            ['a path that is not a full path', 'probe.opus', 'mistral', 'probe.opus is not a full path'],
+            ['a service with no key', audio, 'xai', 'Set your xAI API key in the extension preferences'],
+            ['a file that is not there', missing, 'mistral', `${missing} does not exist`],
+            ['a file that is not audio', notes, 'mistral', "Murmur can't read this file: "],
+        ];
+        for (const [what, path, service, message] of refused) {
+            const answer = await call(path, service);
+            this.#ok(`transcribing refuses ${what}`, answer?.startsWith(message) ?? false,
+                JSON.stringify(answer));
+        }
+        GLib.unlink(notes);
+
+        const before = new Set(Object.keys(Main.panel.statusArea));
+        const answer = recorded ? await call(audio, 'mistral') : 'nothing was recorded';
+        const role = Object.keys(Main.panel.statusArea)
+            .find(key => !before.has(key) && key.startsWith('murmur-recording-'));
+        const labels = role
+            ? this.#descendants(Main.panel.statusArea[role], actor => actor instanceof St.Label)
+                .map(label => label.text)
+            : [];
+        this.#checkExtensionCycle(murmur);
+        this.#ok('transcribing a file is accepted', answer === null, JSON.stringify(answer));
+        this.#ok('a file being transcribed shows its pill', labels.includes('Transcribing…'),
+            JSON.stringify(labels));
+
+        await this.#settle();
+        this.#ok('the pill goes with the extension',
+            role !== undefined && Main.panel.statusArea[role] === undefined);
+        this.#ok('the extension answers on the bus again', await call(missing, 'mistral') ===
+            `${missing} does not exist`);
+        keys.forEach((key, index) => settings.set_string(key, saved[index]));
     }
 
     // A recording goes to the service in pieces, cut out of the file by

@@ -47,7 +47,7 @@ const SPEECH_CAPS =
 // milliseconds at a short quantum, and drops what it captures while a source
 // that holds them all is waiting. Its converter allows 32 at most.
 const CAPTURE = 'pipewiresrc min-buffers=32';
-const DECODED = 'oggdemux ! opusdec ! audioconvert';
+const DECODED = 'decodebin ! audioconvert ! audio/x-raw,channels=1';
 // WirePlumber links a capture stream that asks for a sink to the monitor of the
 // default output, and follows it when the default changes.
 const DESKTOP = `${CAPTURE} stream-properties="props,stream.capture.sink=true"`;
@@ -58,13 +58,12 @@ const PACKAGES: Record<string, string> = {
     audioconvert: "GStreamer's base plugins",
     audiomixer: "GStreamer's base plugins",
     audioresample: "GStreamer's base plugins",
+    decodebin: "GStreamer's base plugins",
     fakesink: 'GStreamer',
     filesink: 'GStreamer',
     filesrc: 'GStreamer',
     level: "GStreamer's good plugins",
-    oggdemux: "GStreamer's base plugins",
     oggmux: "GStreamer's base plugins",
-    opusdec: "GStreamer's base plugins",
     opusenc: "GStreamer's base plugins",
     pipewiresrc: "PipeWire's GStreamer plugin",
 };
@@ -75,12 +74,18 @@ export function meterFromDecibels(decibels: number): number {
     return Math.min(1, Math.max(0, (decibels + METER_RANGE_DB) / METER_RANGE_DB));
 }
 
-export async function piecesOf(
-    audio: Gio.File, longest: number, cancellable: Gio.Cancellable): Promise<Stretch[]> {
+export async function lengthOf(
+    audio: Gio.File, cancellable: Gio.Cancellable): Promise<number | null> {
     const whole = await Playback.open(
         `filesrc name=recording ! ${DECODED} ! fakesink`, {recording: audio}, cancellable);
     const seconds = whole.seconds;
     whole.close();
+    return seconds;
+}
+
+export async function piecesOf(
+    audio: Gio.File, longest: number, cancellable: Gio.Cancellable): Promise<Stretch[]> {
+    const seconds = await lengthOf(audio, cancellable);
     if (seconds === null)
         return [{end: Infinity, start: 0}];
 
@@ -436,9 +441,11 @@ class Pipeline {
 
     seek(stretch: Stretch): void {
         const {Format, SeekFlags, SeekType} = this.#gst;
+        const bounded = Number.isFinite(stretch.end);
         const sought = this.#bin.seek(1.0, Format.TIME, SeekFlags.FLUSH | SeekFlags.ACCURATE,
             SeekType.SET, Math.round(stretch.start * NS_PER_SECOND),
-            SeekType.SET, Math.round(stretch.end * NS_PER_SECOND));
+            bounded ? SeekType.SET : SeekType.NONE,
+            bounded ? Math.round(stretch.end * NS_PER_SECOND) : 0);
         if (!sought)
             throw new Error('the recording could not be cut');
     }

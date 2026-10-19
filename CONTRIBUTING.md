@@ -54,7 +54,7 @@ Inside that session the shortcuts are **`Super+J`** to dictate and **`Super+K`**
 src/extension.ts       the shell half: the shortcuts, the lock screen, and the two features it wires up
 src/prefs.ts           the preferences half
 src/stylesheet.css     geometry for the panel; its colours come from the shell theme
-src/lib/               shared by both, Gio and GLib only: settings, history, the recording files
+src/lib/               shared by both, Gio and GLib only: settings, history, the recording files, the D-Bus contract
 src/lib/shell/         shell-only: dictation, recording, audio, panel, indicators, insertion, focus, notifications
 src/lib/prefs/         preferences-only: rows, shortcut capture, dotool diagnostics, history page
 src/lib/transcription/ the ways audio becomes text, and the table of services
@@ -64,7 +64,9 @@ src/lib/transcription/ the ways audio becomes text, and the table of services
 
 A dictation is `dictation.ts`, the panel and the delivery, around `session.ts`, which meters the microphone, watches for silence, and hands the audio to a `Transcription` - the seam every service's dictation comes through: fed chunks, told when the microphone is released, and finally the words. There are two implementations of it. `stream.ts` holds a WebSocket open for the dictation and drives a `StreamProtocol` - the endpoint, the frames to send, and the events to make of what comes back, which is most of `mistral.ts` and `xai.ts`. `openrouter.ts` is the other: it keeps the audio and sends it in one request when the dictation ends.
 
-A recording is `recording.ts`, the pill and the notifications, around `recording-files.ts`, which names the files and remembers which still owe a transcript. A recording longer than ten minutes goes to the service in pieces, and its seam is a `RecordingTranscriber`, one piece's audio file in and the service's text out. Each service's is a few lines over `upload.ts`, which streams the file up as a form and sends it again when the service is busy.
+A recording is `recording.ts`, the pill and the notifications, around `recording-files.ts`, which names the files and remembers which still owe a transcript. A recording goes to the service in pieces of at most ten minutes, and its seam is a `RecordingTranscriber`, one piece's audio file in and the service's text out. Each service's is a few lines over `upload.ts`, which streams the file up as a form, sends it again when the service is busy, and hands back the service's answer for the service to read its text from.
+
+A file picked under **Transcribe a file** goes through the same `Recordings`. The preferences cannot run it, since their process ends with the window, so they hand it to the shell over D-Bus: `bus.ts` puts a `Transcribe` method on the shell's own session-bus connection, under the path and interface `murmur-bus.ts` names for both halves.
 
 Adding a service means one module holding both halves, a row in `PROVIDERS`, and its keys in the schema. Nothing else in Murmur knows which one is selected.
 
@@ -103,6 +105,7 @@ Everything past that is the compositor, and the interesting failures are all in 
 - **all three transcription services**, since each speaks its own protocol and only one of them is exercised by a dictation - and OpenRouter is the one that transcribes nothing until the microphone closes. `MURMUR_PROVIDER=openrouter just dev` switches the throwaway session over,
 - a **recording** with each service, with something playing and something said, stopped both from the shortcut and from the pill's menu, then **Open** and **Copy** on its notification, and **Discard…**,
 - a recording's failure, with the network off when it stops: **Retry** once it is back, and the offer on the next start for one whose notification was dismissed,
+- **Transcribe a file**, with a recording that already has a transcript, an audio file from elsewhere in another format, a file that is not audio, and with Murmur switched off in Extensions,
 - **locking the screen** mid-recording and mid-dictation: the recording carries on with its pill and its menu shut, the dictation ends, and neither shortcut answers until you unlock.
 
 `journalctl --user --follow /usr/bin/gnome-shell | grep --ignore-case murmur` shows what the extension reports.

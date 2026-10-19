@@ -70,7 +70,7 @@ export function unhandled(event: never): TranscriptionEvent[] {
 }
 
 export function isProviderId(nick: string): nick is ProviderId {
-    return nick in PROVIDERS;
+    return Object.hasOwn(PROVIDERS, nick);
 }
 
 export function endpoint(url: string): string {

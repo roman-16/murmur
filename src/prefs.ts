@@ -13,6 +13,7 @@ import {makeHistoryPage} from './lib/prefs/history.js';
 import {makeModelRow} from './lib/prefs/model.js';
 import {makeChoiceRow, makePresetRow, makeSpinRow} from './lib/prefs/rows.js';
 import {makeShortcutRow} from './lib/prefs/shortcut.js';
+import {makeTranscribeFileRow} from './lib/prefs/transcribe.js';
 import {recordingPlace} from './lib/recording-files.js';
 import {Key, readIntRange, readProvider} from './lib/settings.js';
 import {PROVIDER_IDS, PROVIDERS, type ProviderId} from './lib/transcription/provider.js';
@@ -166,6 +167,7 @@ function recordingGroup(
     settings.connect(`changed::${Key.recordingFolder}`, sync);
     group.add(shortcut);
     group.add(makeRecordingFolderRow(window, settings));
+    group.add(makeTranscribeFileRow(window, settings));
     return group;
 }
 

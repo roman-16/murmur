@@ -3,12 +3,17 @@ import GLib from 'gi://GLib';
 
 import {fromAsync} from '../async.js';
 import {errorMessage, isCancelled} from '../errors.js';
-import {deleteFile} from '../files.js';
-import {type RecordingFile, RecordingFiles} from '../recording-files.js';
-import {readProviderConfig} from '../settings.js';
-import {PROVIDERS, type RecordingTranscriber} from '../transcription/provider.js';
+import {deleteFile, exists} from '../files.js';
+import {type RecordingFile, RecordingFiles, recordingOf} from '../recording-files.js';
+import {readProvider, readProviderConfig} from '../settings.js';
+import {
+    isProviderId,
+    type ProviderId,
+    PROVIDERS,
+    type RecordingTranscriber
+} from '../transcription/provider.js';
 import {recordingTranscriberFor} from '../transcription/transcription.js';
-import {cutPiece, piecesOf, Recorder, type Stretch} from './audio.js';
+import {cutPiece, lengthOf, piecesOf, Recorder, type Stretch} from './audio.js';
 import {copyText} from './clipboard.js';
 import {duration} from './clock.js';
 import {notify} from './notify.js';
@@ -29,6 +34,7 @@ export class Recordings {
     readonly #files: RecordingFiles;
     readonly #indicators = new Set<RecordingIndicator>();
     readonly #settings: Gio.Settings;
+    readonly #transcribing = new Set<string>();
 
     #active: Active | null = null;
     #locked = false;
@@ -88,7 +94,10 @@ export class Recordings {
             const when = file.startedAt?.format('%d.%m.%Y %H:%M');
             notify({
                 actions: [
-                    {label: 'Transcribe', run: () => void this.#transcribe(file, null)},
+                    {
+                        label: 'Transcribe',
+                        run: () => void this.#transcribe(file, readProvider(this.#settings)),
+                    },
                     {label: 'Leave it', run: () => void this.#forget(file)},
                 ],
                 body: `The audio is in ${file.place}.`,
@@ -97,6 +106,31 @@ export class Recordings {
                     : `${file.name} was never transcribed`,
             });
         }
+    }
+
+    async transcribeFile(path: string, service: string): Promise<void> {
+        if (!isProviderId(service))
+            throw new Error(`No transcription service is named ${service}`);
+        if (!GLib.path_is_absolute(path))
+            throw new Error(`${path} is not a full path`);
+        const file = recordingOf(Gio.File.new_for_path(path));
+        const name = file.audio.get_basename() ?? path;
+        if (file.transcript.equal(file.audio))
+            throw new Error(`${name} would be written over by its own transcript`);
+        if (!readProviderConfig(this.#settings, service).apiKey)
+            throw new Error(`Set your ${PROVIDERS[service].vendor} API key in the extension preferences`);
+        if (this.#active?.file.audio.equal(file.audio))
+            throw new Error('That recording is still going - stop it first');
+        if (!await exists(file.audio))
+            throw new Error(`${path} does not exist`);
+        try {
+            await lengthOf(file.audio, this.#cancellable);
+        } catch (error) {
+            throw new Error(`Murmur can't read this file: ${errorMessage(error)}`);
+        }
+        if (this.#transcribing.has(keyOf(file)))
+            throw new Error(`${name} is already being transcribed`);
+        void this.#transcribe(file, service);
     }
 
     async #start(): Promise<void> {
@@ -139,10 +173,9 @@ export class Recordings {
             return;
         this.#active = null;
         clearTick(active);
-        const seconds = elapsedSeconds(active);
         active.indicator.transcribing();
         await active.recorder.finish();
-        await this.#transcribe(active.file, seconds, active.indicator);
+        await this.#transcribe(active.file, readProvider(this.#settings), active.indicator);
     }
 
     async #discard(active: Active): Promise<void> {
@@ -157,36 +190,41 @@ export class Recordings {
     }
 
     async #transcribe(
-        file: RecordingFile, seconds: number | null,
+        file: RecordingFile, service: ProviderId,
         shown: RecordingIndicator | null = null): Promise<void> {
+        const key = keyOf(file);
+        if (this.#transcribing.has(key)) {
+            if (shown)
+                this.#drop(shown);
+            return;
+        }
+        this.#transcribing.add(key);
         const indicator = shown ?? this.#indicator({transcribing: true});
         try {
-            const provider = readProviderConfig(this.#settings);
+            const provider = readProviderConfig(this.#settings, service);
             if (!provider.apiKey)
-                throw new Error(`Set your ${PROVIDERS[provider.kind].vendor} API key in the extension preferences`);
+                throw new Error(`Set your ${PROVIDERS[service].vendor} API key in the extension preferences`);
             const transcriber = recordingTranscriberFor(provider);
             const pieces = await piecesOf(file.audio, PIECE_SECONDS, this.#cancellable);
             const texts: string[] = [];
             for (const [index, piece] of pieces.entries()) {
-                if (pieces.length === 1) {
-                    texts.push(await transcriber(file.audio, this.#cancellable));
-                    continue;
-                }
-                indicator.transcribing({of: pieces.length, piece: index + 1});
+                if (pieces.length > 1)
+                    indicator.transcribing({of: pieces.length, piece: index + 1});
                 texts.push(await this.#transcribePiece(transcriber, file.audio, piece));
             }
             const text = texts.map(piece => piece.trim()).filter(Boolean).join(' ');
             await this.#files.save(file, text);
-            this.#announce(file, seconds, text);
+            this.#announce(file, secondsOf(pieces), text);
         } catch (error) {
             if (isCancelled(error) || this.#cancellable.is_cancelled())
                 return;
             notify({
-                actions: [{label: 'Retry', run: () => void this.#transcribe(file, seconds)}],
+                actions: [{label: 'Retry', run: () => void this.#transcribe(file, service)}],
                 body: `${errorMessage(error)}\nThe audio is in ${file.place}.`,
                 title: 'The recording could not be transcribed',
             });
         } finally {
+            this.#transcribing.delete(key);
             this.#drop(indicator);
         }
     }
@@ -247,6 +285,15 @@ export class Recordings {
 
 function elapsedSeconds(active: Active): number {
     return Math.floor((GLib.get_monotonic_time() - active.startedUs) / 1000000);
+}
+
+function keyOf(file: RecordingFile): string {
+    return file.audio.get_path() ?? file.audio.get_uri();
+}
+
+function secondsOf(pieces: Stretch[]): number | null {
+    const end = pieces.at(-1)?.end ?? Infinity;
+    return Number.isFinite(end) ? Math.round(end) : null;
 }
 
 function clearTick(active: Active): void {
