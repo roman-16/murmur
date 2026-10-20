@@ -32,8 +32,9 @@ if [ -z "$app_id" ]; then
 fi
 
 gsettings set org.gnome.desktop.interface color-scheme prefer-dark
-# Transitions never advance in the development kit, which would leave the
-# overlay stuck at the opacity its fade-in starts from.
+# With animations off the shell applies an eased value at once, so the take
+# shows the panel as it settles rather than whichever step of a fade the
+# capture happened to catch.
 gsettings set org.gnome.desktop.interface enable-animations false
 
 # Launched over D-Bus so it opens in the nested session rather than the host

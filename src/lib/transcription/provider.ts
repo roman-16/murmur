@@ -1,6 +1,8 @@
 import type Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 
+import type {Transcribed} from '../transcript.js';
+
 export const SAMPLE_RATE = 16000;
 
 export type ProviderId = 'mistral' | 'openrouter' | 'xai';
@@ -16,6 +18,7 @@ export const PROVIDER_IDS: ProviderId[] = ['mistral', 'openrouter', 'xai'];
 
 export const PROVIDERS: Record<ProviderId, Provider> = {
     mistral: {
+        dictationSeconds: 600,
         keySource: 'console.mistral.ai',
         label: 'Mistral Voxtral',
         vendor: 'Mistral',
@@ -44,7 +47,6 @@ export type StreamProtocol = {
     audio(chunk: Uint8Array): Frame[];
     end(): Frame[];
     readonly headers: [string, string][];
-    open(): Frame[];
     readonly ready: boolean;
     receive(message: string): TranscriptionEvent[];
     readonly url: string;
@@ -57,8 +59,10 @@ export type Transcription = {
     readonly text: Promise<string>;
 };
 
+export type DictationSender = (wave: Uint8Array, cancellable: Gio.Cancellable) => Promise<string>;
+
 export type RecordingTranscriber = (
-    audio: Gio.File, cancellable: Gio.Cancellable) => Promise<string>;
+    audio: Gio.File, options: {diarize: boolean}, cancellable: Gio.Cancellable) => Promise<Transcribed>;
 
 export function oneLine(text: string): string {
     return text.replace(/\s+/g, ' ').trim();
@@ -83,4 +87,12 @@ export function errorText(error: {message?: string} | string | undefined): strin
     if (typeof error?.message === 'string')
         return error.message;
     return JSON.stringify(error);
+}
+
+export function termsWithin(terms: string[], limits: {count: number; length: number}): string[] {
+    return terms.filter(term => term.length <= limits.length).slice(0, limits.count);
+}
+
+export function numberOr(value: unknown, fallback: number): number {
+    return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
 }

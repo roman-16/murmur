@@ -4,12 +4,12 @@ Murmur transcribes in the cloud. That is a real trade-off, and this page states 
 
 ## What leaves your machine
 
-**Your voice, while you dictate, everything your computer plays while you record, and any audio file you choose to transcribe.** Audio goes over an encrypted connection to the service you chose, along with your API key in a request header. That is the only network connection Murmur makes.
+**Your voice, while you dictate, everything your computer plays while you record, and any audio file you choose to transcribe.** Audio goes over an encrypted connection to the service you chose, along with your API key in a request header and the **Names and terms** you listed. Your own name, which a transcript gives your lines, is added on your machine and never sent. That is the only network connection Murmur makes.
 
 | Service | Host | Key travels as | A dictation is sent | A recording or a file is sent |
 | --- | --- | --- | --- | --- |
 | Grok | `api.x.ai` | `Authorization: Bearer` | Streamed over a WebSocket while you speak | In pieces of at most ten minutes, one request each, when you stop |
-| Mistral Voxtral (default) | `api.mistral.ai` | `Authorization: Bearer` | Streamed over a WebSocket while you speak | In pieces of at most ten minutes, one request each, when you stop |
+| Mistral Voxtral (default) | `api.mistral.ai` | `Authorization: Bearer` | Whole, in one request, when you stop | In pieces of at most ten minutes, one request each, when you stop |
 | OpenRouter | `openrouter.ai` | `Authorization: Bearer` | Whole, in one request, when you stop | In pieces of at most ten minutes, one request each, when you stop |
 
 That is also everything. No usage statistics, no crash reports, no analytics, no update checks, and nothing that identifies Murmur as the client. Murmur contacts the host of the service you chose, or of the one you pick for a file, and only over a dictation, a recording or a file transcription you started.
@@ -33,11 +33,11 @@ If what you say must not reach a third party, Murmur is the wrong tool, and a lo
 | What | Where | Notes |
 | --- | --- | --- |
 | Your API keys | dconf, under `/org/gnome/shell/extensions/murmur/` | **Unencrypted**, like every GSettings value. Any process running as you can read it. Each service keeps its own, and the one you are not using stays there until you clear it |
-| Your other settings | The same place | Shortcuts, delays, limits |
+| Your other settings | The same place | Shortcuts, limits, your names and terms |
 | A dictation's transcription | `~/.local/state/murmur@roman-16.github.io/history.jsonl` | **Unencrypted**, one line per dictation, oldest first, the newest 500 kept |
-| A dictation's audio | Nowhere | It goes from the microphone to the network and is never written to disk. With OpenRouter it is held in memory until you stop, and released once it has been sent |
+| A dictation's audio | Nowhere | It goes from the microphone to the network and is never written to disk. With Mistral or OpenRouter it is held in memory until you stop, and released once it has been sent |
 | A recording's audio | The [recordings folder](configuration.md#recordings-folder), `~/Documents/Murmur/` unless you chose another, as `2026-03-26T22-02-34.opus` | Written as it is recorded, readable by you alone, and kept until you delete it |
-| A recording's transcript | Beside its audio, as `2026-03-26T22-02-34.md` | Exactly what the service returned, readable by you alone, kept until you delete it |
+| A recording's transcript | Beside its audio, as `2026-03-26T22-02-34.md` | The service's words, with the times and the speakers Murmur puts to them, readable by you alone, kept until you delete it |
 | A file's transcript | Beside the file, as `interview.md` for `interview.m4a` | Readable by you alone. One already there is replaced, after asking |
 | Which recordings still owe a transcript | `~/.local/state/murmur@roman-16.github.io/untranscribed` | The paths of recordings whose transcription has not come back yet, so they can be offered again; a path leaves once its transcript is written |
 
@@ -75,6 +75,6 @@ Transcription is billed to the account the key belongs to, by the audio you send
 
 | Service | An hour of dictation | An hour of recording |
 | --- | --- | --- |
-| Grok | About $0.20 | About $0.10 |
-| Mistral Voxtral | About $0.36 | About $0.18 |
+| Grok | About $0.20 | About $0.10 for each channel with something on it, so about $0.20 for a call where both sides talk |
+| Mistral Voxtral | About $0.18 | About $0.18 for each channel with something on it, so about $0.38 for a call where both sides talk |
 | OpenRouter | The selected model's own price, from about $0.18. Each model's page at [openrouter.ai](https://openrouter.ai/models?output_modalities=transcription) states it, and every request answers with what it cost | The same |

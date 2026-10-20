@@ -37,7 +37,7 @@ trap cleanup EXIT INT TERM
 
 # A scripted endpoint instead of the real one: the take is then the same every
 # time, costs nothing, and needs no key and no network.
-bun scripts/demo/voxtral-mock.ts >"$tmp/mock.url" &
+bun scripts/demo/grok-mock.ts >"$tmp/mock.url" &
 mock=$!
 for _ in $(seq 40); do
     [ -s "$tmp/mock.url" ] && break
@@ -50,10 +50,10 @@ fi
 
 export MURMUR_REALTIME_URL
 MURMUR_REALTIME_URL=$(head -1 "$tmp/mock.url")
-# The mock speaks Voxtral's protocol, so the take is recorded against that
+# The mock speaks Grok's protocol, so the take is recorded against that
 # service whatever the environment prefers.
-export MISTRAL_API_KEY=${MISTRAL_API_KEY:-demo}
-export MURMUR_PROVIDER=mistral
+export XAI_API_KEY=${XAI_API_KEY:-demo}
+export MURMUR_PROVIDER=xai
 
 # The take is recorded with the shortcut the documentation names, so the session
 # behaves like the one the README describes.
@@ -61,6 +61,7 @@ export DEMO_CAPTURE="$tmp/demo"
 export DEMO_DONE_FILE="$tmp/done"
 export DEMO_RECORDING_FILE="$DEMO_CAPTURE.recording"
 export NESTED_EXTENSIONS="scripts/demo/driver@murmur.local"
+export NESTED_HEADLESS=1 NESTED_SCREENS=1
 export DICTATION_SHORTCUT=${DEMO_SHORTCUT:-<Super>space}
 
 scripts/nested-shell.sh scripts/demo/session.sh

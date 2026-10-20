@@ -5,6 +5,7 @@ import {isProviderId, PROVIDERS, type ProviderId} from './transcription/provider
 export const Key = {
     maxDictationSeconds: 'max-dictation-seconds',
     mistralApiKey: 'mistral-api-key',
+    namesAndTerms: 'names-and-terms',
     openrouterApiKey: 'openrouter-api-key',
     openrouterModel: 'openrouter-model',
     recordingFolder: 'recording-folder',
@@ -13,7 +14,6 @@ export const Key = {
     silenceSeconds: 'silence-timeout-seconds',
     toggleDictation: 'toggle-dictation',
     toggleRecording: 'toggle-recording',
-    transcriptionDelayMs: 'transcription-delay-ms',
     transcriptionProvider: 'transcription-provider',
     typingSpeed: 'typing-speed',
     xaiApiKey: 'xai-api-key',
@@ -22,9 +22,9 @@ export const Key = {
 export type ShortcutKey = typeof Key.toggleDictation | typeof Key.toggleRecording;
 
 export type ProviderConfig =
-    | {apiKey: string; delayMs: number; kind: 'mistral'}
-    | {apiKey: string; kind: 'openrouter'; model: string}
-    | {apiKey: string; kind: 'xai'};
+    | {apiKey: string; kind: 'mistral'; terms: string[]}
+    | {apiKey: string; kind: 'openrouter'; model: string; terms: string[]}
+    | {apiKey: string; kind: 'xai'; terms: string[]};
 
 export type DictationConfig = {
     maxSeconds: number;
@@ -54,25 +54,28 @@ export function readProvider(settings: Gio.Settings): ProviderId {
 
 export function readProviderConfig(
     settings: Gio.Settings, id: ProviderId = readProvider(settings)): ProviderConfig {
+    const terms = readTerms(settings);
     switch (id) {
         case 'mistral':
-            return {
-                apiKey: settings.get_string(Key.mistralApiKey),
-                delayMs: settings.get_int(Key.transcriptionDelayMs),
-                kind: 'mistral',
-            };
+            return {apiKey: settings.get_string(Key.mistralApiKey), kind: 'mistral', terms};
         case 'openrouter':
             return {
                 apiKey: settings.get_string(Key.openrouterApiKey),
                 kind: 'openrouter',
                 model: settings.get_string(Key.openrouterModel),
+                terms,
             };
         case 'xai':
-            return {
-                apiKey: settings.get_string(Key.xaiApiKey),
-                kind: 'xai',
-            };
+            return {apiKey: settings.get_string(Key.xaiApiKey), kind: 'xai', terms};
     }
+}
+
+export function readTerms(settings: Gio.Settings): string[] {
+    return termsOf(settings.get_strv(Key.namesAndTerms).join(','));
+}
+
+export function termsOf(text: string): string[] {
+    return [...new Set(text.split(',').map(term => term.trim().replace(/\s+/g, ' ')).filter(Boolean))];
 }
 
 export function readAccelerator(settings: Gio.Settings, key: ShortcutKey): string {

@@ -15,7 +15,7 @@ import {makeChoiceRow, makePresetRow, makeSpinRow} from './lib/prefs/rows.js';
 import {makeShortcutRow} from './lib/prefs/shortcut.js';
 import {makeTranscribeFileRow} from './lib/prefs/transcribe.js';
 import {recordingPlace} from './lib/recording-files.js';
-import {Key, readIntRange, readProvider} from './lib/settings.js';
+import {Key, readIntRange, readProvider, readTerms, termsOf} from './lib/settings.js';
 import {PROVIDER_IDS, PROVIDERS, type ProviderId} from './lib/transcription/provider.js';
 
 const TYPING_SPEEDS = [10, 20, 50, 100, 200, 500, 1000, 2000, 5000];
@@ -49,22 +49,31 @@ function transcriptionGroup(settings: Gio.Settings): Adw.PreferencesGroup {
             .map(id => ({label: PROVIDERS[id].label, value: id}))
             .sort((first, second) => first.label.localeCompare(second.label)),
     }));
+    group.add(termsRow(settings));
     return group;
+}
+
+function termsRow(settings: Gio.Settings): Adw.EntryRow {
+    const row = new Adw.EntryRow({
+        show_apply_button: true,
+        title: _('Names and terms'),
+        tooltip_text: _('Separated by commas, and spelled the way a transcript should spell them. Every dictation, recording and file takes them to the service'),
+    });
+    const sync = () => {
+        row.text = readTerms(settings).join(', ');
+    };
+    sync();
+    settings.connect(`changed::${Key.namesAndTerms}`, sync);
+    row.connect('apply', () => {
+        settings.set_strv(Key.namesAndTerms, termsOf(row.text));
+        sync();
+    });
+    return row;
 }
 
 function mistralGroup(settings: Gio.Settings): Adw.PreferencesGroup {
     const group = providerGroup(settings, 'mistral');
     group.add(apiKeyRow(settings, Key.mistralApiKey));
-    group.add(makePresetRow(settings, Key.transcriptionDelayMs, {
-        title: _('Transcription delay'),
-        subtitle: _('Longer delays give the model more context and better accuracy'),
-        presets: [
-            {value: 240, label: _('Instant (240 ms)')},
-            {value: 500, label: _('Fast (500 ms)')},
-            {value: 1000, label: _('Balanced (1 s)')},
-            {value: 2400, label: _('Accurate (2.4 s)')},
-        ],
-    }));
     return group;
 }
 

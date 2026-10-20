@@ -26,7 +26,7 @@ Murmur hears through GStreamer, inside the shell, and needs its base and good pl
 - **Check the microphone.** *Settings → Sound → Input* should show the level moving while you speak. Murmur listens to the default input device.
 - **Check the key.** A key that is invalid, expired or out of quota surfaces as an error notification carrying the service's own words - Mistral says *Invalid API Key*. xAI turns a key away before a dictation's connection opens, so what reaches you is its status instead: *the service refused the connection (400 Bad Request)* means the key is not one xAI knows.
 - **Check the network.** Transcription reaches `api.x.ai`, `api.mistral.ai` or `openrouter.ai`, depending on the service; without it the dictation produces nothing.
-- **With OpenRouter, nothing appears until you stop.** That is the service, not a fault: it transcribes the dictation in one go rather than as you speak. See [Limitations](limitations.md).
+- **With Mistral or OpenRouter, nothing appears until you stop.** That is how they work, not a fault: they transcribe the dictation in one go rather than as you speak. See [Limitations](limitations.md).
 - **"The service did not start a transcription session"** means the connection was accepted and then went quiet, which is the service's end being unwell rather than anything local. Try again, and try another service.
 
 ## It copied to the clipboard when I expected typing
@@ -68,7 +68,7 @@ Wayland applications do not need dotool at all, so this row can be safely ignore
 
 - **Stop after silence** is set and the room is quiet enough to trigger it. Raise it, or set it to 0.
 - **Maximum dictation time** was reached. Ten minutes by default.
-- **The service transcribes only so much at a stretch.** OpenRouter stops at ten minutes, so with it selected the countdown starts there whatever **Maximum dictation time** says.
+- **The service transcribes only so much at a stretch.** Mistral and OpenRouter stop at ten minutes, so with either selected the countdown starts there whatever **Maximum dictation time** says.
 - **The screen was locked.** A dictation ends there, since the focused field on the lock screen is the password.
 
 Each but the last delivers what was transcribed so far; nothing is thrown away.
@@ -88,6 +88,10 @@ The audio is in the recordings folder, which the notification names, whatever th
 ## A transcript came out wrong
 
 Transcribe it again from **Transcribe a file** in the preferences, with another service: the one that got it wrong mostly gets it wrong the same way. Several languages at once, voices over music or game sound, and people talking over each other are the hard cases for every service.
+
+- **Names spelled wrong.** List them under **Names and terms**, spelled the way the transcript should spell them, and transcribe it again.
+- **Your words under someone else's number, or theirs under your name.** Your lines come from your microphone, so over loudspeakers it hears the call too; headphones keep the two apart.
+- **One person under two numbers.** Someone who says nothing around one of the ten-minute cuts comes back with a new number. A find and replace in the transcript puts them back together.
 
 ## "Murmur isn't running"
 

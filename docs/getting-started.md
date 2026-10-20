@@ -10,11 +10,11 @@ gnome-extensions prefs murmur@roman-16.github.io
 
 | **Service** | Key from | Good to know |
 | --- | --- | --- |
-| **Grok** | [console.x.ai](https://console.x.ai) | The most accurate while you speak. About $0.20 an hour dictating and $0.10 an hour recording, and the key works once the account holds credit. A dictation runs as long as you set, a recording as long as you like |
-| **Mistral Voxtral** | [console.mistral.ai](https://console.mistral.ai) | The default. About $0.36 an hour dictating and $0.18 an hour recording, billed from the first minute, and how far text trails your voice is yours to set |
+| **Grok** | [console.x.ai](https://console.x.ai) | The only one that shows the words while you speak, and the most accurate at it. About $0.20 an hour dictating and $0.20 an hour recording a call where both sides talk, and the key works once the account holds credit. A dictation runs as long as you set, a recording as long as you like |
+| **Mistral Voxtral** | [console.mistral.ai](https://console.mistral.ai) | The default. About $0.18 an hour dictating and $0.38 an hour recording a call where both sides talk, billed from the first minute. A dictation's words arrive when you stop, and it runs ten minutes at most |
 | **OpenRouter** | [openrouter.ai/settings/keys](https://openrouter.ai/settings/keys) | One key for every transcription model it serves - Whisper, Nova, Voxtral, Parakeet - which you pick under **Model**. It cannot transcribe while you speak, so the words arrive when you stop. A dictation runs ten minutes at most |
 
-Choose it under **Service**, paste your key into **API key** below it, and that is the whole setup. Each service keeps its own key, so switching back and forth costs nothing.
+Choose it under **Service**, paste your key into **API key** below it, and that is the whole setup. If the people you talk to have names a model would misspell, list them under **Names and terms**. Each service keeps its own key, so switching back and forth costs nothing.
 
 Nothing else has to be configured before the first dictation or the first recording.
 
@@ -22,7 +22,7 @@ Nothing else has to be configured before the first dictation or the first record
 
 1. Put the cursor where the words should land, in any application.
 2. Press **Super+Space**. A panel appears at the bottom of the screen you are working on and Murmur starts listening.
-3. Speak. With Grok or Mistral the transcription appears in the panel while you are still talking; with OpenRouter it arrives when you stop.
+3. Speak. With Grok the transcription appears in the panel while you are still talking; with Mistral or OpenRouter it arrives when you stop.
 4. Press **Enter** (or Super+Space again). The panel closes and the text is inserted.
 
 ## The keys
@@ -82,7 +82,7 @@ In the preferences, click the shortcut next to **Dictation shortcut** or **Recor
 Two settings end a dictation without you pressing anything:
 
 - **Stop after silence** ends it after a number of seconds without speech. Off by default.
-- **Maximum dictation time** ends it after ten minutes, so a forgotten dictation cannot run forever. The countdown is in the panel and in the top-bar indicator. OpenRouter holds this to ten minutes, which is as much as it transcribes at a stretch; with Grok or Mistral it goes as high as you like.
+- **Maximum dictation time** ends it after ten minutes, so a forgotten dictation cannot run forever. The countdown is in the panel and in the top-bar indicator. Mistral and OpenRouter hold this to ten minutes, which is as much as they take in one go; with Grok it goes as high as you like.
 
 Both deliver the transcription exactly as `Enter` would. See [Configuration](configuration.md).
 
@@ -90,7 +90,7 @@ A transcription is always one line, so a list the model makes arrives inline, an
 
 ## Record everything you hear and say
 
-A dictation is you talking into a field. A recording is everything: whatever your computer plays - the other people in a Teams, Meet or Discord call, a video, a talk - and your microphone, mixed into one file for as long as it takes.
+A dictation is you talking into a field. A recording is everything: whatever your computer plays - the other people in a Teams, Meet or Discord call, a video, a talk - and your microphone, each on a channel of its own in one file, for as long as it takes.
 
 1. Press **Super+Alt+Space**. A pill with a headset and a running time appears in the top bar, and nothing else: the keyboard stays with whatever you were doing.
 2. Carry on. Click the pill to see what the **Microphone** and the **Desktop audio** are hearing, which is the quick way to know the call is really being picked up.
@@ -102,8 +102,20 @@ Both files land in the recordings folder, `~/Documents/Murmur` unless you [chose
 
 | File | What it is |
 | --- | --- |
-| `2026-03-26T22-02-34.opus` | The audio, Ogg Opus at 24 kbit/s: good for speech, and about 11 MB an hour |
-| `2026-03-26T22-02-34.md` | The transcript, exactly as the service sent it back. No speaker names, no timestamps, nothing added |
+| `2026-03-26T22-02-34.opus` | The audio, Ogg Opus in two channels - you on the left, everything the computer plays on the right - at 48 kbit/s, about 22 MB an hour |
+| `2026-03-26T22-02-34.md` | The transcript, a line for each thing said: the time of day, who said it, and the words |
+
+A transcript reads like this:
+
+```markdown
+22:02:41 Roman: Hast du den Link geschickt?
+
+22:02:44 Speaker 1: Ja, schau in den Chat.
+
+22:03:10 Speaker 2: I can't hear you guys.
+```
+
+Your lines carry your name, because they came in on your microphone. Everyone on the call shares the desktop's channel, so the service tells them apart by their voices and they are numbered in the order they first speak. A recording goes up in ten-minute pieces, and someone who says nothing around a cut comes back with a new number. Over loudspeakers your microphone hears the others too, and their words turn up under your name as well; headphones keep them apart.
 
 The recording carries on while the screen is locked, and the pill stays in the lock screen's top bar so it is plain that it does; its menu opens again once you unlock. A dictation, by contrast, ends when the screen locks.
 
@@ -113,6 +125,6 @@ Tell the people you are recording. Their voices go to the service as well as you
 
 ## Transcribe a file, or a recording again
 
-**Transcribe a file** under **Recording** in the preferences opens a file chooser in the recordings folder. Pick any audio - a recording whose transcript came out wrong, a voice memo, a downloaded talk - and the service chosen beside it transcribes it, with the same pill and notification as a recording. The transcript lands beside the audio.
+**Transcribe a file** under **Recording** in the preferences opens a file chooser in the recordings folder. Pick any audio - a recording whose transcript came out wrong, a voice memo, a downloaded talk - and the service chosen beside it transcribes it, with the same pill and notification as a recording. The transcript lands beside the audio. A file that is not one of Murmur's two-channel recordings is heard as one track: every voice is numbered, and the times count from `00:00:00`, or from the time in its name when Murmur named it.
 
 The service that got a recording wrong mostly gets it wrong the same way again, so pick another one for a second try. → [Transcribe a file](configuration.md#transcribe-a-file)

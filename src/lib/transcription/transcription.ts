@@ -1,10 +1,11 @@
 import type Gio from 'gi://Gio';
 
 import type {ProviderConfig} from '../settings.js';
-import {MistralProtocol, mistralRecording} from './mistral.js';
-import {OpenRouterTranscription, openrouterRecording} from './openrouter.js';
+import {mistralDictation, mistralRecording} from './mistral.js';
+import {openrouterDictation, openrouterRecording} from './openrouter.js';
 import type {RecordingTranscriber, Transcription} from './provider.js';
 import {StreamTranscription} from './stream.js';
+import {UploadTranscription} from './upload-transcription.js';
 import {XaiProtocol, xaiRecording} from './xai.js';
 
 export function transcriptionFor(
@@ -14,10 +15,9 @@ export function transcriptionFor(
 ): Transcription {
     switch (provider.kind) {
         case 'mistral':
-            return new StreamTranscription(
-                new MistralProtocol(provider), onPartial, cancellable);
+            return new UploadTranscription(mistralDictation(provider), cancellable);
         case 'openrouter':
-            return new OpenRouterTranscription(provider, cancellable);
+            return new UploadTranscription(openrouterDictation(provider), cancellable);
         case 'xai':
             return new StreamTranscription(
                 new XaiProtocol(provider), onPartial, cancellable);

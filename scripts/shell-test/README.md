@@ -4,7 +4,7 @@
 just test-shell
 ```
 
-Boots a throwaway, headless GNOME Shell with two screens, builds the dictation panel and the recording pill inside it, clicks them with a real pointer, runs GStreamer inside it for a few seconds, and reports what worked. It takes about half a minute, touches nothing in your session, and needs no key and no network. It does need a text editor or a terminal installed, as something to focus, and it hears a second or two of whatever the machine hears, into the session's throwaway cache, which it deletes.
+Boots a throwaway, headless GNOME Shell with two screens, builds the dictation panel and the recording pill inside it, clicks them with a real pointer, runs GStreamer inside it for a few seconds, and reports what worked. It takes about half a minute, touches nothing in your session, and needs no key and no network. It does need a text editor or a terminal installed, as something to focus, and it hears a second or two of whatever the machine hears, into the session's throwaway cache, which it deletes. With nobody logged in at the desktop PipeWire has no microphone, and the session hears a silent stand-in that goes away with it.
 
 `just test` covers the changelog parser, which is pure and fast. This covers the half of Murmur that only exists inside a compositor, where the interesting failures are: an actor that is drawn but cannot be clicked, a keyboard that is taken and never given back, chrome that outlives the dictation.
 
@@ -45,11 +45,11 @@ The probe reaches Murmur's modules through `Main.extensionManager.lookup()`, so 
 - Destroying the panel leaves no chrome and no top-bar indicator, and destroying it twice is safe.
 - The recording pill reaches the top bar with its running time, and a click opens its menu with both levels and the limit. **Stop and transcribe** stops; **Discard…** asks first and discards once confirmed; locking the screen keeps the menu shut and unlocking gives it back; a recording being transcribed says so and has nothing left to stop; destroying it leaves nothing.
 - An empty file is written and answered for, which is what a transcript of nothing and a list of no recordings both are.
-- GStreamer runs inside the compositor: a recording hears the microphone and the desktop and writes an Ogg Opus file, and a dictation's microphone delivers whole samples and then its end. Nothing short of running the pipelines shows that the shell's bindings and every plugin are there.
+- GStreamer runs inside the compositor: a recording hears the microphone and the desktop and writes an Ogg Opus file that keeps them on channels of their own and names them in its tags, and a dictation's microphone delivers whole samples and then its end. A second and a half of stereo laid out the same way is planned as overlapping pieces, a channel of it is cut at the length its piece hears, a silent channel is not cut at all, and the whole of it can be cut as one track. Nothing short of running the pipelines shows that the shell's bindings and every plugin are there.
 - The extension survives being disabled and enabled.
 
 ## What it does not check
 
-Anything that needs the network or a key: what any transcription service says over its socket or answers to an upload, and what reaches the transcript file. `scripts/changelog.test.ts` covers the changelog parser. Insertion is the one important gap: synthesizing keystrokes into a client and reading them back is a bigger harness than this, and [`CONTRIBUTING.md`](../../CONTRIBUTING.md) lists the manual passes that stand in for it.
+Anything that needs the network or a key: what any transcription service says over its socket or answers to an upload. `scripts/transcript.test.ts` covers how what they answer becomes the transcript file, and `scripts/changelog.test.ts` the changelog parser. Insertion is the one important gap: synthesizing keystrokes into a client and reading them back is a bigger harness than this, and [`CONTRIBUTING.md`](../../CONTRIBUTING.md) lists the manual passes that stand in for it.
 
 It does not run in CI, because a GitHub runner has no GNOME Shell and standing one up there is a flakier thing than the bugs it would catch. Run it before a pull request that touches `src/lib/shell/`.

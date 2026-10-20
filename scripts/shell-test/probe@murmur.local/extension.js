@@ -753,11 +753,12 @@ export default class Probe extends Extension {
     // is there with every plugin it needs. It hears a second or two of whatever
     // the machine hears, into the session's throwaway cache, and deletes it.
     async #checkAudio(path) {
-        const {cutPiece, Microphone, piecesOf, Recorder} =
-            await import(`file://${path}/lib/shell/audio.js`);
+        const audio = await import(`file://${path}/lib/shell/audio.js`);
+        const {layoutOf, Microphone, Recorder} = audio;
         const file = Gio.File.new_for_path(
             GLib.build_filenamev([GLib.get_user_cache_dir(), 'probe.opus']));
         GLib.mkdir_with_parents(GLib.get_user_cache_dir(), 0o700);
+        await this.#checkPieces(audio);
 
         const heard = new Set();
         try {
@@ -776,7 +777,14 @@ export default class Probe extends Extension {
         const head = String.fromCharCode(...contents.slice(0, 40));
         this.#ok('a recording is an Ogg Opus file',
             head.startsWith('OggS') && head.includes('OpusHead'), JSON.stringify(head));
-        await this.#checkPieces(file, cutPiece, piecesOf);
+        try {
+            const {channels} = await layoutOf(file, new Gio.Cancellable());
+            this.#ok('a recording keeps the microphone and the desktop on channels of their own',
+                JSON.stringify(channels) === '["microphone","desktop"]', JSON.stringify(channels));
+        } catch (error) {
+            this.#fail('a recording keeps the microphone and the desktop on channels of their own',
+                `${error}`);
+        }
 
         const microphone = await Microphone.open();
         let bytes = 0;
@@ -865,32 +873,82 @@ export default class Probe extends Extension {
     }
 
     // A recording goes to the service in pieces, cut out of the file by
-    // GStreamer inside the compositor; here the pieces are half a second long.
-    async #checkPieces(file, cutPiece, piecesOf) {
+    // GStreamer inside the compositor, one channel at a time. The recording
+    // here is a second and a half laid out as Murmur lays one out, a tone on
+    // the microphone's channel and silence on the desktop's, in pieces of half
+    // a second that overlap by a tenth.
+    async #checkPieces({cutPiece, layoutOf, piecesOf}) {
         const cancellable = new Gio.Cancellable();
+        const file = Gio.File.new_for_path(
+            GLib.build_filenamev([GLib.get_user_cache_dir(), 'probe-stereo.opus']));
+        let layout;
         let pieces;
         try {
-            pieces = await piecesOf(file, 0.5, cancellable);
+            await this.#writeStereo(file);
+            layout = await layoutOf(file, cancellable);
+            pieces = await piecesOf(file, layout.seconds, {longest: 0.5, overlap: 0.1}, cancellable);
         } catch (error) {
             this.#fail('a recording is planned as pieces', `${error}`);
             return;
         }
+        this.#ok('a recording is read as the channels it names',
+            JSON.stringify(layout.channels) === '["microphone","desktop"]',
+            JSON.stringify(layout));
+        const near = (first, second) => Math.abs(first - second) < 0.001;
         this.#ok('a recording is planned as pieces end to end',
-            pieces.length >= 3 && pieces[0].start === 0 && pieces.every((piece, index) =>
-                piece.end > piece.start && (index === 0 || piece.start === pieces[index - 1].end)),
+            pieces.length >= 3 && pieces[0].own.start === 0 &&
+            near(pieces.at(-1).own.end, layout.seconds) && pieces.every((piece, index) =>
+                piece.own.end > piece.own.start &&
+                (index === 0 || piece.own.start === pieces[index - 1].own.end)),
+            JSON.stringify(pieces));
+        this.#ok('each piece also hears a tenth of a second of its neighbours',
+            pieces.every(({heard, own}) =>
+                near(heard.start, Math.max(0, own.start - 0.1)) &&
+                near(heard.end, Math.min(layout.seconds, own.end + 0.1))),
             JSON.stringify(pieces));
 
-        const middle = pieces[1];
+        const {heard} = pieces[1];
         try {
-            const piece = await cutPiece(file, middle, cancellable);
-            const [cut] = await piecesOf(piece, Infinity, cancellable);
-            piece.delete(null);
-            this.#ok('a piece is cut out of the recording at its own length',
-                Math.abs(cut.end - (middle.end - middle.start)) < 0.05,
-                `${cut.end} s for ${JSON.stringify(middle)}`);
+            const tone = await cutPiece(file, heard, {index: 0, of: 2}, cancellable);
+            const silence = await cutPiece(file, heard, {index: 1, of: 2}, cancellable);
+            const both = await cutPiece(file, heard, null, cancellable);
+            const cut = tone && await layoutOf(tone, cancellable);
+            [tone, both].forEach(piece => piece?.delete(null));
+            this.#ok('a channel is cut out of the recording at the length its piece hears',
+                cut !== null && Math.abs(cut.seconds - (heard.end - heard.start)) < 0.05 &&
+                cut.channels === null,
+                `${JSON.stringify(cut)} for ${JSON.stringify(heard)}`);
+            this.#ok('a channel with nothing on it is not cut at all', silence === null);
+            this.#ok('a recording can be cut as one track', both !== null);
         } catch (error) {
-            this.#fail('a piece is cut out of the recording at its own length', `${error}`);
+            this.#fail('a channel is cut out of the recording at the length its piece hears',
+                `${error}`);
         }
+        file.delete(null);
+    }
+
+    async #writeStereo(file) {
+        const {default: Gst} = await import('gi://Gst?version=1.0');
+        Gst.init(null);
+        const source = (wave, mask, pad) =>
+            `audiotestsrc num-buffers=150 samplesperbuffer=480 wave=${wave} ! ` +
+            `audio/x-raw,format=F32LE,rate=48000,channels=1,channel-mask=(bitmask)${mask} ! ` +
+            `channels.sink_${pad}`;
+        const pipeline = Gst.parse_launch([
+            'audiointerleave name=channels ! audioconvert ! taginject name=tags ! opusenc ! ' +
+            'oggmux ! filesink name=file',
+            source('sine', 1, 0),
+            source('silence', 2, 1),
+        ].join(' '));
+        pipeline.get_by_name('file').set_property('location', file.get_path());
+        pipeline.get_by_name('tags').set_property('tags',
+            'extended-comment="MURMUR_CHANNELS=microphone,desktop"');
+        pipeline.set_state(Gst.State.PLAYING);
+        const message = pipeline.get_bus().timed_pop_filtered(5 * Gst.SECOND,
+            Gst.MessageType.EOS | Gst.MessageType.ERROR);
+        pipeline.set_state(Gst.State.NULL);
+        if (message?.type !== Gst.MessageType.EOS)
+            throw new Error(message?.parse_error()[0]?.message ?? 'the stereo file was not written');
     }
 
     #checkExtensionCycle(murmur) {

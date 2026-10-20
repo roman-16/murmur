@@ -29,7 +29,7 @@ Without devbox you need Bun, GJS, GLib's tools, `just`, `librsvg` and `zip` on y
 just build        # compile src/ into dist/
 just check        # type-check only
 just lint         # oxlint, type-check, the process boundary and the changelog; run before every commit
-just test         # check the changelog parser
+just test         # check the changelog parser and how a transcript is put together
 just test-shell   # drive the panel with a real pointer in a throwaway nested shell
 just dev          # run in a throwaway, isolated nested GNOME Shell
 just install      # symlink dist/ into your extensions dir
@@ -46,7 +46,7 @@ nix build         # build the extension through the flake, as a Nix install does
 
 `just dev` boots a nested GNOME Shell with its own `XDG_DATA_HOME`, picks up the API keys in `.env`, and touches nothing in your real session. It also unsets `GTK_IM_MODULE`, because the desktop session points clients at ibus and the nested one runs none: a GTK client that cannot reach its input method never enables the Wayland text-input protocol, so every field in the nested session would look like no field and every dictation would go to the clipboard. It is the fastest way to try a change; a real session needs a log out and back in for every reload, because Wayland cannot restart the shell in place.
 
-Inside that session the shortcuts are **`Super+J`** to dictate and **`Super+K`** to record, set by `DICTATION_SHORTCUT` and `RECORDING_SHORTCUT` in `.env`, because a key combination belongs to one compositor: your own session matches `Super+Space` first and the nested shell never sees it. When a run does need the real combination, as the demo does, `scripts/nested-shell.sh` borrows it from your session and gives it back on exit.
+Inside that session the shortcuts are **`Super+J`** to dictate and **`Super+K`** to record, set by `DICTATION_SHORTCUT` and `RECORDING_SHORTCUT` in `.env`, because a key combination belongs to one compositor: your own session matches `Super+Space` first and the nested shell never sees it. When a run in a window does need the real combination, `scripts/nested-shell.sh` borrows it from your session and gives it back on exit; a headless run, like the demo's, takes nothing from your session.
 
 ## How the code is arranged
 
@@ -54,17 +54,17 @@ Inside that session the shortcuts are **`Super+J`** to dictate and **`Super+K`**
 src/extension.ts       the shell half: the shortcuts, the lock screen, and the two features it wires up
 src/prefs.ts           the preferences half
 src/stylesheet.css     geometry for the panel; its colours come from the shell theme
-src/lib/               shared by both, Gio and GLib only: settings, history, the recording files, the D-Bus contract
+src/lib/               shared by both, Gio and GLib only: settings, history, the recording files, the D-Bus contract, and the transcript
 src/lib/shell/         shell-only: dictation, recording, audio, panel, indicators, insertion, focus, notifications
 src/lib/prefs/         preferences-only: rows, shortcut capture, dotool diagnostics, history page
 src/lib/transcription/ the ways audio becomes text, and the table of services
 ```
 
-`audio.ts` is everything Murmur hears, through GStreamer pipelines inside the shell: a `Microphone` for a dictation, whose samples are collected from the main loop because GJS cannot run on GStreamer's threads, a `Recorder` that mixes the microphone with the default output's monitor into an Opus file as it goes, and the pieces a recording is cut into for transcription.
+`audio.ts` is everything Murmur hears, through GStreamer pipelines inside the shell: a `Microphone` for a dictation, whose samples are collected from the main loop because GJS cannot run on GStreamer's threads, a `Recorder` that lays the microphone and the default output's monitor side by side, as the two channels of an Opus file it writes as it goes and tags as Murmur's, and the pieces a recording is cut into for transcription, one channel at a time.
 
-A dictation is `dictation.ts`, the panel and the delivery, around `session.ts`, which meters the microphone, watches for silence, and hands the audio to a `Transcription` - the seam every service's dictation comes through: fed chunks, told when the microphone is released, and finally the words. There are two implementations of it. `stream.ts` holds a WebSocket open for the dictation and drives a `StreamProtocol` - the endpoint, the frames to send, and the events to make of what comes back, which is most of `mistral.ts` and `xai.ts`. `openrouter.ts` is the other: it keeps the audio and sends it in one request when the dictation ends.
+A dictation is `dictation.ts`, the panel and the delivery, around `session.ts`, which meters the microphone, watches for silence, and hands the audio to a `Transcription` - the seam every service's dictation comes through: fed chunks, told when the microphone is released, and finally the words. There are two implementations of it. `stream.ts` holds a WebSocket open for the dictation and drives a `StreamProtocol` - the endpoint, the frames to send, and the events to make of what comes back, which is most of `xai.ts`. `upload-transcription.ts` is the other: it keeps the audio and hands it, as a WAV, to the service's `DictationSender` when the dictation ends, which is how `mistral.ts` and `openrouter.ts` take a dictation.
 
-A recording is `recording.ts`, the pill and the notifications, around `recording-files.ts`, which names the files and remembers which still owe a transcript. A recording goes to the service in pieces of at most ten minutes, and its seam is a `RecordingTranscriber`, one piece's audio file in and the service's text out. Each service's is a few lines over `upload.ts`, which streams the file up as a form, sends it again when the service is busy, and hands back the service's answer for the service to read its text from.
+A recording is `recording.ts`, the pill and the notifications, around `recording-files.ts`, which names the files and remembers which still owe a transcript. A recording goes to the service in pieces of at most ten minutes, one channel at a time, and its seam is a `RecordingTranscriber`, one channel of one piece in and what was said out, each utterance with its times and the service's speaker label. Each service's is a few lines over `upload.ts`, which streams the file up as a form or as JSON, sends it again when the service is busy, and hands back the service's answer for the service to read. `transcript.ts` puts the pieces back together: it keeps what each piece heard between its own cuts, matches speaker labels across cuts by the stretch two pieces both heard, and writes the lines. It imports nothing, so `just test` runs it under Bun.
 
 A file picked under **Transcribe a file** goes through the same `Recordings`. The preferences cannot run it, since their process ends with the window, so they hand it to the shell over D-Bus: `bus.ts` puts a `Transcribe` method on the shell's own session-bus connection, under the path and interface `murmur-bus.ts` names for both halves.
 
@@ -88,7 +88,7 @@ The two halves run in **different processes** that load different libraries. Imp
 
 ## Testing a change
 
-`just test` covers the changelog parser, because that one decides what gets published.
+`just test` covers the changelog parser, because that one decides what gets published, and `transcript.ts`, because what a transcript says about who spoke and when is decided there and nowhere a service could check it.
 
 `just test-shell` covers the panel, by building it inside a throwaway headless GNOME Shell and clicking it with a real pointer. Run it after anything under `src/lib/shell/`; [`scripts/shell-test/README.md`](scripts/shell-test/README.md) explains why it needs a whole compositor, and why a synthetic click that never lands makes for a test that cannot fail. It is not in CI, because a runner has no GNOME Shell.
 
@@ -102,8 +102,9 @@ Everything past that is the compositor, and the interesting failures are all in 
 - a password field, which must land in the field and **not** in the history page,
 - clicking anywhere outside the panel mid-dictation, which must collapse it and hand the keyboard back, whether or not you changed application,
 - a fullscreen window, which the panel has to be visible over,
-- **all three transcription services**, since each speaks its own protocol and only one of them is exercised by a dictation - and OpenRouter is the one that transcribes nothing until the microphone closes. `MURMUR_PROVIDER=openrouter just dev` switches the throwaway session over,
-- a **recording** with each service, with something playing and something said, stopped both from the shortcut and from the pill's menu, then **Open** and **Copy** on its notification, and **Discard…**,
+- **all three transcription services**, since each speaks its own protocol and only one of them is exercised by a dictation - and Mistral and OpenRouter are the ones that transcribe nothing until the microphone closes. `MURMUR_PROVIDER=openrouter just dev` switches the throwaway session over,
+- a **recording** with each service, with something playing and something said, stopped both from the shortcut and from the pill's menu, then **Open** and **Copy** on its notification, and **Discard…**; one longer than ten minutes, with two voices on the call speaking across a cut, to see them keep their numbers,
+- **Names and terms** with each service, in a dictation and in a recording,
 - a recording's failure, with the network off when it stops: **Retry** once it is back, and the offer on the next start for one whose notification was dismissed,
 - **Transcribe a file**, with a recording that already has a transcript, an audio file from elsewhere in another format, a file that is not audio, and with Murmur switched off in Extensions,
 - **locking the screen** mid-recording and mid-dictation: the recording carries on with its pill and its menu shut, the dictation ends, and neither shortcut answers until you unlock.
@@ -118,7 +119,7 @@ The animation in the README records itself, unattended, in about a minute:
 just demo
 ```
 
-It runs a dictation in the isolated nested shell against a scripted transcription endpoint, so it needs no key, no network and no microphone, and produces the same take on every machine. Leave the nested window visible while it runs. [`scripts/demo/README.md`](scripts/demo/README.md) explains the pieces and what is real versus scripted.
+It runs a dictation in an isolated headless shell against a scripted transcription endpoint, so it needs no key, no network, no microphone and no window left visible, and produces the same take on every machine. [`scripts/demo/README.md`](scripts/demo/README.md) explains the pieces and what is real versus scripted.
 
 ## Releasing
 

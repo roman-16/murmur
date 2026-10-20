@@ -20,6 +20,7 @@ const server = Bun.serve({
     websocket: {
         open(socket) {
             streams.set(socket, {index: 0, timer: null, words: SENTENCE.split(' ')});
+            socket.send(JSON.stringify({type: 'transcript.created'}));
         },
         close(socket) {
             const stream = streams.get(socket);
@@ -31,26 +32,27 @@ const server = Bun.serve({
             if (!stream)
                 return;
 
-            const event = JSON.parse(String(raw)) as {type: string};
-            if (event.type === 'session.update' && !stream.timer) {
-                stream.timer = setInterval(() => {
-                    const word = stream.words[stream.index++];
-                    if (word === undefined) {
+            if (typeof raw !== 'string') {
+                stream.timer ??= setInterval(() => {
+                    if (stream.index >= stream.words.length) {
                         clearInterval(stream.timer!);
                         stream.timer = null;
                         return;
                     }
-                    const text = stream.index === 1 ? word : ` ${word}`;
-                    socket.send(JSON.stringify({type: 'transcription.text.delta', text}));
+                    const text = stream.words.slice(0, ++stream.index).join(' ');
+                    socket.send(JSON.stringify({is_final: false, start: 0, text, type: 'transcript.partial'}));
                 }, DELTA_MS);
+                return;
             }
 
-            if (event.type === 'input_audio.end') {
+            const event = JSON.parse(raw) as {type: string};
+            if (event.type === 'audio.done') {
                 if (stream.timer) {
                     clearInterval(stream.timer);
                     stream.timer = null;
                 }
-                socket.send(JSON.stringify({type: 'transcription.done', text: SENTENCE}));
+                socket.send(JSON.stringify({text: SENTENCE, type: 'transcript.done'}));
+                socket.close();
             }
         },
     },
@@ -58,4 +60,4 @@ const server = Bun.serve({
 
 // With a path, because the client sends the request line the same way it does
 // to the real endpoint and a bare authority is not a valid one.
-console.log(`ws://127.0.0.1:${server.port}/v1/audio/transcriptions/realtime`);
+console.log(`ws://127.0.0.1:${server.port}/v1/stt`);

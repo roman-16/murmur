@@ -6,19 +6,25 @@ import {deferred, fromAsync, whenCancelled} from '../async.js';
 import {cancellation, errorMessage} from '../errors.js';
 import {deleteFile} from '../files.js';
 import {SAMPLE_RATE} from '../transcription/provider.js';
+import type {Piece, Stretch} from '../transcript.js';
 
 export type Source = 'desktop' | 'microphone';
 
-export type Stretch = {end: number; start: number};
+export type Channel = {index: number; of: number};
+
+export type Layout = {channels: Source[] | null; seconds: number | null};
 
 type Gstreamer = typeof Gst;
 
 type Handlers = {
+    onComment?: (comment: string) => void;
     onEnd: () => void;
     onError: (message: string) => void;
     onLevel?: (level: Level) => void;
     onPrerolled?: () => void;
 };
+
+type Listeners = Pick<Handlers, 'onComment' | 'onLevel'>;
 
 type Level = {decibels: number; element: string; seconds: number};
 
@@ -32,14 +38,19 @@ const LEVEL_INTERVAL_NS = 100 * 1000 * 1000;
 // a voice moves through: full scale down to -50 dB, and quieter than that is a
 // room with nobody talking in it.
 const METER_RANGE_DB = 50;
-const MIX_CAPS = 'audio/x-raw,format=F32LE,rate=48000,channels=1';
 const NS_PER_SECOND = 1000 * 1000 * 1000;
-// Xiph's recommendation for a podcast, and the rate from which Opus is fullband.
-const OPUS_BITRATE = 24000;
+// Xiph's recommendation for a podcast, and the rate from which Opus is
+// fullband, for each of the two channels.
+const OPUS_BITRATE = 48000;
 const PIECE_BITRATE = 32000;
 const PULL_MS = 100;
 const QUIET_INTERVAL_NS = 500 * 1000 * 1000;
 const QUIET_SEARCH_SECONDS = 60;
+// A recording's file says which of its channels heard what, in a tag of its
+// own, so that only Murmur's own recordings are taken apart by channel and a
+// stereo file from anywhere else is heard as the one track it is.
+const CHANNELS_TAG = 'MURMUR_CHANNELS';
+const RECORDED: Source[] = ['microphone', 'desktop'];
 const SPEECH_CAPS =
     `audio/x-raw,format=S16LE,rate=${SAMPLE_RATE},channels=1,layout=interleaved`;
 
@@ -47,25 +58,29 @@ const SPEECH_CAPS =
 // milliseconds at a short quantum, and drops what it captures while a source
 // that holds them all is waiting. Its converter allows 32 at most.
 const CAPTURE = 'pipewiresrc min-buffers=32';
-const DECODED = 'decodebin ! audioconvert ! audio/x-raw,channels=1';
+const MONO = 'audioconvert ! audio/x-raw,channels=1';
 // WirePlumber links a capture stream that asks for a sink to the monitor of the
 // default output, and follows it when the default changes.
 const DESKTOP = `${CAPTURE} stream-properties="props,stream.capture.sink=true"`;
 const MICROPHONE = CAPTURE;
 
+const SOURCES: Record<Source, string> = {desktop: DESKTOP, microphone: MICROPHONE};
+
 const PACKAGES: Record<string, string> = {
     appsink: "GStreamer's base plugins",
     audioconvert: "GStreamer's base plugins",
-    audiomixer: "GStreamer's base plugins",
+    audiointerleave: "GStreamer's base plugins",
     audioresample: "GStreamer's base plugins",
     decodebin: "GStreamer's base plugins",
     fakesink: 'GStreamer',
     filesink: 'GStreamer',
     filesrc: 'GStreamer',
+    identity: 'GStreamer',
     level: "GStreamer's good plugins",
     oggmux: "GStreamer's base plugins",
     opusenc: "GStreamer's base plugins",
     pipewiresrc: "PipeWire's GStreamer plugin",
+    taginject: "GStreamer's good plugins",
 };
 
 let gstreamer: Promise<Gstreamer> | null = null;
@@ -74,38 +89,50 @@ export function meterFromDecibels(decibels: number): number {
     return Math.min(1, Math.max(0, (decibels + METER_RANGE_DB) / METER_RANGE_DB));
 }
 
-export async function lengthOf(
-    audio: Gio.File, cancellable: Gio.Cancellable): Promise<number | null> {
+export async function layoutOf(audio: Gio.File, cancellable: Gio.Cancellable): Promise<Layout> {
+    const comments: string[] = [];
     const whole = await Playback.open(
-        `filesrc name=recording ! ${DECODED} ! fakesink`, {recording: audio}, cancellable);
+        `filesrc name=recording ! decodebin ! identity name=decoded ! ${MONO} ! fakesink`,
+        {recording: audio}, cancellable, {onComment: comment => comments.push(comment)});
     const seconds = whole.seconds;
+    const count = whole.channels('decoded');
     whole.close();
-    return seconds;
+    return {channels: channelsOf(comments, count), seconds};
 }
 
+// Pieces are cut where it is quietest before each mark, so no word is split,
+// and each is sent with some of the pieces either side of it: the stretch
+// both pieces heard is what ties one piece's speakers to the next one's.
 export async function piecesOf(
-    audio: Gio.File, longest: number, cancellable: Gio.Cancellable): Promise<Stretch[]> {
-    const seconds = await lengthOf(audio, cancellable);
+    audio: Gio.File, seconds: number | null, sizes: {longest: number; overlap: number},
+    cancellable: Gio.Cancellable): Promise<Piece[]> {
     if (seconds === null)
-        return [{end: Infinity, start: 0}];
+        return [{heard: {end: Infinity, start: 0}, own: {end: Infinity, start: 0}}];
 
-    const pieces: Stretch[] = [];
+    const {longest, overlap} = sizes;
+    const cuts = [0];
     let start = 0;
     while (seconds - start > longest) {
         const mark = start + longest;
-        const end = await quietestMoment(audio, {
+        start = await quietestMoment(audio, {
             end: mark,
             start: Math.max(start + longest / 2, mark - QUIET_SEARCH_SECONDS),
         }, cancellable);
-        pieces.push({end, start});
-        start = end;
+        cuts.push(start);
     }
-    pieces.push({end: seconds, start});
-    return pieces;
+    cuts.push(seconds);
+    return cuts.slice(1).map((end, index) => {
+        const own = {end, start: cuts[index] ?? 0};
+        return {
+            heard: {end: Math.min(seconds, own.end + overlap), start: Math.max(0, own.start - overlap)},
+            own,
+        };
+    });
 }
 
 export async function cutPiece(
-    audio: Gio.File, piece: Stretch, cancellable: Gio.Cancellable): Promise<Gio.File> {
+    audio: Gio.File, stretch: Stretch, channel: Channel | null,
+    cancellable: Gio.Cancellable): Promise<Gio.File | null> {
     const [file, stream] = await fromAsync(
         callback => Gio.file_new_tmp_async('murmur-XXXXXX.ogg', GLib.PRIORITY_DEFAULT,
             cancellable, callback),
@@ -114,16 +141,25 @@ export async function cutPiece(
         await fromAsync(
             callback => stream.close_async(GLib.PRIORITY_DEFAULT, cancellable, callback),
             result => stream.close_finish(result));
+        let loudest = -Infinity;
         const playback = await Playback.open(
-            `filesrc name=recording ! ${DECODED} ! audioresample ! ` +
+            `filesrc name=recording ! decodebin ! ${channel ? only(channel) : MONO} ! ` +
+            `level interval=${QUIET_INTERVAL_NS} ! audioresample ! ` +
             `opusenc bitrate=${PIECE_BITRATE} ! oggmux ! filesink name=piece`,
-            {piece: file, recording: audio}, cancellable);
+            {piece: file, recording: audio}, cancellable, {
+                onLevel: ({decibels}) => {
+                    loudest = Math.max(loudest, decibels);
+                },
+            });
         try {
-            await playback.play(piece);
+            await playback.play(stretch);
         } finally {
             playback.close();
         }
-        return file;
+        if (loudest > -METER_RANGE_DB)
+            return file;
+        await deleteFile(file);
+        return null;
     } catch (error) {
         await deleteFile(file).catch(() => {});
         throw error;
@@ -134,12 +170,14 @@ async function quietestMoment(
     audio: Gio.File, within: Stretch, cancellable: Gio.Cancellable): Promise<number> {
     const quietest = {decibels: Infinity, seconds: within.end};
     const playback = await Playback.open(
-        `filesrc name=recording ! ${DECODED} ! level interval=${QUIET_INTERVAL_NS} ! fakesink`,
-        {recording: audio}, cancellable, ({decibels, seconds}) => {
-            if (seconds <= within.start || seconds >= within.end || decibels >= quietest.decibels)
-                return;
-            quietest.decibels = decibels;
-            quietest.seconds = seconds;
+        `filesrc name=recording ! decodebin ! ${MONO} ! level interval=${QUIET_INTERVAL_NS} ! fakesink`,
+        {recording: audio}, cancellable, {
+            onLevel: ({decibels, seconds}) => {
+                if (seconds <= within.start || seconds >= within.end || decibels >= quietest.decibels)
+                    return;
+                quietest.decibels = decibels;
+                quietest.seconds = seconds;
+            },
         });
     try {
         await playback.play(within);
@@ -270,10 +308,9 @@ export class Recorder {
 
         const handlers: Handlers = {onEnd: () => {}, onError: () => {}};
         const pipeline = await Pipeline.launch([
-            `audiomixer name=mixer ! audioconvert ! opusenc bitrate=${OPUS_BITRATE} ! ` +
-            'oggmux ! filesink name=file',
-            branch(MICROPHONE, 'microphone'),
-            branch(DESKTOP, 'desktop'),
+            'audiointerleave name=channels ! audioconvert ! taginject name=tags ! ' +
+            `opusenc bitrate=${OPUS_BITRATE} ! oggmux ! filesink name=file`,
+            ...RECORDED.map(branch),
         ].join(' '), handlers);
         const recorder = new Recorder(pipeline);
         handlers.onEnd = () => recorder.#ended.resolve();
@@ -284,6 +321,8 @@ export class Recorder {
         };
 
         pipeline.byName('file')?.set_property('location', path);
+        pipeline.byName('tags')?.set_property('tags',
+            `extended-comment="${CHANNELS_TAG}=${RECORDED.join(',')}"`);
         pipeline.start();
         return recorder;
     }
@@ -335,8 +374,8 @@ class Playback {
 
     static async open(
         description: string, files: Record<string, Gio.File>, cancellable: Gio.Cancellable,
-        onLevel?: (level: Level) => void): Promise<Playback> {
-        const handlers: Handlers = {onEnd: () => {}, onError: () => {}, onLevel};
+        listeners: Listeners = {}): Promise<Playback> {
+        const handlers: Handlers = {...listeners, onEnd: () => {}, onError: () => {}};
         const pipeline = await Pipeline.launch(description, handlers);
         for (const [name, file] of Object.entries(files)) {
             const path = file.get_path();
@@ -372,6 +411,10 @@ class Playback {
 
     get seconds(): number | null {
         return this.#pipeline.seconds;
+    }
+
+    channels(element: string): number | null {
+        return this.#pipeline.channels(element);
     }
 
     async play(stretch: Stretch): Promise<void> {
@@ -429,6 +472,12 @@ class Pipeline {
     get seconds(): number | null {
         const [known, duration] = this.#bin.query_duration(this.#gst.Format.TIME);
         return known && Number(duration) > 0 ? Number(duration) / NS_PER_SECOND : null;
+    }
+
+    channels(element: string): number | null {
+        const caps = this.byName(element)?.get_static_pad('src')?.get_current_caps();
+        const [known, channels] = caps?.get_structure(0)?.get_int('channels') ?? [false, 0];
+        return known ? channels : null;
     }
 
     pause(): void {
@@ -497,6 +546,17 @@ class Pipeline {
             case MessageType.EOS:
                 handlers.onEnd();
                 break;
+            case MessageType.TAG: {
+                const tags = message.parse_tag();
+                const count = tags.get_tag_size(this.#gst.TAG_EXTENDED_COMMENT);
+                for (let index = 0; index < count; index++) {
+                    const [found, comment] =
+                        tags.get_string_index(this.#gst.TAG_EXTENDED_COMMENT, index);
+                    if (found)
+                        handlers.onComment?.(comment);
+                }
+                break;
+            }
             case MessageType.ERROR: {
                 const [error, debug] = message.parse_error();
                 handlers.onError(error?.message ?? debug);
@@ -506,9 +566,33 @@ class Pipeline {
     }
 }
 
-function branch(source: string, name: Source): string {
-    return `${source} ! audioconvert ! audioresample ! ${MIX_CAPS} ! ` +
-        `level name=${name} interval=${LEVEL_INTERVAL_NS} ! mixer.`;
+// Each source arrives as one channel placed on its own side, left then right,
+// so the recording is ordinary stereo to anything that plays it.
+function branch(name: Source, index: number): string {
+    const caps = `audio/x-raw,format=F32LE,rate=48000,channels=1,channel-mask=(bitmask)${1 << index}`;
+    return `${SOURCES[name]} ! audioconvert ! audioresample ! ${caps} ! ` +
+        `level name=${name} interval=${LEVEL_INTERVAL_NS} ! channels.sink_${index}`;
+}
+
+function only(channel: Channel): string {
+    const row = Array.from({length: channel.of},
+        (_, index) => `(float)${index === channel.index ? '1.0' : '0.0'}`);
+    return `audioconvert mix-matrix=<<${row.join(',')}>> ! audio/x-raw,channels=1`;
+}
+
+function channelsOf(comments: string[], count: number | null): Source[] | null {
+    const prefix = `${CHANNELS_TAG}=`;
+    const declared = comments
+        .find(comment => comment.toUpperCase().startsWith(prefix))
+        ?.slice(prefix.length)
+        .split(',');
+    if (!declared || declared.length < 2 || declared.length !== count)
+        return null;
+    return declared.every(isSource) ? declared : null;
+}
+
+function isSource(name: string): name is Source {
+    return Object.hasOwn(SOURCES, name);
 }
 
 // The action signal needs none of GstApp's bindings, which a system can have

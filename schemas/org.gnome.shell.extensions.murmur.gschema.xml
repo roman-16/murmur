@@ -10,12 +10,17 @@
       <default>600</default>
       <range min="15" max="86400"/>
       <summary>Maximum dictation time</summary>
-      <description>Seconds after which a dictation stops on its own and the transcription is inserted. A service that transcribes less than this at a stretch lowers it: with OpenRouter selected the preferences go no higher than ten minutes.</description>
+      <description>Seconds after which a dictation stops on its own and the transcription is inserted. A service that transcribes less than this at a stretch lowers it: with Mistral or OpenRouter selected the preferences go no higher than ten minutes.</description>
     </key>
     <key name="mistral-api-key" type="s">
       <default>''</default>
       <summary>Mistral API key</summary>
-      <description>API key used to authenticate with Mistral's Voxtral transcription endpoints.</description>
+      <description>API key used to authenticate with Mistral's Voxtral transcription endpoint.</description>
+    </key>
+    <key name="names-and-terms" type="as">
+      <default>[]</default>
+      <summary>Names and terms</summary>
+      <description>Names and words the speakers use, spelled the way a transcript should spell them. They are sent with every dictation, recording and file to the service, which leans towards them: Mistral takes the first 100, Grok the first 100 of up to 50 characters, and OpenRouter the first 1000 of up to 100 characters, to the models that accept them.</description>
     </key>
     <key name="openrouter-api-key" type="s">
       <default>''</default>
@@ -57,12 +62,6 @@
       <default><![CDATA[['<Super><Alt>space']]]></default>
       <summary>Recording shortcut</summary>
       <description>Shortcut that starts recording everything the computer plays and the microphone hears, then stops and transcribes it. The audio and the transcript are saved side by side in the recordings folder.</description>
-    </key>
-    <key name="transcription-delay-ms" type="i">
-      <default>2400</default>
-      <range min="240" max="2400"/>
-      <summary>Transcription delay</summary>
-      <description>Milliseconds of audio Voxtral buffers before transcribing a dictation. Higher values give the model more context and better accuracy, lower values show and insert text sooner.</description>
     </key>
     <key name="transcription-provider" enum="org.gnome.shell.extensions.murmur.provider">
       <default>'mistral'</default>

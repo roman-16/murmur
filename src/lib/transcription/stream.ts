@@ -69,9 +69,6 @@ export class StreamTranscription implements Transcription {
         connection.connect('message', (_c, _type, bytes) => this.#onMessage(bytes));
         connection.connect('closed', () => this.#onClosed());
         connection.connect('error', (_c, error) => this.#fail(`websocket: ${error.message}`));
-
-        for (const frame of this.#protocol.open())
-            this.#send(frame);
         this.#awaitSetup();
     }
 

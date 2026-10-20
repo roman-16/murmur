@@ -1,200 +1,113 @@
-import type Gio from 'gi://Gio';
-import GLib from 'gi://GLib';
-import Soup from 'gi://Soup?version=3.0';
-
-import {deferred, fromAsync, whenCancelled} from '../async.js';
-import {errorMessage, isCancelled} from '../errors.js';
+import {type Transcribed, untimed, type Utterance, utterancesOf} from '../transcript.js';
 import {
-    errorText,
+    type DictationSender,
+    numberOr,
     type RecordingTranscriber,
-    SAMPLE_RATE,
-    type Transcription
+    termsWithin
 } from './provider.js';
-import {textOf, transcribeUpload} from './upload.js';
+import {
+    type Answer,
+    listOf,
+    Refusal,
+    textOf,
+    transcribeDictation,
+    transcribeUpload
+} from './upload.js';
 
-const BITS_PER_SAMPLE = 16;
-const CHANNELS = 1;
-const HEADER_BYTES = 44;
-// OpenRouter gives the model it routes to a minute to answer.
-const TIMEOUT_SECONDS = 60;
+const TERMS = {count: 1000, length: 100};
 const URL = 'https://openrouter.ai/api/v1/audio/transcriptions';
 
-type Answer = {error?: {message?: string} | string; text?: string};
+type Extra = 'diarize' | 'terms' | 'timed';
 
-// OpenRouter transcribes a dictation in one request rather than while it is
-// spoken, so there is nothing to show until the speaker stops: the audio is
-// kept as it is heard and sent whole the moment the microphone is released.
-export class OpenRouterTranscription implements Transcription {
-    readonly #apiKey: string;
-    readonly #cancellable: Gio.Cancellable;
-    readonly #completion = deferred<string>();
-    readonly #model: string;
-    readonly #release: () => void;
+type Options = {apiKey: string; model: string; terms: string[]};
 
-    #chunks: Uint8Array[] = [];
-    #ended = false;
-    #http: Soup.Session | null = null;
-    #recorded = 0;
-    #settled = false;
+// OpenRouter does not say which of its models can label speakers, take terms or
+// time what they heard, and answers 400 to a request for something the model
+// cannot do. The extras are given up one at a time, in this order, and what a
+// model turned away is not asked of it again.
+const GIVEN_UP_IN_ORDER: Extra[] = ['diarize', 'terms', 'timed'];
+const refused = new Map<string, Set<Extra>>();
 
-    constructor(options: {apiKey: string; model: string}, cancellable: Gio.Cancellable) {
-        this.#apiKey = options.apiKey;
-        this.#cancellable = cancellable;
-        this.#model = options.model;
-        this.#release = whenCancelled(cancellable, () => this.#abort());
-    }
+export function openrouterDictation(options: Options): DictationSender {
+    return async (wave, cancellable) => textOf(await degrading(options, ['terms'],
+        extras => transcribeDictation({
+            apiKey: options.apiKey,
+            audio: wave,
+            body: {fields: fields(options, extras), format: 'wav', kind: 'json'},
+            cancellable,
+            url: URL,
+        })));
+}
 
-    // Nothing is opened ahead of the dictation: the service learns of it when
-    // the whole of it arrives.
-    async start(): Promise<void> {}
+export function openrouterRecording(options: Options): RecordingTranscriber {
+    return async (audio, {diarize}, cancellable) => transcribed(await degrading(options,
+        diarize ? ['diarize', 'terms', 'timed'] : ['terms', 'timed'],
+        extras => transcribeUpload({
+            apiKey: options.apiKey,
+            audio,
+            body: {fields: fields(options, extras), format: 'ogg', kind: 'json'},
+            cancellable,
+            url: URL,
+        })));
+}
 
-    audio(chunk: Uint8Array): void {
-        if (this.#ended)
-            return;
-        this.#chunks.push(chunk);
-        this.#recorded += chunk.length;
-    }
-
-    end(): void {
-        if (this.#ended)
-            return;
-        this.#ended = true;
-        this.#transcribe().catch(error => {
-            if (isCancelled(error))
-                return;
-            this.#fail(errorMessage(error));
-        });
-    }
-
-    get text(): Promise<string> {
-        return this.#completion.promise;
-    }
-
-    async #transcribe(): Promise<void> {
-        if (this.#settled)
-            return;
-        if (this.#recorded === 0) {
-            this.#finish('');
-            return;
-        }
-
-        const http = new Soup.Session({timeout: TIMEOUT_SECONDS});
-        this.#http = http;
-
-        const message = Soup.Message.new('POST', URL);
-        message.get_request_headers().append('Authorization', `Bearer ${this.#apiKey}`);
-        message.set_request_body_from_bytes('application/json', new TextEncoder().encode(
-            JSON.stringify({
-                input_audio: {data: GLib.base64_encode(this.#wave()), format: 'wav'},
-                model: this.#model,
-            })));
-
-        const reply = await fromAsync(
-            callback => http.send_and_read_async(
-                message, GLib.PRIORITY_DEFAULT, this.#cancellable, callback),
-            result => http.send_and_read_finish(result));
-
-        const status = message.status_code;
-        const answer = parse(reply.get_data());
-        if (answer?.error)
-            throw new Error(errorText(answer.error));
-        if (status !== Soup.Status.OK)
-            throw new Error(`the service answered ${status}`);
-        if (typeof answer?.text !== 'string')
-            throw new Error('the service sent no transcription');
-        this.#finish(answer.text);
-    }
-
-    // The endpoint takes a file rather than a stream of samples, and the models
-    // that transcribe a dictation best take it as the uncompressed WAV the
-    // microphone already produces: the header in front of the samples is the
-    // whole of the conversion.
-    #wave(): Uint8Array {
-        const blockAlign = CHANNELS * (BITS_PER_SAMPLE / 8);
-        const wave = new Uint8Array(HEADER_BYTES + this.#recorded);
-        const header = new DataView(wave.buffer, 0, HEADER_BYTES);
-
-        tag(header, 0, 'RIFF');
-        header.setUint32(4, HEADER_BYTES - 8 + this.#recorded, true);
-        tag(header, 8, 'WAVE');
-        tag(header, 12, 'fmt ');
-        header.setUint32(16, 16, true);
-        header.setUint16(20, 1, true);
-        header.setUint16(22, CHANNELS, true);
-        header.setUint32(24, SAMPLE_RATE, true);
-        header.setUint32(28, SAMPLE_RATE * blockAlign, true);
-        header.setUint16(32, blockAlign, true);
-        header.setUint16(34, BITS_PER_SAMPLE, true);
-        tag(header, 36, 'data');
-        header.setUint32(40, this.#recorded, true);
-
-        let offset = HEADER_BYTES;
-        for (const chunk of this.#chunks) {
-            wave.set(chunk, offset);
-            offset += chunk.length;
-        }
-        this.#chunks = [];
-        return wave;
-    }
-
-    #finish(text: string): void {
-        if (this.#settled)
-            return;
-        this.#settled = true;
-        this.#release();
-        this.#dispose();
-        this.#completion.resolve(text);
-    }
-
-    #fail(reason: string): void {
-        if (this.#settled)
-            return;
-        this.#settled = true;
-        this.#release();
-        this.#dispose();
-        this.#completion.reject(new Error(reason));
-    }
-
-    #abort(): void {
-        if (this.#settled)
-            return;
-        this.#settled = true;
-        this.#dispose();
-        this.#completion.reject(new Error('cancelled'));
-    }
-
-    #dispose(): void {
-        this.#chunks = [];
-        this.#recorded = 0;
-        if (this.#http) {
-            this.#http.abort();
-            this.#http = null;
+async function degrading(
+    options: Options, wanted: Extra[],
+    attempt: (extras: Set<Extra>) => Promise<Answer>): Promise<Answer> {
+    const known = refused.get(options.model) ?? new Set<Extra>();
+    const extras = new Set(wanted.filter(extra =>
+        !known.has(extra) && (extra !== 'terms' || termsOf(options).length > 0)));
+    const given: Extra[] = [];
+    for (;;) {
+        try {
+            const answer = await attempt(extras);
+            if (given.length > 0)
+                refused.set(options.model, new Set([...known, ...given]));
+            return answer;
+        } catch (error) {
+            const next = GIVEN_UP_IN_ORDER.find(extra => extras.has(extra));
+            if (!(error instanceof Refusal) || error.status !== 400 || next === undefined)
+                throw error;
+            extras.delete(next);
+            given.push(next);
         }
     }
 }
 
-export function openrouterRecording(
-    options: {apiKey: string; model: string}): RecordingTranscriber {
-    return async (audio, cancellable) => textOf(await transcribeUpload({
-        apiKey: options.apiKey,
-        audio,
-        cancellable,
-        fields: [['model', options.model]],
-        url: URL,
-    }));
+function fields(options: Options, extras: Set<Extra>): Record<string, unknown> {
+    return {
+        ...(extras.has('diarize') ? {diarize: true} : {}),
+        ...(extras.has('terms') ? {keyterms: termsOf(options)} : {}),
+        model: options.model,
+        ...(extras.has('timed')
+            ? {response_format: 'verbose_json', timestamp_granularities: ['segment', 'word']}
+            : {}),
+    };
 }
 
-function parse(data: Uint8Array | null): Answer | null {
-    if (!data)
-        return null;
-    try {
-        return JSON.parse(new TextDecoder().decode(data)) as Answer;
-    } catch {
-        return null;
-    }
+function termsOf(options: Options): string[] {
+    return termsWithin(options.terms, TERMS);
 }
 
-function tag(header: DataView, offset: number, text: string): void {
-    for (let index = 0; index < text.length; index++)
-        header.setUint8(offset + index, text.charCodeAt(index));
+function transcribed(answer: Answer): Transcribed {
+    const words = listOf(answer, 'words').map(word => timedOf(word, word.word ?? word.text));
+    if (words.some(word => word.speaker !== null))
+        return {timed: true, utterances: utterancesOf(words)};
+    const segments = listOf(answer, 'segments');
+    if (segments.length > 0)
+        return {timed: true, utterances: segments.map(segment => timedOf(segment, segment.text))};
+    if (words.length > 0)
+        return {timed: true, utterances: utterancesOf(words)};
+    return untimed(textOf(answer));
+}
+
+function timedOf(item: Record<string, unknown>, text: unknown): Utterance {
+    const start = numberOr(item.start, 0);
+    const speaker = item.speaker_label ?? item.speaker;
+    return {
+        end: numberOr(item.end, start),
+        speaker: typeof speaker === 'string' || typeof speaker === 'number' ? String(speaker) : null,
+        start,
+        text: typeof text === 'string' ? text : '',
+    };
 }

@@ -16,29 +16,41 @@ Transcription happens on xAI's, Mistral's or OpenRouter's servers. There is no o
 
 The three services are the three that exist. OpenRouter opens up every transcription model it serves, but there is no way to point Murmur at a service it does not know, or at something self-hosted, without editing the code.
 
-## With OpenRouter, nothing appears until you stop
+## With Mistral or OpenRouter, nothing appears until you stop
 
-OpenRouter has no streaming transcription API: the dictation is sent in one request when you stop, and the words arrive together a moment later. The panel still shows the level, the countdown and where the text will land, but the transcription itself cannot be watched as it is spoken. Grok and Mistral can, which is the reason to pick one of them.
+Mistral and OpenRouter transcribe a dictation in one request when you stop, and the words arrive together a moment later: OpenRouter has no streaming transcription API, and Mistral's has no place for names and terms and costs twice what its model for files does. The panel still shows the level, the countdown and where the text will land, but the transcription itself cannot be watched as it is spoken. Grok can, which is the reason to pick it.
 
-## With OpenRouter, a dictation ends after ten minutes
+A dictation either of them fails is lost whole, since nothing had arrived before it failed; with Grok, the words already shown are copied to the clipboard.
 
-**Maximum dictation time** goes no higher than that with OpenRouter, which has to hold the whole dictation in memory and hand it to a model in one piece. Grok and Mistral impose nothing of their own, so with either a dictation runs for as long as you set, up to a day.
+## With Mistral or OpenRouter, a dictation ends after ten minutes
+
+**Maximum dictation time** goes no higher than that with Mistral or OpenRouter, which have to be handed the whole dictation in one piece, held in memory until then. Grok imposes nothing of its own, so with it a dictation runs for as long as you set, up to a day.
 
 ## A long recording goes up in pieces
 
-Every service takes only so much audio in one request, and how much depends on the model and on how busy the service is: Mistral has turned away 35 minutes in one request while taking the same audio in shorter pieces, and OpenAI's newer models take no more than 23 minutes. A recording is therefore sent in pieces of at most ten minutes, cut where it is quietest in the minute before each mark, and the transcript is their texts in order. A word spoken across the quietest half-second of a whole minute is the one thing that can fall between two pieces.
+Every service takes only so much audio in one request, and how much depends on the model and on how busy the service is: Mistral has turned away 35 minutes in one request while taking the same audio in shorter pieces, and OpenAI's newer models take no more than 23 minutes. A recording is therefore sent in pieces of at most ten minutes, cut where it is quietest in the minute before each mark, each with fifteen seconds of its neighbours, and what both heard is written once. That half minute costs a little more audio, about 5%.
 
 OpenRouter's providers give a request about a minute, so a model slow on ten minutes of audio can still fail a piece. The audio stays, for a **Retry** or another service.
 
-## A transcript is only what the service returns
+## Who spoke is only as good as where it was heard
 
-Murmur writes the service's text to the file untouched. Nobody is named, nothing is timestamped, and whether it has paragraphs is the model's decision. A recording is one mixed track, so the service cannot tell your voice from the others by where it came from either.
+Your lines are yours because they came in on your microphone, which makes them certain - and makes everything else the microphone hears yours too. Several people in one room share your microphone and your name.
+
+Everyone on a call shares the desktop's channel, and only the service can tell their voices apart. It numbers them within a piece, and a number carries over to the next piece only for someone who speaks in the half minute both pieces heard; whoever is silent there comes back with a new one. A voice from a game or a video is a speaker like any other. Grok labels each word on its own and sometimes changes its mind mid-sentence, which splits that sentence over two lines. With an OpenRouter model that cannot tell speakers apart, the call's lines all read `Others`, and with one that gives no times, a piece is one line at the moment it starts, the half minute it shares with the next written twice.
 
 Asking the same service again gets much the same transcript, mistakes included. Transcribing a file again is for trying another service or another model.
 
+## A recording is billed for each side
+
+The microphone and the desktop go to the service as separate requests, each billed for its full length, so an hour of a call where both sides talk throughout is billed as two. A channel with nothing on it for a whole ten-minute piece, a muted microphone or a call that has not started, is not sent.
+
 ## Over loudspeakers, the others are heard twice
 
-Over loudspeakers your microphone hears the others as well as you, a moment after the desktop audio already did. Speech models cope with the echo, but it does not help them, and headphones give the cleaner transcript.
+Over loudspeakers your microphone hears the others as well as you, a moment after the desktop audio already did, so their words turn up a second time under your name. Headphones keep the two channels apart.
+
+## Any other file is one track
+
+A file without Murmur's two channels - a voice memo, a downloaded talk, a recording with everything mixed into one track - is transcribed as one track: every voice in it is numbered by the service, yours included.
 
 ## A recording hears the default output
 

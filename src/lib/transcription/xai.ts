@@ -1,18 +1,24 @@
+import {type Transcribed, untimed, utterancesOf} from '../transcript.js';
 import {
     endpoint,
     errorText,
     type Frame,
+    numberOr,
     type RecordingTranscriber,
     SAMPLE_RATE,
     type StreamProtocol,
+    termsWithin,
     type TranscriptionEvent,
     unhandled
 } from './provider.js';
-import {textOf, transcribeUpload} from './upload.js';
+import {type Answer, listOf, textOf, transcribeUpload} from './upload.js';
 
 const RECORDING_URL = 'https://api.x.ai/v1/stt';
+const TERMS = {count: 100, length: 50};
 // xAI names no alias for its newest model; a request that names none gets it.
 const URL = `wss://api.x.ai/v1/stt?sample_rate=${SAMPLE_RATE}&encoding=pcm&interim_results=true`;
+
+type Options = {apiKey: string; terms: string[]};
 
 type Segment = {start: number; text: string};
 
@@ -29,14 +35,18 @@ type ServerEvent =
 // after them, however much of what came before either one repeats.
 export class XaiProtocol implements StreamProtocol {
     readonly headers: [string, string][];
-    readonly url = endpoint(URL);
+    readonly url: string;
 
     #finals: Segment[] = [];
     #interim: Segment | null = null;
     #ready = false;
 
-    constructor(options: {apiKey: string}) {
+    constructor(options: Options) {
         this.headers = [['Authorization', `Bearer ${options.apiKey}`]];
+        this.url = endpoint([
+            URL,
+            ...termsWithin(options.terms, TERMS).map(term => `keyterm=${encodeURIComponent(term)}`),
+        ].join('&'));
     }
 
     audio(chunk: Uint8Array): Frame[] {
@@ -45,10 +55,6 @@ export class XaiProtocol implements StreamProtocol {
 
     end(): Frame[] {
         return [JSON.stringify({type: 'audio.done'})];
-    }
-
-    open(): Frame[] {
-        return [];
     }
 
     get ready(): boolean {
@@ -112,12 +118,38 @@ export class XaiProtocol implements StreamProtocol {
     }
 }
 
-export function xaiRecording(options: {apiKey: string}): RecordingTranscriber {
-    return async (audio, cancellable) => textOf(await transcribeUpload({
+export function xaiRecording(options: Options): RecordingTranscriber {
+    return async (audio, {diarize}, cancellable) => transcribed(await transcribeUpload({
         apiKey: options.apiKey,
         audio,
+        body: {
+            fields: [
+                ...(diarize ? [['diarize', 'true'] as [string, string]] : []),
+                ...termsWithin(options.terms, TERMS)
+                    .map(term => ['keyterm', term] as [string, string]),
+            ],
+            format: 'ogg',
+            kind: 'form',
+        },
         cancellable,
-        fields: [],
         url: RECORDING_URL,
     }));
+}
+
+function transcribed(answer: Answer): Transcribed {
+    const words = listOf(answer, 'words');
+    if (words.length === 0)
+        return untimed(textOf(answer));
+    return {
+        timed: true,
+        utterances: utterancesOf(words.map(word => {
+            const start = numberOr(word.start, 0);
+            return {
+                end: numberOr(word.end, start),
+                speaker: typeof word.speaker === 'number' ? String(word.speaker) : null,
+                start,
+                text: typeof word.text === 'string' ? word.text : '',
+            };
+        })),
+    };
 }

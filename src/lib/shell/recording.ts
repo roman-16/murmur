@@ -13,13 +13,24 @@ import {
     type RecordingTranscriber
 } from '../transcription/provider.js';
 import {recordingTranscriberFor} from '../transcription/transcription.js';
-import {cutPiece, lengthOf, piecesOf, Recorder, type Stretch} from './audio.js';
+import {
+    linesOf,
+    type Piece,
+    type Track,
+    type TrackPiece,
+    type Transcribed,
+    written
+} from '../transcript.js';
+import {type Channel, cutPiece, type Layout, layoutOf, piecesOf, Recorder} from './audio.js';
 import {copyText} from './clipboard.js';
 import {duration} from './clock.js';
 import {notify} from './notify.js';
 import {RecordingIndicator} from './recording-indicator.js';
 
+const OVERLAP_SECONDS = 15;
 const PIECE_SECONDS = 600;
+
+type Listening = {channel: Channel | null; diarize: boolean; unlabelled: string | null};
 
 type Active = {
     file: RecordingFile;
@@ -124,7 +135,7 @@ export class Recordings {
         if (!await exists(file.audio))
             throw new Error(`${path} does not exist`);
         try {
-            await lengthOf(file.audio, this.#cancellable);
+            await layoutOf(file.audio, this.#cancellable);
         } catch (error) {
             throw new Error(`Murmur can't read this file: ${errorMessage(error)}`);
         }
@@ -205,14 +216,24 @@ export class Recordings {
             if (!provider.apiKey)
                 throw new Error(`Set your ${PROVIDERS[service].vendor} API key in the extension preferences`);
             const transcriber = recordingTranscriberFor(provider);
-            const pieces = await piecesOf(file.audio, PIECE_SECONDS, this.#cancellable);
-            const texts: string[] = [];
+            const layout = await layoutOf(file.audio, this.#cancellable);
+            const pieces = await piecesOf(file.audio, layout.seconds,
+                {longest: PIECE_SECONDS, overlap: OVERLAP_SECONDS}, this.#cancellable);
+            const listening = listeningTo(layout);
+            const heard = listening.map((): TrackPiece[] => []);
             for (const [index, piece] of pieces.entries()) {
                 if (pieces.length > 1)
                     indicator.transcribing({of: pieces.length, piece: index + 1});
-                texts.push(await this.#transcribePiece(transcriber, file.audio, piece));
+                const transcribed = await Promise.all(listening.map(track =>
+                    this.#transcribePiece(transcriber, file.audio, piece, track)));
+                transcribed.forEach((result, track) => heard[track]?.push({piece, transcribed: result}));
             }
-            const text = texts.map(piece => piece.trim()).filter(Boolean).join(' ');
+            const tracks = listening.map((track, index): Track => ({
+                diarized: track.diarize,
+                pieces: heard[index] ?? [],
+                unlabelled: track.unlabelled,
+            }));
+            const text = written(linesOf(tracks), secondOfDay(file.startedAt));
             await this.#files.save(file, text);
             this.#announce(file, secondsOf(pieces), text);
         } catch (error) {
@@ -230,10 +251,13 @@ export class Recordings {
     }
 
     async #transcribePiece(
-        transcriber: RecordingTranscriber, audio: Gio.File, piece: Stretch): Promise<string> {
-        const cut = await cutPiece(audio, piece, this.#cancellable);
+        transcriber: RecordingTranscriber, audio: Gio.File, piece: Piece,
+        track: Listening): Promise<Transcribed | null> {
+        const cut = await cutPiece(audio, piece.heard, track.channel, this.#cancellable);
+        if (!cut)
+            return null;
         try {
-            return await transcriber(cut, this.#cancellable);
+            return await transcriber(cut, {diarize: track.diarize}, this.#cancellable);
         } finally {
             await deleteFile(cut).catch(() => {});
         }
@@ -291,9 +315,32 @@ function keyOf(file: RecordingFile): string {
     return file.audio.get_path() ?? file.audio.get_uri();
 }
 
-function secondsOf(pieces: Stretch[]): number | null {
-    const end = pieces.at(-1)?.end ?? Infinity;
+function secondsOf(pieces: Piece[]): number | null {
+    const end = pieces.at(-1)?.own.end ?? Infinity;
     return Number.isFinite(end) ? Math.round(end) : null;
+}
+
+// The microphone is the person recording, and everyone else is heard through
+// the desktop, where only the service can tell their voices apart.
+function listeningTo(layout: Layout): Listening[] {
+    const {channels} = layout;
+    if (!channels)
+        return [{channel: null, diarize: true, unlabelled: null}];
+    return channels.map((source, index) => ({
+        channel: {index, of: channels.length},
+        diarize: source === 'desktop',
+        unlabelled: source === 'desktop' ? 'Others' : ownName(),
+    }));
+}
+
+// GLib answers Unknown for an account with no name of its own.
+function ownName(): string {
+    const name = GLib.get_real_name();
+    return name && name !== 'Unknown' ? name : GLib.get_user_name();
+}
+
+function secondOfDay(time: GLib.DateTime | null): number | null {
+    return time ? time.get_hour() * 3600 + time.get_minute() * 60 + time.get_second() : null;
 }
 
 function clearTick(active: Active): void {

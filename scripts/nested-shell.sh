@@ -72,22 +72,28 @@ restore() {
 }
 
 schemas=$(installed_schemas)
-for shortcut in "$dictation_shortcut" "$recording_shortcut"; do
-    release "$shortcut" org.gnome.desktop.wm.keybindings switch-input-source
-    release "$shortcut" org.gnome.desktop.wm.keybindings switch-input-source-backward
-    if [ -n "$schemas" ]; then
-        release "$shortcut" org.gnome.shell.extensions.murmur toggle-dictation "$schemas"
-        release "$shortcut" org.gnome.shell.extensions.murmur toggle-recording "$schemas"
-    fi
-done
+if [ -z "${NESTED_HEADLESS:-}" ]; then
+    for shortcut in "$dictation_shortcut" "$recording_shortcut"; do
+        release "$shortcut" org.gnome.desktop.wm.keybindings switch-input-source
+        release "$shortcut" org.gnome.desktop.wm.keybindings switch-input-source-backward
+        if [ -n "$schemas" ]; then
+            release "$shortcut" org.gnome.shell.extensions.murmur toggle-dictation "$schemas"
+            release "$shortcut" org.gnome.shell.extensions.murmur toggle-recording "$schemas"
+        fi
+    done
+fi
 
-# Headless has no window to occlude, and a compositor whose window is covered
-# stops painting, which a recording would capture as frozen frames. It gets two
-# screens, because a rule that places chrome on the screen being worked on and
-# one that always answers "the primary" are the same rule on a single monitor.
+# Headless has no window to occlude or to show, and needs no desktop to run in;
+# a compositor whose window is covered stops painting, which a recording would
+# capture as frozen frames. It gets two screens unless asked for fewer, because
+# a rule that places chrome on the screen being worked on and one that always
+# answers "the primary" are the same rule on a single monitor.
 if [ -n "${NESTED_HEADLESS:-}" ]; then
     size=${NESTED_SIZE:-1280x800}
-    nested="gnome-shell --headless --virtual-monitor $size --virtual-monitor $size"
+    nested="gnome-shell --headless"
+    for _ in $(seq "${NESTED_SCREENS:-2}"); do
+        nested="$nested --virtual-monitor $size"
+    done
 elif gnome-shell --help-all 2>/dev/null | grep --quiet -- '--devkit'; then
     # The development kit replaced the nested mode in GNOME 49 and sizes its
     # own screen; the nested mode takes the size from the environment.
@@ -98,9 +104,27 @@ else
 fi
 
 tmp=$(mktemp --directory)
+microphone=""
 # Tolerant of a failed removal: the session's own services can still be writing
 # into the directory as it goes away, and that must not become the exit status.
-trap 'restore; rm --recursive --force "$tmp" 2>/dev/null || true' EXIT INT TERM
+trap 'restore; [ -z "$microphone" ] || kill "$microphone" 2>/dev/null || true; rm --recursive --force "$tmp" 2>/dev/null || true' EXIT INT TERM
+
+# PipeWire has no microphone, and no output to listen to, unless someone is
+# logged in at the desktop, and Murmur opens both whatever it is then asked to
+# transcribe. A headless run then brings a silent pair of its own, the sink side
+# and the source side of one loopback, which go away with the run.
+if [ -n "${NESTED_HEADLESS:-}" ] && command -v pw-loopback wpctl >/dev/null &&
+    ! wpctl inspect @DEFAULT_AUDIO_SOURCE@ >/dev/null 2>&1; then
+    pw-loopback --name murmur-stand-in --channels 1 --channel-map '[ MONO ]' \
+        --capture-props 'media.class=Audio/Sink node.description="Murmur stand-in output"' \
+        --playback-props 'media.class=Audio/Source node.description="Murmur stand-in microphone"' &
+    microphone=$!
+    for _ in $(seq 40); do
+        wpctl inspect @DEFAULT_AUDIO_SOURCE@ >/dev/null 2>&1 && break
+        sleep 0.25
+    done
+    echo "no microphone in PipeWire; the session hears a silent stand-in"
+fi
 
 # The desktop session runs ibus and tells its clients so; this one does not run
 # anything. A GTK client that cannot reach the input method it was pointed at
@@ -111,6 +135,20 @@ unset GTK_IM_MODULE QT_IM_MODULE QT_IM_MODULES XMODIFIERS
 
 export XDG_CACHE_HOME="$tmp/cache" XDG_CONFIG_HOME="$tmp/config" XDG_DATA_HOME="$tmp/data" \
     XDG_STATE_HOME="$tmp/state"
+
+# dotool types through /dev/uinput into the machine's own seat, which a headless
+# session does not read: the keys would land in whatever the desktop, or its
+# login screen, has focused. Stand-ins that fail before typing anything send
+# Murmur to the shell's own virtual keyboard, which types into this session.
+if [ -n "${NESTED_HEADLESS:-}" ]; then
+    mkdir --parents "$tmp/bin"
+    for program in dotool dotoolc; do
+        printf '#!/bin/sh\nexit 1\n' >"$tmp/bin/$program"
+        chmod +x "$tmp/bin/$program"
+    done
+    export PATH="$tmp/bin:$PATH"
+fi
+
 extensions="$XDG_DATA_HOME/gnome-shell/extensions"
 mkdir --parents "$extensions"
 ln --symbolic --force --no-dereference --no-target-directory "$PWD/dist" "$extensions/$uuid"
