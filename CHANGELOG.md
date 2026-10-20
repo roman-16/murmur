@@ -10,16 +10,18 @@ Adding a version section here is what publishes a release, so this file is the o
 
 ### Highlights
 
-- **Record anything you hear and say** - `Super+Alt+Space` records a call, a video or whatever else your computer plays, together with your microphone, and leaves the audio and its transcript side by side in `~/Documents/Murmur`.
-- **Mistral by default, Gemini gone** - Murmur starts with Mistral Voxtral, and Grok joins it as a service that transcribes as you speak. A setup that used Gemini needs a key from console.mistral.ai, or another service, after updating.
+- **Record anything you hear and say** - `Super+Alt+Space` records a call, a video or whatever else your computer plays, together with your microphone, and leaves the audio and its transcript side by side in `~/Documents/Murmur`, with a line for each thing said: when, who, and what.
+- **Mistral by default, Gemini gone** - Murmur starts with Mistral Voxtral, which transcribes a dictation when you stop, and Grok joins it as the service that transcribes as you speak. A setup that used Gemini needs a key from console.mistral.ai, or another service, after updating.
+- **Names spelled your way** - list the names and terms you use under **Names and terms** in the preferences, and every service is asked to spell them that way.
 
 ### Added
 
 - **Grok** joins **Service**, with xAI's newest transcription model: the words appear as you speak, it costs about $0.20 an hour of audio, and xAI ends no dictation of its own.
-- `Super+Alt+Space`, or whatever you set as **Recording shortcut**, records everything your computer plays and your microphone hears - a call in Teams, Meet or Discord, a video, anything - until you press it again, however long that is, then transcribes it. The audio and the transcript are saved side by side in `~/Documents/Murmur`, or the **Recordings folder** you choose in the preferences, named by when the recording started, and the transcript is exactly what the service returned.
+- `Super+Alt+Space`, or whatever you set as **Recording shortcut**, records everything your computer plays and your microphone hears - a call in Teams, Meet or Discord, a video, anything - until you press it again, however long that is, then transcribes it. The audio and the transcript are saved side by side in `~/Documents/Murmur`, or the **Recordings folder** you choose in the preferences, named by when the recording started, and the transcript has a line for each thing said, with the time of day and who said it: your name for what your microphone heard, and a number for each voice on the call.
 - A pill in the top bar shows how long a recording has run. Its menu shows what the microphone and the desktop audio are hearing, **Stop and transcribe** and **Discard…**. A recording carries on while the screen is locked.
 - A notification says when a recording is transcribed, with **Open** and **Copy**. One that could not be transcribed keeps its audio and offers **Retry**, and one that never got that far is offered again the next time you log in.
 - **Transcribe a file** in the preferences transcribes any audio file, or a recording again, with the service you pick, and saves the transcript beside it. Scripts can ask for the same over D-Bus.
+- **Names and terms** in the preferences lists the names and words the people you dictate and record use, and every service is asked to spell them that way, in dictations, recordings and files alike.
 
 ### Changed
 
@@ -27,15 +29,16 @@ Adding a version section here is what publishes a release, so this file is the o
 - **Recording shortcut** is now **Dictation shortcut**, and **Maximum recording time** is **Maximum dictation time**, with `toggle-dictation` and `max-dictation-seconds` as their gsettings keys. A dictation shortcut you had changed becomes the recording shortcut and dictation is back on `Super+Space`, and a maximum you had changed is back at ten minutes: set both again in the preferences.
 - Murmur listens through GStreamer rather than `pw-record`, and needs GStreamer's base and good plugins and PipeWire's GStreamer plugin, which GNOME's own screen recorder already uses.
 - **Typing speed** offers 10, 20, 50, 100, 200, 500, 1000, 2000 and 5000 characters a second, and starts at 2000 rather than as fast as dotool goes. Each is the speed the text really goes in at. A speed you had set stays as it was.
-- A dictation with Mistral uses Mistral's newest realtime model as soon as it ships, without waiting for an update to Murmur.
+- With Mistral, a dictation is transcribed when you stop, by the model Mistral uses for recordings: the words arrive together instead of as you speak, and it costs about $0.18 an hour instead of $0.36. Grok is the service that shows them as you speak.
+- With Mistral selected, a dictation ends after ten minutes at most, as with OpenRouter.
 
 ### Removed
 
 - **Gemini 3.5 Transcribe Live**, and **Tidy up what I say** with it: pick another service under **Service** and add its key.
+- **Transcription delay** and its `transcription-delay-ms` key: a Mistral dictation is transcribed when you stop, so there is nothing left to delay.
 
 ### Fixed
 
-- When Mistral is busy or drops a dictation, the notification says so in plain words instead of showing a gRPC error dump.
 - With Mistral or Grok, a dictation the service sends nothing back for ends with a notification saying so, instead of the panel closing with nothing typed.
 - A dictation the service fails partway through leaves what it had already transcribed on the clipboard and in your **History**, instead of losing it.
 
