@@ -41,7 +41,7 @@ If what you say must not reach a third party, Murmur is the wrong tool, and a lo
 | A file's transcript | Beside the file, as `interview.md` for `interview.m4a` | Readable by you alone. One already there is replaced, after asking |
 | Which recordings still owe a transcript | `~/.local/state/murmur@roman-16.github.io/untranscribed` | The paths of recordings whose transcription has not come back yet, so they can be offered again; a path leaves once its transcript is written |
 
-The folder is the Documents folder your desktop names, `~/Documents` unless it is called something else in your language, and Murmur creates `Murmur` inside it readable by you alone. While a recording is being sent, the upload is assembled in a temporary file of the same privacy and deleted afterwards.
+The folder is the Documents folder your desktop names, `~/Documents` unless it is called something else in your language, and Murmur creates `Murmur` inside it readable by you alone. While a recording is being sent, each piece is cut into a temporary file of the same privacy for each channel, and deleted once it has been sent.
 
 ## Your dictation history
 

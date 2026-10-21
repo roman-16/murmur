@@ -33,7 +33,7 @@ With Grok a dictation streams to its realtime model while you speak. With Mistra
 
 A recording goes up when it stops, in pieces of at most ten minutes, to the service's model for files: Grok's own, Voxtral Mini Transcribe 2 with Mistral, and the model you picked with OpenRouter. Your microphone and what the computer plays are sent as separate requests, each billed for its own length, so a call where both sides talk throughout costs about twice what its length alone would; a channel with nothing on it for a whole piece is not sent.
 
-OpenRouter is one key for every transcription model it serves - Whisper, Deepgram Nova, Voxtral, Parakeet, and whatever it adds next. It does not say which of them can tell speakers apart, time what they heard or take names and terms, so Murmur asks for all of it and gives up what a model turns away, one thing at a time, for the rest of the session. The providers behind it give a request about a minute, so a model slow on hours of audio can fail a long recording; its audio stays, for a **Retry** or another service.
+OpenRouter is one key for every transcription model it serves - Whisper, Deepgram Nova, Voxtral, Parakeet, and whatever it adds next. It does not say which of them can tell speakers apart, time what they heard or take names and terms, so Murmur asks for all of it and gives up what a model turns away, one thing at a time, for the rest of the session. The providers behind it give a request about a minute, so a model slow on ten minutes of audio can fail a recording; its audio stays, for a **Retry** or another service.
 
 ### Names and terms
 

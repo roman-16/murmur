@@ -4,15 +4,17 @@ import Soup from 'gi://Soup?version=3.0';
 
 import {fromAsync, wait} from '../async.js';
 import {errorMessage, isCancelled} from '../errors.js';
-import {deleteFile} from '../files.js';
 import {errorText} from './provider.js';
 
-const BASE64_CHUNK_BYTES = 3 * 16384;
 const DICTATION_TIMEOUT_SECONDS = 60;
+const KEEPALIVE_IDLE_SECONDS = 30;
+const KEEPALIVE_INTERVAL_SECONDS = 10;
+const LINUX_TCP_KEEPIDLE = 4;
+const LINUX_TCP_KEEPINTVL = 5;
+const LINUX_TCP_USER_TIMEOUT = 18;
+const PIECE_TIMEOUT_SECONDS = 600;
 const RETRY_DELAYS_SECONDS = [30, 60, 120];
-// How long a service may go without sending or receiving a byte, which covers
-// the time a slow model may spend on a piece before it answers.
-const TIMEOUT_SECONDS = 600;
+const UNANSWERED_CONNECTION_SECONDS = 60;
 
 export type AudioFormat = 'ogg' | 'wav';
 
@@ -43,71 +45,49 @@ type Reply = {answer: Answer} | {reason: string; retry: boolean; retryAfter: num
 
 type Parts = {head: string; tail: string; type: string};
 
-// The body is assembled in a file of its own and streamed from there, so hours
-// of audio never pass through the compositor's memory.
-export async function transcribeUpload(upload: Upload): Promise<Answer> {
-    const {body, cancellable} = upload;
-    const parts = partsOf(body);
-    const [file, stream] = await fromAsync(
-        callback => Gio.file_new_tmp_async('murmur-XXXXXX.upload', GLib.PRIORITY_DEFAULT,
-            cancellable, callback),
-        result => Gio.file_new_tmp_finish(result));
+type Payload = {bytes: GLib.Bytes; type: string};
 
-    try {
-        const output = stream.get_output_stream();
-        await append(output, text(parts.head), cancellable);
-        if (body.kind === 'form')
-            await append(output, await readStream(upload.audio, cancellable), cancellable);
-        else
-            await appendBase64(output, upload.audio, cancellable);
-        await append(output, text(parts.tail), cancellable);
-        await fromAsync(
-            callback => stream.close_async(GLib.PRIORITY_DEFAULT, cancellable, callback),
-            result => stream.close_finish(result));
-        const size = await fromAsync(
-            callback => file.query_info_async(Gio.FILE_ATTRIBUTE_STANDARD_SIZE,
-                Gio.FileQueryInfoFlags.NONE, GLib.PRIORITY_DEFAULT, cancellable, callback),
-            result => file.query_info_finish(result).get_size());
-        for (let attempt = 0; ; attempt++) {
-            const reply = await send(upload, parts.type, {
-                size, stream: await readStream(file, cancellable),
-            }, TIMEOUT_SECONDS);
-            if ('answer' in reply)
-                return reply.answer;
-            const delay = RETRY_DELAYS_SECONDS[attempt];
-            if (!reply.retry || delay === undefined)
-                throw new Refusal(reply.status, reply.reason);
-            await wait(Math.min(reply.retryAfter ?? delay, Math.max(...RETRY_DELAYS_SECONDS)),
-                cancellable);
-        }
-    } finally {
-        await deleteFile(file).catch(() => {});
+export async function transcribeUpload(upload: Upload): Promise<Answer> {
+    const {audio, cancellable} = upload;
+    const payload = payloadOf(upload.body, await fromAsync(
+        callback => audio.load_contents_async(cancellable, callback),
+        result => audio.load_contents_finish(result)[1]));
+    for (let attempt = 0; ; attempt++) {
+        const reply = await send(upload, payload, PIECE_TIMEOUT_SECONDS);
+        if ('answer' in reply)
+            return reply.answer;
+        const delay = RETRY_DELAYS_SECONDS[attempt];
+        if (!reply.retry || delay === undefined)
+            throw new Refusal(reply.status, reply.reason);
+        await wait(Math.min(reply.retryAfter ?? delay, Math.max(...RETRY_DELAYS_SECONDS)),
+            cancellable);
     }
 }
 
-// A dictation is held in memory and sent from there in one attempt: it is never
-// written to disk, and someone waiting at a text field is not kept waiting
-// through a retry.
 export async function transcribeDictation(
     dictation: Omit<Upload, 'audio'> & {audio: Uint8Array}): Promise<Answer> {
-    const {audio, body} = dictation;
+    const reply = await send(dictation, payloadOf(dictation.body, dictation.audio),
+        DICTATION_TIMEOUT_SECONDS);
+    if ('answer' in reply)
+        return reply.answer;
+    throw new Refusal(reply.status, reply.reason);
+}
+
+function payloadOf(body: Body, audio: Uint8Array): Payload {
     const parts = partsOf(body);
     const encoder = new TextEncoder();
-    const payload = [
+    const pieces = [
         encoder.encode(parts.head),
         body.kind === 'form' ? audio : encoder.encode(GLib.base64_encode(audio)),
         encoder.encode(parts.tail),
     ];
-    const bytes = new Uint8Array(payload.reduce((size, part) => size + part.length, 0));
+    const bytes = new Uint8Array(pieces.reduce((size, piece) => size + piece.length, 0));
     let offset = 0;
-    for (const part of payload) {
-        bytes.set(part, offset);
-        offset += part.length;
+    for (const piece of pieces) {
+        bytes.set(piece, offset);
+        offset += piece.length;
     }
-    const reply = await send(dictation, parts.type, {bytes}, DICTATION_TIMEOUT_SECONDS);
-    if ('answer' in reply)
-        return reply.answer;
-    throw new Refusal(reply.status, reply.reason);
+    return {bytes: new GLib.Bytes(bytes), type: parts.type};
 }
 
 // A form carries the audio as its last part, which is where xAI requires it.
@@ -135,67 +115,17 @@ function partsOf(body: Body): Parts {
     };
 }
 
-function text(value: string): Gio.InputStream {
-    return Gio.MemoryInputStream.new_from_bytes(new GLib.Bytes(new TextEncoder().encode(value)));
-}
-
-function readStream(file: Gio.File, cancellable: Gio.Cancellable): Promise<Gio.FileInputStream> {
-    return fromAsync(
-        callback => file.read_async(GLib.PRIORITY_DEFAULT, cancellable, callback),
-        result => file.read_finish(result));
-}
-
-// A splice writes all of what it reads, where a single write may take only
-// part of what it is handed.
-function append(
-    output: Gio.OutputStream, source: Gio.InputStream, cancellable: Gio.Cancellable) {
-    return fromAsync(
-        callback => output.splice_async(source, Gio.OutputStreamSpliceFlags.CLOSE_SOURCE,
-            GLib.PRIORITY_DEFAULT, cancellable, callback),
-        result => output.splice_finish(result));
-}
-
-async function appendBase64(
-    output: Gio.OutputStream, audio: Gio.File, cancellable: Gio.Cancellable): Promise<void> {
-    const input = await readStream(audio, cancellable);
-    let carried = new Uint8Array(0);
-    try {
-        for (;;) {
-            const read = await fromAsync(
-                callback => input.read_bytes_async(BASE64_CHUNK_BYTES, GLib.PRIORITY_DEFAULT,
-                    cancellable, callback),
-                result => input.read_bytes_finish(result));
-            const data = read.get_data() ?? new Uint8Array(0);
-            if (data.length === 0)
-                break;
-            const joined = new Uint8Array(carried.length + data.length);
-            joined.set(carried);
-            joined.set(data, carried.length);
-            const whole = joined.length - (joined.length % 3);
-            if (whole > 0)
-                await append(output, text(GLib.base64_encode(joined.subarray(0, whole))), cancellable);
-            carried = joined.slice(whole);
-        }
-        if (carried.length > 0)
-            await append(output, text(GLib.base64_encode(carried)), cancellable);
-    } finally {
-        await fromAsync(
-            callback => input.close_async(GLib.PRIORITY_DEFAULT, null, callback),
-            result => input.close_finish(result)).catch(() => {});
-    }
-}
-
 async function send(
-    request: {apiKey: string; cancellable: Gio.Cancellable; url: string}, contentType: string,
-    body: {bytes: Uint8Array} | {size: number; stream: Gio.InputStream},
+    request: {apiKey: string; cancellable: Gio.Cancellable; url: string}, payload: Payload,
     timeout: number): Promise<Reply> {
     const http = new Soup.Session({timeout});
     const message = Soup.Message.new('POST', request.url);
     message.get_request_headers().append('Authorization', `Bearer ${request.apiKey}`);
-    if ('bytes' in body)
-        message.set_request_body_from_bytes(contentType, new GLib.Bytes(body.bytes));
-    else
-        message.set_request_body(contentType, body.stream, body.size);
+    message.set_request_body_from_bytes(payload.type, payload.bytes);
+    message.connect('network-event', (_message, event, connection) => {
+        if (event === Gio.SocketClientEvent.CONNECTED && connection instanceof Gio.SocketConnection)
+            giveUpWhenUnanswered(connection.get_socket());
+    });
 
     let data: GLib.Bytes;
     try {
@@ -225,6 +155,14 @@ async function send(
     if (!answer)
         throw new Error('the service sent no transcription');
     return {answer};
+}
+
+function giveUpWhenUnanswered(socket: Gio.Socket): void {
+    socket.set_keepalive(true);
+    socket.set_option(Gio.SocketProtocol.TCP, LINUX_TCP_KEEPIDLE, KEEPALIVE_IDLE_SECONDS);
+    socket.set_option(Gio.SocketProtocol.TCP, LINUX_TCP_KEEPINTVL, KEEPALIVE_INTERVAL_SECONDS);
+    socket.set_option(Gio.SocketProtocol.TCP, LINUX_TCP_USER_TIMEOUT,
+        UNANSWERED_CONNECTION_SECONDS * 1000);
 }
 
 export function textOf(answer: Answer): string {
