@@ -109,9 +109,7 @@ A transcript reads like this:
 
 ```markdown
 22:02:41 Roman: Hast du den Link geschickt?
-
 22:02:44 Speaker 1: Ja, schau in den Chat.
-
 22:03:10 Speaker 2: I can't hear you guys.
 ```
 

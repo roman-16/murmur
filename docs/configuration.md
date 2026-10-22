@@ -114,9 +114,7 @@ The audio and the transcript are saved side by side in the **Recordings folder**
 
 ```markdown
 19:33:52 Roman: Hast du den Link geschickt?
-
 19:33:55 Speaker 1: Ja, schau in den Chat.
-
 19:34:01 Speaker 2: I can't hear you guys.
 ```
 

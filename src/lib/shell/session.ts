@@ -2,7 +2,8 @@ import type Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 
 import type {DictationConfig} from '../settings.js';
-import {oneLine, SAMPLE_RATE, type Transcription} from '../transcription/provider.js';
+import {oneLine} from '../transcript.js';
+import {SAMPLE_RATE, type Transcription} from '../transcription/provider.js';
 import {transcriptionFor} from '../transcription/transcription.js';
 import {meterFromDecibels, Microphone} from './audio.js';
 

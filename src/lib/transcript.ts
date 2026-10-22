@@ -20,6 +20,10 @@ const SENTENCE_END = /[.!?…]["')\]]*$/;
 
 type Spoken = Utterance & {id: number | null};
 
+export function oneLine(text: string): string {
+    return text.replace(/\s+/g, ' ').trim();
+}
+
 export function untimed(text: string): Transcribed {
     const trimmed = text.trim();
     return {
@@ -73,9 +77,10 @@ export function written(lines: Line[], startedAt: number | null): string {
     return lines
         .map(line => {
             const time = clock((startedAt ?? 0) + line.start);
-            return line.speaker ? `${time} ${line.speaker}: ${line.text}` : `${time} ${line.text}`;
+            const text = oneLine(line.text);
+            return line.speaker ? `${time} ${line.speaker}: ${text}` : `${time} ${text}`;
         })
-        .join('\n\n');
+        .join('\n');
 }
 
 function clock(seconds: number): string {

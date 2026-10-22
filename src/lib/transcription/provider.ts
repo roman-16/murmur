@@ -64,10 +64,6 @@ export type DictationSender = (wave: Uint8Array, cancellable: Gio.Cancellable) =
 export type RecordingTranscriber = (
     audio: Gio.File, options: {diarize: boolean}, cancellable: Gio.Cancellable) => Promise<Transcribed>;
 
-export function oneLine(text: string): string {
-    return text.replace(/\s+/g, ' ').trim();
-}
-
 export function unhandled(event: never): TranscriptionEvent[] {
     console.debug(`murmur: ignoring unknown realtime event ${JSON.stringify(event)}`);
     return [];

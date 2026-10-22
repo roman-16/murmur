@@ -64,7 +64,7 @@ test('writes both channels as one conversation in clock time', () => {
         '19:33:55 Speaker 1: Ja, schau in den Chat.',
         '19:34:00 Speaker 2: I can\'t hear you.',
         '19:34:10 Roman: Danke.',
-    ].join('\n\n'));
+    ].join('\n'));
 });
 
 test('counts from the start when the recording has no start time', () => {
@@ -120,7 +120,13 @@ test('names speech without a label after its track', () => {
     expect(written(linesOf([
         desktop({piece: whole, transcribed: timed(said(3, 4, null, 'Hi.'))}),
         mono,
-    ]), null)).toBe('00:00:01 Hello.\n\n00:00:03 Others: Hi.');
+    ]), null)).toBe('00:00:01 Hello.\n00:00:03 Others: Hi.');
+});
+
+test('writes a piece the service split into paragraphs as one line', () => {
+    const lines = linesOf([desktop({piece: whole, transcribed: untimed('Erster Absatz.\n\nZweiter\nAbsatz.')})]);
+
+    expect(written(lines, 14 * 3600 + 2 * 60 + 8)).toBe('14:02:08 Others: Erster Absatz. Zweiter Absatz.');
 });
 
 test('writes an untimed piece as one line where the piece starts', () => {

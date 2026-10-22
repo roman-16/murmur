@@ -251,7 +251,7 @@ export default class Probe extends Extension {
         const {FocusTracker} = await import(`file://${murmur.path}/lib/shell/focus.js`);
         const {History} = await import(`file://${murmur.path}/lib/history.js`);
         const {oneLine} =
-            await import(`file://${murmur.path}/lib/transcription/provider.js`);
+            await import(`file://${murmur.path}/lib/transcript.js`);
 
         // A line break reaching the keyboard is typed as Enter, which sends the
         // message, runs the command and submits the search.
