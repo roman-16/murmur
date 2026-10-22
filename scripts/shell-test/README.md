@@ -24,6 +24,7 @@ So the probe presses the button, from a position it computed off the actor's own
 | `../nested-shell.sh` | The throwaway session, shared with `just dev` and the demo |
 | `session.sh` | Inside the session: waits for the probe to finish |
 | `probe@murmur.local` | An extension that performs the checks from inside the compositor |
+| `mistral-mock.ts` | A stand-in for Mistral on `127.0.0.1`, which `MURMUR_SERVICE_URL` sends every transcription request to. It answers a sentence for the key `probe` and nothing for `probe-silent` |
 | An installed application | A real client to focus, because an extension cannot produce a window |
 
 The client is whichever of `org.gnome.TextEditor`, `org.gnome.gedit`, `org.gnome.Console`, `org.gnome.Ptyxis` or `org.gnome.Terminal` is installed system-wide, launched by the compositor itself.
@@ -45,11 +46,12 @@ The probe reaches Murmur's modules through `Main.extensionManager.lookup()`, so 
 - Destroying the panel leaves no chrome and no top-bar indicator, and destroying it twice is safe.
 - The recording pill reaches the top bar with its running time, and a click opens its menu with both levels and the limit. **Stop and transcribe** stops; **Discard…** asks first and discards once confirmed; locking the screen keeps the menu shut and unlocking gives it back; a recording being transcribed says so and has nothing left to stop; destroying it leaves nothing.
 - An empty file is written and answered for, which is what a transcript of nothing and a list of no recordings both are.
-- GStreamer runs inside the compositor: a recording hears the microphone and the desktop and writes an Ogg Opus file that keeps them on channels of their own and names them in its tags, and a dictation's microphone delivers whole samples and then its end. A second and a half of stereo laid out the same way is planned as overlapping pieces, a channel of it is cut at the length its piece hears, a silent channel is not cut at all, and the whole of it can be cut as one track. Nothing short of running the pipelines shows that the shell's bindings and every plugin are there.
+- GStreamer runs inside the compositor: a recording hears the microphone and the desktop and writes an Ogg Opus file that keeps them on channels of their own and names them in its tags, and a dictation's microphone delivers whole samples and then its end. A second and a half of stereo laid out the same way is planned as overlapping pieces, a channel of it is cut at the length its piece hears, a silent channel is not cut at all, a stretch a whole number of half seconds long is still heard, and the whole of it can be cut as one track. Nothing short of running the pipelines shows that the shell's bindings and every plugin are there.
+- A recording transcribed over the bus ends in a notification offering **Open** and **Copy path**, one where no words were heard included. Hovering its banner shows the buttons, and clicking **Copy path** with the pointer puts the transcript's path on the clipboard, beside the audio and holding what the stand-in said.
 - The extension survives being disabled and enabled.
 
 ## What it does not check
 
-Anything that needs the network or a key: what any transcription service says over its socket or answers to an upload. `scripts/transcript.test.ts` covers how what they answer becomes the transcript file, and `scripts/changelog.test.ts` the changelog parser. Insertion is the one important gap: synthesizing keystrokes into a client and reading them back is a bigger harness than this, and [`CONTRIBUTING.md`](../../CONTRIBUTING.md) lists the manual passes that stand in for it.
+What the real services say over their sockets or answer to an upload: the run talks only to the stand-in, in the shape Mistral answers. `scripts/transcript.test.ts` covers how what they answer becomes the transcript file, and `scripts/changelog.test.ts` the changelog parser. Insertion is the one important gap: synthesizing keystrokes into a client and reading them back is a bigger harness than this, and [`CONTRIBUTING.md`](../../CONTRIBUTING.md) lists the manual passes that stand in for it.
 
 It does not run in CI, because a GitHub runner has no GNOME Shell and standing one up there is a flakier thing than the bugs it would catch. Run it before a pull request that touches `src/lib/shell/`.

@@ -42,7 +42,7 @@ The application is the first of `org.gnome.TextEditor`, `org.gnome.gedit`, `org.
 
 ## What is real and what is scripted
 
-Everything on screen is the extension doing its actual work: the panel, the top-bar indicator, the live text arriving word by word, the countdown, the destination the panel reports, and the insertion into the editor as keystrokes. What is scripted is the **speech**: instead of Grok, `MURMUR_REALTIME_URL` points Murmur at a local endpoint that speaks the same protocol and streams a fixed sentence. That makes the take identical on every machine, free, and reproducible in a checkout with no key.
+Everything on screen is the extension doing its actual work: the panel, the top-bar indicator, the live text arriving word by word, the countdown, the destination the panel reports, and the insertion into the editor as keystrokes. What is scripted is the **speech**: instead of Grok, `MURMUR_SERVICE_URL` points Murmur at a local endpoint that speaks the same protocol and streams a fixed sentence. That makes the take identical on every machine, free, and reproducible in a checkout with no key.
 
 Murmur still opens the microphone, and the level in the panel is what it hears. With nobody logged in at the desktop PipeWire has no microphone at all, so `scripts/nested-shell.sh` brings a silent one of its own, `pw-loopback` for as long as the take lasts, and the level stays flat.
 

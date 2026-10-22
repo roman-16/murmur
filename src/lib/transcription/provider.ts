@@ -78,7 +78,7 @@ export function isProviderId(nick: string): nick is ProviderId {
 }
 
 export function endpoint(url: string): string {
-    return GLib.getenv('MURMUR_REALTIME_URL') || url;
+    return GLib.getenv('MURMUR_SERVICE_URL') || url;
 }
 
 export function errorText(error: {message?: string} | string | undefined): string {

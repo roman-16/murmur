@@ -1,6 +1,5 @@
 import {type Transcribed, untimed, utterancesOf} from '../transcript.js';
 import {
-    endpoint,
     errorText,
     type Frame,
     numberOr,
@@ -43,10 +42,10 @@ export class XaiProtocol implements StreamProtocol {
 
     constructor(options: Options) {
         this.headers = [['Authorization', `Bearer ${options.apiKey}`]];
-        this.url = endpoint([
+        this.url = [
             URL,
             ...termsWithin(options.terms, TERMS).map(term => `keyterm=${encodeURIComponent(term)}`),
-        ].join('&'));
+        ].join('&');
     }
 
     audio(chunk: Uint8Array): Frame[] {

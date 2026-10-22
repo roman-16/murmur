@@ -35,8 +35,6 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-# A scripted endpoint instead of the real one: the take is then the same every
-# time, costs nothing, and needs no key and no network.
 bun scripts/demo/grok-mock.ts >"$tmp/mock.url" &
 mock=$!
 for _ in $(seq 40); do
@@ -48,15 +46,11 @@ if [ ! -s "$tmp/mock.url" ]; then
     exit 1
 fi
 
-export MURMUR_REALTIME_URL
-MURMUR_REALTIME_URL=$(head -1 "$tmp/mock.url")
-# The mock speaks Grok's protocol, so the take is recorded against that
-# service whatever the environment prefers.
+export MURMUR_SERVICE_URL
+MURMUR_SERVICE_URL=$(head -1 "$tmp/mock.url")
 export XAI_API_KEY=${XAI_API_KEY:-demo}
 export MURMUR_PROVIDER=xai
 
-# The take is recorded with the shortcut the documentation names, so the session
-# behaves like the one the README describes.
 export DEMO_CAPTURE="$tmp/demo"
 export DEMO_DONE_FILE="$tmp/done"
 export DEMO_RECORDING_FILE="$DEMO_CAPTURE.recording"
@@ -75,9 +69,6 @@ fi
 mkdir --parents assets
 crop="crop=in_w:in_h-$crop_top:0:$crop_top"
 
-# Animated WebP rather than a GIF: it plays by itself, loops and shows no
-# controls the same way, at a fraction of the bytes and without a 256 colour
-# palette to dither into.
 ffmpeg -loglevel error -y -i "$capture" \
     -vf "$crop,fps=$fps,scale=$webp_width:-2:flags=lanczos" \
     -c:v libwebp_anim -lossless 0 -q:v "$quality" -compression_level 6 -loop 0 \

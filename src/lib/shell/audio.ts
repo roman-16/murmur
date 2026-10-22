@@ -34,9 +34,6 @@ type ValueArray = {get_nth(index: number): unknown};
 // made it through, since a source that went quiet may never pass it on.
 const FINISH_TIMEOUT_MS = 3000;
 const LEVEL_INTERVAL_NS = 100 * 1000 * 1000;
-// Loudness reads as a curve rather than a ratio, so the meter spans the decibels
-// a voice moves through: full scale down to -50 dB, and quieter than that is a
-// room with nobody talking in it.
 const METER_RANGE_DB = 50;
 const NS_PER_SECOND = 1000 * 1000 * 1000;
 // Xiph's recommendation for a podcast, and the rate from which Opus is
@@ -46,9 +43,6 @@ const PIECE_BITRATE = 32000;
 const PULL_MS = 100;
 const QUIET_INTERVAL_NS = 500 * 1000 * 1000;
 const QUIET_SEARCH_SECONDS = 60;
-// A recording's file says which of its channels heard what, in a tag of its
-// own, so that only Murmur's own recordings are taken apart by channel and a
-// stereo file from anywhere else is heard as the one track it is.
 const CHANNELS_TAG = 'MURMUR_CHANNELS';
 const RECORDED: Source[] = ['microphone', 'desktop'];
 const SPEECH_CAPS =
@@ -100,9 +94,6 @@ export async function layoutOf(audio: Gio.File, cancellable: Gio.Cancellable): P
     return {channels: channelsOf(comments, count), seconds};
 }
 
-// Pieces are cut where it is quietest before each mark, so no word is split,
-// and each is sent with some of the pieces either side of it: the stretch
-// both pieces heard is what ties one piece's speakers to the next one's.
 export async function piecesOf(
     audio: Gio.File, seconds: number | null, sizes: {longest: number; overlap: number},
     cancellable: Gio.Cancellable): Promise<Piece[]> {
@@ -220,10 +211,8 @@ export class Microphone {
         this.#sink = sink;
     }
 
-    // What is heard before anyone listens is held, so nothing said while the
-    // service is still being reached is lost. GJS cannot run JavaScript on a
-    // GStreamer streaming thread, so the samples are collected from the main
-    // loop rather than handed over as they arrive.
+    // GJS cannot run JavaScript on a GStreamer streaming thread, so the samples
+    // are collected from the main loop rather than handed over as they arrive.
     listen(onChunk: (chunk: Uint8Array) => void, onEnd: () => void): void {
         this.#onChunk = onChunk;
         this.#onEnd = onEnd;
@@ -534,7 +523,9 @@ class Pipeline {
                 const decibels = (structure.get_value('rms') as ValueArray | null)?.get_nth(0);
                 const [, streamTime] = structure.get_uint64('stream-time');
                 const [, duration] = structure.get_uint64('duration');
-                if (typeof decibels === 'number') {
+                // A stretch a whole number of intervals long ends in an interval
+                // of no samples, which level reports with an rms of NaN.
+                if (typeof decibels === 'number' && !Number.isNaN(decibels)) {
                     handlers.onLevel?.({
                         decibels,
                         element: message.src?.get_name() ?? '',
@@ -566,8 +557,6 @@ class Pipeline {
     }
 }
 
-// Each source arrives as one channel placed on its own side, left then right,
-// so the recording is ordinary stereo to anything that plays it.
 function branch(name: Source, index: number): string {
     const caps = `audio/x-raw,format=F32LE,rate=48000,channels=1,channel-mask=(bitmask)${1 << index}`;
     return `${SOURCES[name]} ! audioconvert ! audioresample ! ${caps} ! ` +

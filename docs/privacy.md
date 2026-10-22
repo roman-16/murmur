@@ -59,7 +59,7 @@ An API key in dconf is the same protection GNOME gives every other setting, whic
 
 ## The clipboard
 
-When there is no text field to insert into, the transcription is placed on the clipboard, which replaces whatever was there. The panel names that destination while you speak and confirms it before closing. If you use a clipboard manager, the transcription lands in its history like anything else you copy. A recording's transcript reaches the clipboard only when you press **Copy** on its notification.
+When there is no text field to insert into, the transcription is placed on the clipboard, which replaces whatever was there. The panel names that destination while you speak and confirms it before closing. If you use a clipboard manager, the transcription lands in its history like anything else you copy. A recording's transcript never reaches the clipboard: **Copy path** on its notification copies where it is saved, not what it says.
 
 Passwords dictated into a password field are typed, never copied. See [Where the text goes](text-insertion.md).
 

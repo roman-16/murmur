@@ -269,10 +269,11 @@ export class Recordings {
             seconds === null ? null : duration(seconds),
             heard ? `Saved as ${file.transcript.get_basename()}` : 'No words were heard',
         ].filter(line => line !== null);
+        const path = file.transcript.get_path();
         notify({
             actions: [
                 {label: 'Open', run: () => void open(file.transcript)},
-                ...(heard ? [{label: 'Copy', run: () => copyText(text)}] : []),
+                ...(path ? [{label: 'Copy path', run: () => copyText(path)}] : []),
             ],
             body: lines.join('\n'),
             title: 'Recording transcribed',
@@ -320,8 +321,6 @@ function secondsOf(pieces: Piece[]): number | null {
     return Number.isFinite(end) ? Math.round(end) : null;
 }
 
-// The microphone is the person recording, and everyone else is heard through
-// the desktop, where only the service can tell their voices apart.
 function listeningTo(layout: Layout): Listening[] {
     const {channels} = layout;
     if (!channels)

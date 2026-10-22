@@ -4,7 +4,7 @@ import Soup from 'gi://Soup?version=3.0';
 
 import {fromAsync, wait} from '../async.js';
 import {errorMessage, isCancelled} from '../errors.js';
-import {errorText} from './provider.js';
+import {endpoint, errorText} from './provider.js';
 
 const DICTATION_TIMEOUT_SECONDS = 60;
 const KEEPALIVE_IDLE_SECONDS = 30;
@@ -119,7 +119,7 @@ async function send(
     request: {apiKey: string; cancellable: Gio.Cancellable; url: string}, payload: Payload,
     timeout: number): Promise<Reply> {
     const http = new Soup.Session({timeout});
-    const message = Soup.Message.new('POST', request.url);
+    const message = Soup.Message.new('POST', endpoint(request.url));
     message.get_request_headers().append('Authorization', `Bearer ${request.apiKey}`);
     message.set_request_body_from_bytes(payload.type, payload.bytes);
     message.connect('network-event', (_message, event, connection) => {

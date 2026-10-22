@@ -4,14 +4,12 @@ import Soup from 'gi://Soup?version=3.0';
 
 import {deferred, fromAsync, whenCancelled} from '../async.js';
 import {errorMessage, isCancelled} from '../errors.js';
-import type {Frame, StreamProtocol, Transcription} from './provider.js';
+import {endpoint, type Frame, type StreamProtocol, type Transcription} from './provider.js';
 
 // A service that has to open a session of its own gets this long to do it. Audio
 // waits meanwhile, so without the bound a service that answered the handshake
 // and nothing else would listen to a whole dictation and transcribe none of it.
 const SETUP_TIMEOUT_MS = 10000;
-// The tail of a transcription arrives after the microphone is released, so this
-// is how long "Finishing…" can last before Murmur delivers what it has.
 const TAIL_TIMEOUT_MS = 5000;
 
 export class StreamTranscription implements Transcription {
@@ -45,7 +43,7 @@ export class StreamTranscription implements Transcription {
         const http = new Soup.Session();
         this.#http = http;
 
-        const uri = GLib.Uri.parse(this.#protocol.url, GLib.UriFlags.NONE);
+        const uri = GLib.Uri.parse(endpoint(this.#protocol.url), GLib.UriFlags.NONE);
         const message = Soup.Message.new_from_uri('GET', uri);
         for (const [name, value] of this.#protocol.headers)
             message.get_request_headers().append(name, value);

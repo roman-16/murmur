@@ -3,18 +3,37 @@ set -uo pipefail
 
 cd "$(dirname "$0")/../.."
 
-if ! command -v gnome-shell >/dev/null; then
-    echo "error: gnome-shell is required to drive the extension" >&2
-    exit 1
-fi
+for tool in bun gnome-shell; do
+    if ! command -v "$tool" >/dev/null; then
+        echo "error: $tool is required to drive the extension" >&2
+        exit 1
+    fi
+done
 
 tmp=$(mktemp --directory)
-trap 'rm --recursive --force "$tmp" 2>/dev/null || true' EXIT INT TERM
+mock=""
+cleanup() {
+    [ -z "$mock" ] || kill "$mock" 2>/dev/null || true
+    rm --recursive --force "$tmp" 2>/dev/null || true
+}
+trap cleanup EXIT INT TERM
 
 export PROBE_RESULT="$tmp/result"
+export PROBE_SENTENCE="Murmur heard every word of the call."
 
-# Headless, because the checks are assertions rather than a picture: nothing has
-# to be on screen, and a window nobody watches cannot be occluded by one that is.
+bun scripts/shell-test/mistral-mock.ts >"$tmp/mock.url" &
+mock=$!
+for _ in $(seq 40); do
+    [ -s "$tmp/mock.url" ] && break
+    sleep 0.25
+done
+if [ ! -s "$tmp/mock.url" ]; then
+    echo "error: the stand-in transcription service did not start" >&2
+    exit 1
+fi
+export MURMUR_SERVICE_URL
+MURMUR_SERVICE_URL=$(head -1 "$tmp/mock.url")
+
 export NESTED_HEADLESS=1
 export NESTED_EXTENSIONS="scripts/shell-test/probe@murmur.local"
 # The probe reaches the extension directly, so the session needs no working

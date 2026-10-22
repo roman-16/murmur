@@ -94,7 +94,7 @@ A dictation is you talking into a field. A recording is everything: whatever you
 
 1. Press **Super+Alt+Space**. A pill with a headset and a running time appears in the top bar, and nothing else: the keyboard stays with whatever you were doing.
 2. Carry on. Click the pill to see what the **Microphone** and the **Desktop audio** are hearing, which is the quick way to know the call is really being picked up.
-3. Press **Super+Alt+Space** again, or **Stop and transcribe** in the pill's menu. The pill says *Transcribing…* while the service works, counting the pieces of a recording longer than ten minutes, and a notification says when it is done: **Open** shows the transcript, **Copy** puts it on the clipboard.
+3. Press **Super+Alt+Space** again, or **Stop and transcribe** in the pill's menu. The pill says *Transcribing…* while the service works, counting the pieces of a recording longer than ten minutes, and a notification says when it is done: **Open** shows the transcript, **Copy path** puts where it is saved on the clipboard.
 
 **Discard…** in the menu throws the recording away, after asking.
 

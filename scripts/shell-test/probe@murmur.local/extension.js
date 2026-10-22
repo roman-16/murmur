@@ -55,8 +55,6 @@ export default class Probe extends Extension {
         this.#app = null;
     }
 
-    // ------------------------------------------------------------------ checks
-
     #ok(what, condition, detail = '') {
         if (condition) {
             this.#passes++;
@@ -80,8 +78,6 @@ export default class Probe extends Extension {
         this.#after(SETTLE_MS, () => global.context.terminate());
     }
 
-    // ------------------------------------------------------------- the harness
-
     #after(milliseconds, action) {
         const id = GLib.timeout_add(GLib.PRIORITY_DEFAULT, milliseconds, () => {
             this.#timeouts = this.#timeouts.filter(other => other !== id);
@@ -101,12 +97,16 @@ export default class Probe extends Extension {
     // Warping alone delivers no crossing, so an actor the pointer is warped onto
     // never receives enter and reads as unhovered however healthy it is. The
     // pointer is therefore put down beside the target and moved onto it.
-    async #click(x, y, watch = null) {
+    async #point(x, y) {
         const seat = Clutter.get_default_backend().get_default_seat();
         seat.warp_pointer(x + 2, y + 2);
         this.#pointer.notify_absolute_motion(GLib.get_monotonic_time(), x + 2, y + 2);
         await this.#settle(100);
         this.#pointer.notify_absolute_motion(GLib.get_monotonic_time(), x, y);
+    }
+
+    async #click(x, y, watch = null) {
+        await this.#point(x, y);
         const hovered = watch ? await this.#until(() => watch.hover) : null;
 
         this.#pointer.notify_button(
@@ -202,9 +202,6 @@ export default class Probe extends Extension {
         return null;
     }
 
-    // Where the transcription goes is read when the recording stops, which is
-    // while the panel still has the keyboard. If holding it were to end the
-    // client's text-input focus, every dictation would land on the clipboard.
     async #checkDestination(FocusTracker, MurmurPanel) {
         if (!this.#client) {
             this.#fail('a client is available to read a destination from', 'none opened');
@@ -216,9 +213,6 @@ export default class Probe extends Extension {
         this.#client.activate(global.get_current_time());
         await this.#settle(800);
 
-        // Reported alongside the verdict, because every way this fails looks
-        // identical from the outside: the client not announcing a field at all
-        // and the panel having taken the announcement away are both "clipboard".
         const state = () => {
             const focus = Main.inputMethod.currentFocus;
             return `currentFocus=${focus !== null} isFocused=${focus?.is_focused()} ` +
@@ -243,8 +237,6 @@ export default class Probe extends Extension {
             tracker.destroy();
         }
     }
-
-    // -------------------------------------------------------------- the checks
 
     async #run() {
         const murmur = Main.extensionManager.lookup(MURMUR_UUID);
@@ -301,9 +293,6 @@ export default class Probe extends Extension {
         this.#report();
     }
 
-    // What a dictation leaves behind, checked where it is written rather than in
-    // the abstract: the session's own state directory, from inside the shell
-    // process that does the writing.
     async #checkHistory(History) {
         const history = new History('probe@murmur.local');
         await history.clear();
@@ -322,9 +311,6 @@ export default class Probe extends Extension {
         this.#ok('the history is a file on disk',
             GLib.file_test(history.path, GLib.FileTest.EXISTS), history.path);
 
-        // Nothing but the user reads what the user dictated, which the write
-        // has to settle as it creates the file: a mode corrected afterwards
-        // leaves an instant in which it is not true.
         const modeOf = path => Gio.File.new_for_path(path)
             .query_info('unix::mode', Gio.FileQueryInfoFlags.NONE, null)
             .get_attribute_uint32('unix::mode') & 0o7777;
@@ -334,8 +320,6 @@ export default class Probe extends Extension {
             `file ${modeOf(history.path).toString(8)}, ` +
                 `directory ${modeOf(directory).toString(8)}`);
 
-        // Appends queue behind one another, so the last one to be handed over
-        // is the last one to be written and waiting for it waits for them all.
         let queued;
         for (let index = 0; index < 501; index++)
             queued = history.append(`dictation ${index}`);
@@ -347,7 +331,6 @@ export default class Probe extends Extension {
         this.#ok('the oldest dictation is the one dropped',
             capped.at(-1)?.text === 'dictation 1', `oldest is ${capped.at(-1)?.text}`);
 
-        // A half-written line costs its own entry and nothing else.
         GLib.file_set_contents(history.path,
             '{"at":"2026-01-01T00:00:00Z","text":"kept"}\n{"at":"2026-01\n');
         const survivors = await history.entries();
@@ -376,10 +359,9 @@ export default class Probe extends Extension {
             file.query_info('standard::size', Gio.FileQueryInfoFlags.NONE, null).get_size() === 0);
     }
 
-    // What made the panel disappear into a dark desktop: the class it wore is
-    // styled for sitting inside another surface, so the theme gave its frame a
-    // transparent border and a transparent shadow, and a card the colour of the
-    // window behind it had nothing to separate it. Read from the theme rather
+    // The theme gives a class meant for sitting inside another surface a
+    // transparent border and shadow, which leaves a card the colour of the
+    // window behind it with nothing to separate it. Read from the theme rather
     // than from a screenshot, because whether it shows depends on the wallpaper.
     #checkSurface() {
         const node = this.#card().get_theme_node();
@@ -395,9 +377,9 @@ export default class Probe extends Extension {
             `focus is ${focus?.constructor?.name} "${focus?.label ?? focus?.style_class}"`);
     }
 
-    // The regression this whole harness exists for: a button that is hit-tested
-    // correctly, wired correctly, and still does nothing when clicked, because
-    // something above it consumed the press and cancelled its gesture.
+    // A button can be hit-tested correctly, wired correctly, and still do
+    // nothing when clicked, because something above it consumed the press and
+    // cancelled its gesture.
     async #checkButtons(fired) {
         const buttons = this.#buttons();
         this.#ok('the panel has its three actions', buttons.length === 3,
@@ -420,7 +402,7 @@ export default class Probe extends Extension {
             const {hovered, pressed} = await this.#click(x, y, button);
 
             // Without this the check above can pass on a click that never
-            // happened, which is how the regression shipped in the first place.
+            // happened.
             this.#ok(`"${name}" takes the press`, hovered === true && pressed === true,
                 `hover=${hovered} pressed=${pressed}`);
             this.#ok(`clicking "${name}" does something`,
@@ -431,8 +413,6 @@ export default class Probe extends Extension {
         }
     }
 
-    // The one invariant the panel is built on: it is on screen exactly while it
-    // holds the keyboard. Every check here is one way of breaking that.
     async #checkKeyboard() {
         this.#panel.expand();
         await this.#settle();
@@ -461,9 +441,6 @@ export default class Probe extends Extension {
             'it would swallow Enter while invisible');
     }
 
-    // Both ways the panel gets out of the way, tested apart, because they fire
-    // on different signals and only the first survives with the keyboard
-    // setting turned off.
     async #checkCollapse() {
         this.#panel.expand();
         await this.#settle();
@@ -483,9 +460,6 @@ export default class Probe extends Extension {
         this.#ok('the panel can be brought back',
             !this.#panel.collapsed && this.#holdsKeyboard());
 
-        // The case that made this rule what it is: the window clicked is the one
-        // that already had the focus, so nothing about the window changes and
-        // only the keyboard moving can be what collapses the panel.
         // The middle of the window, which is its document or its terminal: a
         // corner is the header bar, where a click can hit a button and open
         // something this is not testing.
@@ -497,9 +471,6 @@ export default class Probe extends Extension {
             this.#panel.collapsed);
     }
 
-    // The panel opens on the screen being worked on, and above whatever that
-    // screen reserves. Both are invisible on one monitor with nothing docked to
-    // it, so the session runs two screens and this puts a dock on the second.
     async #checkPlacement(MurmurPanel) {
         const STRUT_HEIGHT = 40;
         const MARGIN_FLOOR = 40;
@@ -544,8 +515,6 @@ export default class Probe extends Extension {
                 x >= monitor.x && x < monitor.x + monitor.width,
                 `card at x=${x}, monitor spans ${monitor.x}..${monitor.x + monitor.width}`);
 
-            // Placed against the monitor instead of its work area, the card
-            // would end up inside the dock's 40 pixels rather than above them.
             const gap = workArea.y + workArea.height - (y + height);
             this.#ok('the panel clears what the second monitor reserves',
                 gap >= MARGIN_FLOOR, `${gap}px above the work area's bottom`);
@@ -556,17 +525,12 @@ export default class Probe extends Extension {
         }
     }
 
-    // What "Show the panel when a dictation starts" turns off: a dictation that
-    // draws nothing over the user's work until they ask for it.
     async #checkCollapsedStart(MurmurPanel) {
         this.#panel.destroy();
         this.#panel = new MurmurPanel({collapsed: true});
         this.#panel.transcript = 'started out of the way';
         await this.#settle();
 
-        // Mapped rather than merely present: a collapsed panel is still built,
-        // it is just not on screen, which is the whole difference the setting
-        // makes to the user.
         this.#ok('a collapsed start draws no panel', this.#card()?.mapped !== true);
         this.#ok('a collapsed start takes no keyboard',
             global.stage.get_key_focus() === null);
@@ -579,14 +543,9 @@ export default class Probe extends Extension {
             `opacity=${card?.get_parent()?.opacity}`);
     }
 
-    // The card is only as tall as what has been said: nothing yet is nothing on
-    // screen, and a long dictation stops growing rather than filling the screen.
     async #checkTranscript(MurmurPanel) {
         this.#panel.destroy();
         this.#panel = new MurmurPanel();
-        // Through the setter rather than straight from the constructor: a
-        // service that sends an empty partial has to leave the card as small as
-        // one that has sent nothing at all.
         this.#panel.transcript = '';
         await this.#settle(400);
 
@@ -604,8 +563,6 @@ export default class Probe extends Extension {
         this.#ok('a long transcript stops at its cap', long > spoken && long <= 8 * spoken,
             `${long}px from ${spoken}px`);
 
-        // Copying is a choice only while there is a field to type into; with
-        // nothing focused it does what stopping does.
         this.#panel.destination = {app: 'Text Editor', kind: 'field', password: false};
         await this.#settle(200);
         const withField = this.#buttons().filter(button => button.visible).length;
@@ -634,8 +591,6 @@ export default class Probe extends Extension {
         const pill = Main.panel.statusArea['murmur-dictation'];
         this.#ok('the indicator reaches the top bar', pill !== undefined);
 
-        // The only way back to a panel that has been clicked away, so a press
-        // that lands on it and does nothing loses the dictation behind it.
         let toggled = false;
         indicator.onToggle = () => {
             toggled = true;
@@ -657,8 +612,6 @@ export default class Probe extends Extension {
             Main.panel.statusArea['murmur-dictation'] === undefined);
     }
 
-    // The only surface a recording has, so a click that opens nothing or an
-    // item that does nothing leaves a recording nobody can stop.
     async #checkRecordingPill(RecordingIndicator) {
         const before = new Set(Object.keys(Main.panel.statusArea));
         const indicator = new RecordingIndicator({transcribing: false});
@@ -749,9 +702,8 @@ export default class Probe extends Extension {
         this.#ok('nothing of the pill is left', Main.panel.statusArea[role] === undefined);
     }
 
-    // GStreamer inside the compositor, which nothing short of running it proves
-    // is there with every plugin it needs. It hears a second or two of whatever
-    // the machine hears, into the session's throwaway cache, and deletes it.
+    // Nothing short of running GStreamer inside the compositor proves it is
+    // there with every plugin it needs.
     async #checkAudio(path) {
         const audio = await import(`file://${path}/lib/shell/audio.js`);
         const {layoutOf, Microphone, Recorder} = audio;
@@ -806,10 +758,6 @@ export default class Probe extends Extension {
         return file;
     }
 
-    // What Transcribe a file in the preferences sends, sent the way they send
-    // it: over the session bus to org.gnome.Shell, which is this process. The
-    // file that is accepted is never uploaded, because Murmur is disabled the
-    // moment its pill appears, long before the file is cut and sent.
     async #checkBus(murmur, recorded) {
         const call = (path, service) => new Promise(resolve => {
             Gio.DBus.session.call('org.gnome.Shell', '/org/gnome/Shell/Extensions/Murmur',
@@ -869,14 +817,109 @@ export default class Probe extends Extension {
             role !== undefined && Main.panel.statusArea[role] === undefined);
         this.#ok('the extension answers on the bus again', await call(missing, 'mistral') ===
             `${missing} does not exist`);
+        await this.#checkTranscribed(call, settings);
         keys.forEach((key, index) => settings.set_string(key, saved[index]));
     }
 
-    // A recording goes to the service in pieces, cut out of the file by
-    // GStreamer inside the compositor, one channel at a time. The recording
-    // here is a second and a half laid out as Murmur lays one out, a tone on
-    // the microphone's channel and silence on the desktop's, in pieces of half
-    // a second that overlap by a tenth.
+    async #checkTranscribed(call, settings) {
+        const cache = GLib.get_user_cache_dir();
+        const audio = Gio.File.new_for_path(GLib.build_filenamev([cache, 'probe-call.opus']));
+        const transcript = GLib.build_filenamev([cache, 'probe-call.md']);
+        try {
+            await this.#writeStereo(audio);
+        } catch (error) {
+            this.#fail('a transcribed recording ends in a notification', `${error}`);
+            return;
+        }
+
+        const heard = await this.#transcribed(call, audio);
+        this.#ok('a transcribed recording ends in a notification',
+            heard.notification?.title === 'Recording transcribed', heard.said);
+        this.#ok('its notification offers Open and Copy path',
+            this.#offers(heard.notification) === 'Open, Copy path', this.#offers(heard.notification));
+        const copied = heard.notification ? await this.#copyPath(heard.notification) : heard.said;
+        this.#ok('Copy path puts the transcript\'s path on the clipboard', copied === transcript,
+            JSON.stringify(copied));
+        const sentence = GLib.getenv('PROBE_SENTENCE') ?? '';
+        const written = GLib.file_test(transcript, GLib.FileTest.EXISTS)
+            ? new TextDecoder().decode(GLib.file_get_contents(transcript)[1])
+            : '';
+        this.#ok('the transcript holds what the service heard',
+            sentence.length > 0 && written.includes(sentence),
+            `${JSON.stringify(written)} after ${heard.said}`);
+
+        settings.set_string('mistral-api-key', 'probe-silent');
+        const silent = await this.#transcribed(call, audio);
+        this.#ok('a recording with no words heard offers Open and Copy path',
+            (silent.notification?.body?.includes('No words were heard') ?? false) &&
+                this.#offers(silent.notification) === 'Open, Copy path',
+            `${silent.said} with ${this.#offers(silent.notification)}`);
+        silent.notification?.destroy();
+        audio.delete(null);
+        if (GLib.file_test(transcript, GLib.FileTest.EXISTS))
+            GLib.unlink(transcript);
+    }
+
+    async #transcribed(call, audio) {
+        const source = () => Main.messageTray.getSources()
+            .find(candidate => candidate.title === 'Murmur');
+        const seen = new Set(source()?.notifications ?? []);
+        const refusal = await call(audio.get_path(), 'mistral');
+        if (refusal !== null)
+            return {notification: null, said: `refused: ${refusal}`};
+        const fresh = () => source()?.notifications.find(notification => !seen.has(notification));
+        await this.#until(() => fresh() !== undefined, 100, 200);
+        const notification = fresh() ?? null;
+        return {
+            notification,
+            said: notification
+                ? `"${notification.title}": ${JSON.stringify(notification.body)}`
+                : 'no notification within 20 seconds',
+        };
+    }
+
+    #offers(notification) {
+        return notification?.actions.map(action => action.label).join(', ') ?? 'no notification';
+    }
+
+    async #copyPath(notification) {
+        const clipboard = St.Clipboard.get_default();
+        clipboard.set_text(St.ClipboardType.CLIPBOARD, 'nothing was copied');
+        const banner = () => this.#descendants(Main.layoutManager.uiGroup, actor =>
+            actor.notification === notification &&
+                (actor.style_class?.includes('notification-banner') ?? false))[0] ?? null;
+        const button = () => {
+            const shown = banner();
+            return shown
+                ? this.#descendants(shown, actor =>
+                    actor instanceof St.Button && actor.label === 'Copy path')[0] ?? null
+                : null;
+        };
+        if (!await this.#until(() => banner()?.mapped === true, 30))
+            return 'the notification never showed as a banner';
+        await this.#settle();
+        const shown = banner();
+        if (!shown)
+            return 'the banner went before the pointer reached it';
+
+        const {primaryMonitor} = Main.layoutManager;
+        await this.#point(primaryMonitor.x + primaryMonitor.width / 2,
+            primaryMonitor.y + primaryMonitor.height / 2);
+        await this.#point(...this.#centre(shown));
+        if (!await this.#until(() => shown.expanded && button()?.mapped === true, 20))
+            return 'hovering the banner never showed its buttons';
+        await this.#settle();
+
+        const target = button();
+        if (!target)
+            return 'the banner went before its button was pressed';
+        const {hovered, pressed} = await this.#click(...this.#centre(target), target);
+        if (!hovered || !pressed)
+            return `Copy path never took the press: hover=${hovered} pressed=${pressed}`;
+        return new Promise(resolve => clipboard.get_text(St.ClipboardType.CLIPBOARD,
+            (_clipboard, text) => resolve(text)));
+    }
+
     async #checkPieces({cutPiece, layoutOf, piecesOf}) {
         const cancellable = new Gio.Cancellable();
         const file = Gio.File.new_for_path(
@@ -912,14 +955,16 @@ export default class Probe extends Extension {
             const tone = await cutPiece(file, heard, {index: 0, of: 2}, cancellable);
             const silence = await cutPiece(file, heard, {index: 1, of: 2}, cancellable);
             const both = await cutPiece(file, heard, null, cancellable);
+            const halves = await cutPiece(file, {end: 1, start: 0}, {index: 0, of: 2}, cancellable);
             const cut = tone && await layoutOf(tone, cancellable);
-            [tone, both].forEach(piece => piece?.delete(null));
+            [tone, both, halves].forEach(piece => piece?.delete(null));
             this.#ok('a channel is cut out of the recording at the length its piece hears',
                 cut !== null && Math.abs(cut.seconds - (heard.end - heard.start)) < 0.05 &&
                 cut.channels === null,
                 `${JSON.stringify(cut)} for ${JSON.stringify(heard)}`);
             this.#ok('a channel with nothing on it is not cut at all', silence === null);
             this.#ok('a recording can be cut as one track', both !== null);
+            this.#ok('a piece a whole number of half seconds long is heard', halves !== null);
         } catch (error) {
             this.#fail('a channel is cut out of the recording at the length its piece hears',
                 `${error}`);

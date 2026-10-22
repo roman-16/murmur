@@ -103,7 +103,7 @@ Everything past that is the compositor, and the interesting failures are all in 
 - clicking anywhere outside the panel mid-dictation, which must collapse it and hand the keyboard back, whether or not you changed application,
 - a fullscreen window, which the panel has to be visible over,
 - **all three transcription services**, since each speaks its own protocol and only one of them is exercised by a dictation - and Mistral and OpenRouter are the ones that transcribe nothing until the microphone closes. `MURMUR_PROVIDER=openrouter just dev` switches the throwaway session over,
-- a **recording** with each service, with something playing and something said, stopped both from the shortcut and from the pill's menu, then **Open** and **Copy** on its notification, and **Discard…**; one longer than ten minutes, with two voices on the call speaking across a cut, to see them keep their numbers,
+- a **recording** with each service, with something playing and something said, stopped both from the shortcut and from the pill's menu, then **Open** and **Copy path** on its notification, and **Discard…**; one longer than ten minutes, with two voices on the call speaking across a cut, to see them keep their numbers,
 - **Names and terms** with each service, in a dictation and in a recording,
 - a recording's failure, with the network off when it stops: **Retry** once it is back, and the offer on the next start for one whose notification was dismissed,
 - **Transcribe a file**, with a recording that already has a transcript, an audio file from elsewhere in another format, a file that is not audio, and with Murmur switched off in Extensions,
