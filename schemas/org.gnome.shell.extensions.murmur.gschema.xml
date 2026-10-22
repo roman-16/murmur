@@ -20,7 +20,7 @@
     <key name="names-and-terms" type="as">
       <default>[]</default>
       <summary>Names and terms</summary>
-      <description>Names and words the speakers use, spelled the way a transcript should spell them. They are sent with every dictation, recording and file to the service, which leans towards them: Mistral takes the first 100, Grok the first 100 of up to 50 characters, and OpenRouter the first 1000 of up to 100 characters, to the models that accept them.</description>
+      <description>Names and words the speakers use, spelled the way a transcript should spell them. They are sent with every dictation, recording and file to the service, which leans towards them: Mistral takes all of them, Grok the first 100 of up to 50 characters, and OpenRouter the first 1000 of up to 100 characters, to the models that accept them.</description>
     </key>
     <key name="openrouter-api-key" type="s">
       <default>''</default>

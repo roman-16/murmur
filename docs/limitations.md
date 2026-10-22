@@ -18,7 +18,7 @@ The three services are the three that exist. OpenRouter opens up every transcrip
 
 ## With Mistral or OpenRouter, nothing appears until you stop
 
-Mistral and OpenRouter transcribe a dictation in one request when you stop, and the words arrive together a moment later: OpenRouter has no streaming transcription API, and Mistral's has no place for names and terms and costs twice what its model for files does. The panel still shows the level, the countdown and where the text will land, but the transcription itself cannot be watched as it is spoken. Grok can, which is the reason to pick it.
+Mistral and OpenRouter transcribe a dictation in one request when you stop, and the words arrive together a moment later: OpenRouter has no streaming transcription API, and Mistral's costs twice what its model for files does. The panel still shows the level, the countdown and where the text will land, but the transcription itself cannot be watched as it is spoken. Grok can, which is the reason to pick it.
 
 A dictation either of them fails is lost whole, since nothing had arrived before it failed; with Grok, the words already shown are copied to the clipboard.
 
@@ -28,7 +28,7 @@ A dictation either of them fails is lost whole, since nothing had arrived before
 
 ## A long recording goes up in pieces
 
-Every service takes only so much audio in one request, and how much depends on the model and on how busy the service is: Mistral has turned away 35 minutes in one request while taking the same audio in shorter pieces, and OpenAI's newer models take no more than 23 minutes. A recording is therefore sent in pieces of at most ten minutes, cut where it is quietest in the minute before each mark, each with fifteen seconds of its neighbours, and what both heard is written once. That half minute costs a little more audio, about 5%.
+Every service takes only so much audio in one request, and how much depends on the model: Mistral's takes as much as fits in its context beside the names and terms, and OpenAI's newer models take no more than 23 minutes. A recording is therefore sent in pieces of at most ten minutes, cut where it is quietest in the minute before each mark, each with fifteen seconds of its neighbours, and what both heard is written once. That half minute costs a little more audio, about 5%.
 
 OpenRouter's providers give a request about a minute, so a model slow on ten minutes of audio can still fail a piece. The audio stays, for a **Retry** or another service.
 

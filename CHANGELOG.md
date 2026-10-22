@@ -29,7 +29,7 @@ Adding a version section here is what publishes a release, so this file is the o
 - **Recording shortcut** is now **Dictation shortcut**, and **Maximum recording time** is **Maximum dictation time**, with `toggle-dictation` and `max-dictation-seconds` as their gsettings keys. A dictation shortcut you had changed becomes the recording shortcut and dictation is back on `Super+Space`, and a maximum you had changed is back at ten minutes: set both again in the preferences.
 - Murmur listens through GStreamer rather than `pw-record`, and needs GStreamer's base and good plugins and PipeWire's GStreamer plugin, which GNOME's own screen recorder already uses.
 - **Typing speed** offers 10, 20, 50, 100, 200, 500, 1000, 2000 and 5000 characters a second, and starts at 2000 rather than as fast as dotool goes. Each is the speed the text really goes in at. A speed you had set stays as it was.
-- With Mistral, a dictation is transcribed when you stop, by the model Mistral uses for recordings: the words arrive together instead of as you speak, and it costs about $0.18 an hour instead of $0.36. Grok is the service that shows them as you speak.
+- With Mistral, a dictation is transcribed when you stop, by the model Mistral uses for recordings: the words arrive together instead of as you speak, and it costs about $0.24 an hour instead of $0.36. Grok is the service that shows them as you speak.
 - With Mistral selected, a dictation ends after ten minutes at most, as with OpenRouter.
 
 ### Removed

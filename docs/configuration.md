@@ -17,21 +17,21 @@ Which service transcribes your dictations and your recordings. Only the chosen o
 | | Grok | Mistral Voxtral | OpenRouter |
 | --- | --- | --- | --- |
 | Key from | [console.x.ai](https://console.x.ai), once the account holds credit | [console.mistral.ai](https://console.mistral.ai) | [openrouter.ai/settings/keys](https://openrouter.ai/settings/keys) |
-| Dictation costs | About $0.20 an hour of audio | About $0.18 an hour of audio | The model's own price, on its [model page](https://openrouter.ai/models?output_modalities=transcription) |
-| Recording costs | About $0.10 an hour of each channel with something on it | About $0.18 an hour of each channel with something on it | The same model, at the same price |
+| Dictation costs | About $0.20 an hour of audio | About $0.24 an hour of audio | The model's own price, on its [model page](https://openrouter.ai/models?output_modalities=transcription) |
+| Recording costs | About $0.10 an hour of each channel with something on it | About $0.24 an hour of each channel with something on it | The same model, at the same price |
 | Dictated text appears | While you speak | When you stop | When you stop |
 | Longest dictation | As long as you set; xAI publishes no session limit | 10 minutes | 10 minutes |
 | Longest recording | As long as you like | As long as you like | As long as you like |
 | Speakers in a recording | Told apart | Told apart | Told apart by the models that can |
-| Names and terms | The first 100, of up to 50 characters | The first 100 | The first 1000, of up to 100 characters, by the models that take them |
+| Names and terms | The first 100, of up to 50 characters | All of them | The first 1000, of up to 100 characters, by the models that take them |
 | Own settings | None | None | **Model** |
 | Language | Detected by the model, and it follows a switch mid-dictation | Detected by the model | Detected by the model |
 
 Mistral Voxtral is the default. Grok is the most accurate of the three while you speak - first on Artificial Analysis's English streaming benchmark in September 2026, with 2.7% of words wrong - costs less, and ends no dictation of its own. Its key works once the xAI account holds credit.
 
-With Grok a dictation streams to its realtime model while you speak. With Mistral and OpenRouter it is sent when you stop, whole, and nothing appears in the panel until the words arrive a moment later; everything else - the level, the countdown, the destination, the keys - is the same. Mistral transcribes a dictation with Voxtral Mini Transcribe 2, the model it uses for recordings, which is half the price of its realtime one and takes your names and terms. It is sent in one request, so it ends after ten minutes.
+With Grok a dictation streams to its realtime model while you speak. With Mistral and OpenRouter it is sent when you stop, whole, and nothing appears in the panel until the words arrive a moment later; everything else - the level, the countdown, the destination, the keys - is the same. Mistral transcribes a dictation with Voxtral Small Transcribe 3, the model it uses for recordings, which is half the price of its realtime one and takes your names and terms. It is sent in one request, so it ends after ten minutes.
 
-A recording goes up when it stops, in pieces of at most ten minutes, to the service's model for files: Grok's own, Voxtral Mini Transcribe 2 with Mistral, and the model you picked with OpenRouter. Your microphone and what the computer plays are sent as separate requests, each billed for its own length, so a call where both sides talk throughout costs about twice what its length alone would; a channel with nothing on it for a whole piece is not sent.
+A recording goes up when it stops, in pieces of at most ten minutes, to the service's model for files: Grok's own, Voxtral Small Transcribe 3 with Mistral, and the model you picked with OpenRouter. Your microphone and what the computer plays are sent as separate requests, each billed for its own length, so a call where both sides talk throughout costs about twice what its length alone would; a channel with nothing on it for a whole piece is not sent.
 
 OpenRouter is one key for every transcription model it serves - Whisper, Deepgram Nova, Voxtral, Parakeet, and whatever it adds next. It does not say which of them can tell speakers apart, time what they heard or take names and terms, so Murmur asks for all of it and gives up what a model turns away, one thing at a time, for the rest of the session. The providers behind it give a request about a minute, so a model slow on ten minutes of audio can fail a recording; its audio stays, for a **Retry** or another service.
 
@@ -44,7 +44,7 @@ They go to the service with every dictation, recording and file, and the service
 | Service | Takes |
 | --- | --- |
 | Grok | The first 100, each up to 50 characters; a longer one is left out |
-| Mistral | The first 100. Mistral writes a phrase with underscores where its words meet, so `Ashlands boss` goes as `Ashlands_boss`. Mistral tunes this for English, and calls it experimental in other languages |
+| Mistral | All of them, as written: `Ashlands boss` goes as `Ashlands boss` |
 | OpenRouter | The first 1000, each up to 100 characters, to a model that takes them. A model that does not is asked again without them |
 
 Leave it empty and nothing is sent.
@@ -93,7 +93,7 @@ How high it goes is the selected service's business, so the number you set is al
 | Service | This row goes up to |
 | --- | --- |
 | Grok | **86400 seconds**, a day. xAI publishes no limit; the ceiling is Murmur declining to offer a dictation with no end at all |
-| Mistral Voxtral | **600 seconds**. The whole dictation is sent in one request, so its length is also how much audio is held in memory and how much the model is asked to take at once, and Mistral has turned away 35 minutes in one request |
+| Mistral Voxtral | **600 seconds**. The whole dictation is sent in one request, so its length is also how much audio is held in memory and how much the model is asked to take at once, and Mistral turns away a request whose audio and names and terms together outrun its model's context |
 | OpenRouter | **600 seconds**, for the same reason |
 
 Switching to Mistral or OpenRouter with a longer time set lowers it to 600, and switching back to Grok leaves it there.

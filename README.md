@@ -51,7 +51,7 @@ gnome-extensions prefs murmur@roman-16.github.io
 | Service | Key from | What it costs |
 | --- | --- | --- |
 | **Grok** | [console.x.ai](https://console.x.ai), once the account holds credit | Dictation about $0.20 an hour of audio, recording about $0.20 an hour of a call where both sides talk. The words appear as you speak, a dictation runs as long as you set, and a recording as long as you like |
-| **Mistral Voxtral** (default) | [console.mistral.ai](https://console.mistral.ai) | Dictation about $0.18 an hour, recording about $0.38 an hour of a call where both sides talk, from the first minute. A dictation's words arrive when you stop; a dictation runs ten minutes at most |
+| **Mistral Voxtral** (default) | [console.mistral.ai](https://console.mistral.ai) | Dictation about $0.24 an hour, recording about $0.50 an hour of a call where both sides talk, from the first minute. A dictation's words arrive when you stop; a dictation runs ten minutes at most |
 | **OpenRouter** | [openrouter.ai/settings/keys](https://openrouter.ai/settings/keys) | One key for every transcription model it serves - Whisper, Nova, Voxtral, Parakeet - at each one's own price. A dictation's words arrive when you stop rather than as you speak; a dictation runs ten minutes at most |
 
 That is the whole setup. Put the cursor where the words belong, press `Super+Space`, and speak. Or press `Super+Alt+Space` to record.

@@ -76,5 +76,5 @@ Transcription is billed to the account the key belongs to, by the audio you send
 | Service | An hour of dictation | An hour of recording |
 | --- | --- | --- |
 | Grok | About $0.20 | About $0.10 for each channel with something on it, so about $0.20 for a call where both sides talk |
-| Mistral Voxtral | About $0.18 | About $0.18 for each channel with something on it, so about $0.38 for a call where both sides talk |
+| Mistral Voxtral | About $0.24 | About $0.24 for each channel with something on it, so about $0.50 for a call where both sides talk |
 | OpenRouter | The selected model's own price, from about $0.18. Each model's page at [openrouter.ai](https://openrouter.ai/models?output_modalities=transcription) states it, and every request answers with what it cost | The same |

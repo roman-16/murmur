@@ -11,7 +11,7 @@ gnome-extensions prefs murmur@roman-16.github.io
 | **Service** | Key from | Good to know |
 | --- | --- | --- |
 | **Grok** | [console.x.ai](https://console.x.ai) | The only one that shows the words while you speak, and the most accurate at it. About $0.20 an hour dictating and $0.20 an hour recording a call where both sides talk, and the key works once the account holds credit. A dictation runs as long as you set, a recording as long as you like |
-| **Mistral Voxtral** | [console.mistral.ai](https://console.mistral.ai) | The default. About $0.18 an hour dictating and $0.38 an hour recording a call where both sides talk, billed from the first minute. A dictation's words arrive when you stop, and it runs ten minutes at most |
+| **Mistral Voxtral** | [console.mistral.ai](https://console.mistral.ai) | The default. About $0.24 an hour dictating and $0.50 an hour recording a call where both sides talk, billed from the first minute. A dictation's words arrive when you stop, and it runs ten minutes at most |
 | **OpenRouter** | [openrouter.ai/settings/keys](https://openrouter.ai/settings/keys) | One key for every transcription model it serves - Whisper, Nova, Voxtral, Parakeet - which you pick under **Model**. It cannot transcribe while you speak, so the words arrive when you stop. A dictation runs ten minutes at most |
 
 Choose it under **Service**, paste your key into **API key** below it, and that is the whole setup. If the people you talk to have names a model would misspell, list them under **Names and terms**. Each service keeps its own key, so switching back and forth costs nothing.

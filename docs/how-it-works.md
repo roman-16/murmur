@@ -95,10 +95,10 @@ The samples the microphone delivers are already what the models want, so the con
 
 | Service | Request | Answered with |
 | --- | --- | --- |
-| Mistral | `api.mistral.ai/v1/audio/transcriptions` as `multipart/form-data`: `model=voxtral-mini-latest`, `timestamp_granularities=segment`, a `context_bias` per name or term, and the WAV | Segments, whose text is joined with spaces |
+| Mistral | `api.mistral.ai/v1/audio/transcriptions` as `multipart/form-data`: `model=voxtral-small-transcribe-3`, a `context_bias` per name or term, and the WAV | `{"text": …}` |
 | OpenRouter | `openrouter.ai/api/v1/audio/transcriptions` as JSON: the chosen model's slug, `keyterms`, and the WAV in base64 | `{"text": …}` |
 
-Mistral transcribes in windows of about half a minute and runs them together in its `text` with no space after a full stop, which is why a dictation is put back together from its segments. A model OpenRouter serves that takes no `keyterms` answers `400`, and the dictation is sent again without them.
+A model OpenRouter serves that takes no `keyterms` answers `400`, and the dictation is sent again without them.
 
 ### The realtime protocol
 
@@ -129,7 +129,7 @@ Grok and Mistral take a `multipart/form-data` form with the fields first and the
 | Service | Endpoint | Fields | Answered with | Limit |
 | --- | --- | --- | --- | --- |
 | Grok | `api.x.ai/v1/stt` | `diarize=true` for all but the microphone, and a `keyterm` per name or term | Words, each with its time and, but from the microphone, a speaker | 500 MB a file |
-| Mistral | `api.mistral.ai/v1/audio/transcriptions` | `model=voxtral-mini-latest`, `timestamp_granularities=segment`, `diarize=true` for all but the microphone, and a `context_bias` per name or term | Segments, each with its time and, but from the microphone, a speaker | Turns away long files as out of capacity: 35 minutes failed where 20 went through |
+| Mistral | `api.mistral.ai/v1/audio/transcriptions` | `model=voxtral-small-transcribe-3`, `timestamp_granularities=segment`, `diarize=true` for all but the microphone, and a `context_bias` per name or term | Segments, each with its time and, but from the microphone, a speaker | Turns away a file whose audio and names and terms together outrun the model's context |
 | OpenRouter | `openrouter.ai/api/v1/audio/transcriptions` | `model`, `response_format=verbose_json`, word and segment timestamps, `diarize` for all but the microphone, and `keyterms` | Words or segments where the model gives them, the text alone where it does not | 25 MB an upload, the model's own length, 23 minutes for OpenAI's newer ones, and about a minute for the provider behind it |
 
 Ten minutes stays well under the shortest of those limits. A request may go ten minutes without a byte moving either way before it counts as hung, which leaves a slow model room to transcribe a piece before it answers. The connection under it is held to a minute instead. After half a minute without a byte, Murmur asks the other end every ten seconds whether it is still there, which the service's servers answer while its model works; a connection that goes a minute without any answer, or with what was sent still unacknowledged, has died, as one does when the network changes under it, and the piece is sent again.
