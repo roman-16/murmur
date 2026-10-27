@@ -1,10 +1,19 @@
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 
-import {createPrivately, deleteFile, exists, readText, writePrivately} from './files.js';
+import {type ContextLog, contextOf, headOf} from './context-log.js';
+import {
+    createPrivately,
+    deleteFile,
+    exists,
+    filesIn,
+    readText,
+    writePrivately
+} from './files.js';
 import {Key} from './settings.js';
 
 const AUDIO = '.opus';
+const CONTEXT = '.jsonl';
 const NAME = /^(\d{4})-(\d{2})-(\d{2})T(\d{2})-(\d{2})-(\d{2})$/;
 const TRANSCRIPT = '.md';
 
@@ -17,15 +26,18 @@ export type RecordingFile = {
 };
 
 export class RecordingFiles {
+    readonly #contexts: Gio.File;
     readonly #settings: Gio.Settings;
     readonly #untranscribed: Gio.File;
 
     #pending: Promise<unknown> = Promise.resolve();
 
     constructor(settings: Gio.Settings, uuid: string) {
+        const state = GLib.build_filenamev([GLib.get_user_state_dir(), uuid]);
+        this.#contexts = Gio.File.new_for_path(GLib.build_filenamev([state, 'context']));
         this.#settings = settings;
         this.#untranscribed = Gio.File.new_for_path(
-            GLib.build_filenamev([GLib.get_user_state_dir(), uuid, 'untranscribed']));
+            GLib.build_filenamev([state, 'untranscribed']));
     }
 
     async create(): Promise<RecordingFile> {
@@ -45,7 +57,25 @@ export class RecordingFiles {
 
     async discard(recording: RecordingFile): Promise<void> {
         await deleteFile(recording.audio);
+        await deleteFile(this.contextLog(recording));
         await this.forget(recording);
+    }
+
+    contextLog(recording: RecordingFile): Gio.File {
+        return this.#contexts.get_child(`${recording.name}${CONTEXT}`);
+    }
+
+    async context(recording: RecordingFile): Promise<ContextLog | null> {
+        const path = recording.audio.get_path();
+        return path ? contextOf(await readText(this.contextLog(recording)), path) : null;
+    }
+
+    async forgetVanished(): Promise<void> {
+        for (const log of await filesIn(this.#contexts)) {
+            const audio = headOf(await readText(log))?.audio;
+            if (audio && !await exists(Gio.File.new_for_path(audio)))
+                await deleteFile(log);
+        }
     }
 
     forget(recording: RecordingFile): Promise<void> {

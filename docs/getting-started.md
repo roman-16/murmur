@@ -103,15 +103,31 @@ Both files land in the recordings folder, `~/Documents/Murmur` unless you [chose
 | File | What it is |
 | --- | --- |
 | `2026-03-26T22-02-34.opus` | The audio, Ogg Opus in two channels - you on the left, everything the computer plays on the right - at 48 kbit/s, about 22 MB an hour |
-| `2026-03-26T22-02-34.md` | The transcript, a line for each thing said: the time of day, who said it, and the words |
+| `2026-03-26T22-02-34.md` | The transcript: where and when it was recorded, then a line for each thing said - the time of day, who said it, and the words - and for what went on around it |
 
 A transcript reads like this:
 
 ```markdown
+---
+computer: roman-laptop
+day: Thursday
+ended: 2026-03-26T22:41:07
+microphone: Jabra Evolve2 65 Mono
+network: Home
+output: Jabra Evolve2 65 Stereo
+started: 2026-03-26T22:02:34
+transcribed-by: Mistral Voxtral (voxtral-small-transcribe-3)
+---
+22:02:34 [focused] Discord: "#general | Valheim crew - Discord"
+22:02:34 [playing] Discord
+22:02:34 [on a call] Discord has the microphone
 22:02:41 Roman: Hast du den Link geschickt?
 22:02:44 Speaker 1: Ja, schau in den Chat.
+22:02:58 [focused] Brave: "Valheim Ashlands guide - Brave"
 22:03:10 Speaker 2: I can't hear you guys.
 ```
+
+The header says which computer it was made on, when, through which microphone and speakers, and which service wrote it down. A line in brackets is something that happened rather than something said: the window in front, what played, an application taking the microphone, the camera, a shared screen, the screen locking, five minutes without input. That is what tells a call from a video and one computer's recordings from another's, for you and for anything you hand the transcript to. It stays in the file and never goes to the service, and [**Note what is on screen and playing**](configuration.md#note-what-is-on-screen-and-playing) turns it off.
 
 Your lines carry your name, because they came in on your microphone. Everyone on the call shares the desktop's channel, so the service tells them apart by their voices and they are numbered in the order they first speak. A recording goes up in ten-minute pieces, and someone who says nothing around a cut comes back with a new number. Over loudspeakers your microphone hears the others too, and their words turn up under your name as well; headphones keep them apart.
 

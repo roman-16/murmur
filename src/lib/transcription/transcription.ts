@@ -1,9 +1,9 @@
 import type Gio from 'gi://Gio';
 
 import type {ProviderConfig} from '../settings.js';
-import {mistralDictation, mistralRecording} from './mistral.js';
+import {MISTRAL_MODEL, mistralDictation, mistralRecording} from './mistral.js';
 import {openrouterDictation, openrouterRecording} from './openrouter.js';
-import type {RecordingTranscriber, Transcription} from './provider.js';
+import {PROVIDERS, type RecordingTranscriber, type Transcription} from './provider.js';
 import {StreamTranscription} from './stream.js';
 import {UploadTranscription} from './upload-transcription.js';
 import {XaiProtocol, xaiRecording} from './xai.js';
@@ -32,5 +32,16 @@ export function recordingTranscriberFor(provider: ProviderConfig): RecordingTran
             return openrouterRecording(provider);
         case 'xai':
             return xaiRecording(provider);
+    }
+}
+
+export function serviceOf(provider: ProviderConfig): string {
+    switch (provider.kind) {
+        case 'mistral':
+            return `${PROVIDERS.mistral.label} (${MISTRAL_MODEL})`;
+        case 'openrouter':
+            return `${PROVIDERS.openrouter.label} (${provider.model})`;
+        case 'xai':
+            return PROVIDERS.xai.label;
     }
 }

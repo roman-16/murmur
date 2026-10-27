@@ -176,6 +176,14 @@ function recordingGroup(
     settings.connect(`changed::${Key.recordingFolder}`, sync);
     group.add(shortcut);
     group.add(makeRecordingFolderRow(window, settings));
+
+    const contextRow = new Adw.SwitchRow({
+        title: _('Note what is on screen and playing'),
+        subtitle: _('Window titles and what played go into the transcript, never to the service'),
+    });
+    settings.bind(Key.recordContext, contextRow, 'active', Gio.SettingsBindFlags.DEFAULT);
+    group.add(contextRow);
+
     group.add(makeTranscribeFileRow(window, settings));
     return group;
 }

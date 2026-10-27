@@ -10,7 +10,7 @@ Adding a version section here is what publishes a release, so this file is the o
 
 ### Highlights
 
-- **Record anything you hear and say** - `Super+Alt+Space` records a call, a video or whatever else your computer plays, together with your microphone, and leaves the audio and its transcript side by side in `~/Documents/Murmur`, with a line for each thing said: when, who, and what.
+- **Record anything you hear and say** - `Super+Alt+Space` records a call, a video or whatever else your computer plays, together with your microphone, and leaves the audio and its transcript side by side in `~/Documents/Murmur`, with a line for each thing said: when, who, and what, and a note of the window in front and what was playing.
 - **Mistral by default, Gemini gone** - Murmur starts with Mistral Voxtral, which transcribes a dictation when you stop, and Grok joins it as the service that transcribes as you speak. A setup that used Gemini needs a key from console.mistral.ai, or another service, after updating.
 - **Names spelled your way** - list the names and terms you use under **Names and terms** in the preferences, and every service is asked to spell them that way.
 
@@ -22,6 +22,8 @@ Adding a version section here is what publishes a release, so this file is the o
 - A notification says when a recording is transcribed, with **Open** and **Copy path**. One that could not be transcribed keeps its audio and offers **Retry**, and one that never got that far is offered again the next time you log in.
 - **Transcribe a file** in the preferences transcribes any audio file, or a recording again, with the service you pick, and saves the transcript beside it. Scripts can ask for the same over D-Bus.
 - **Names and terms** in the preferences lists the names and words the people you dictate and record use, and every service is asked to spell them that way, in dictations, recordings and files alike.
+- A recording's transcript opens with the computer it was made on, the day, the times, the microphone and output, the network and the service, and notes in brackets among what was said the window in front, what played, which application had the microphone, the camera, a shared screen, the screen locking and time away. None of it goes to the service.
+- **Note what is on screen and playing** in the preferences, on by default; off, transcripts leave out window titles, what played and the network.
 
 ### Changed
 

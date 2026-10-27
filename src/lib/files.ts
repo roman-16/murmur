@@ -11,8 +11,6 @@ const WRITE_FLAGS =
 // the thread drawing the screen: every call is the asynchronous form, which
 // GIO runs on a worker and answers on the main loop.
 
-// Nothing written yet and no file yet are the same answer, so the read asks
-// for the contents rather than asking first whether there are any.
 export async function readText(file: Gio.File): Promise<string> {
     const contents = await ignoreMissing(fromAsync(
         callback => file.load_contents_async(null, callback),
@@ -44,6 +42,51 @@ export async function writePrivately(file: Gio.File, text: string): Promise<void
         callback => file.replace_contents_bytes_async(
             bytes, null, false, WRITE_FLAGS, null, callback),
         result => file.replace_contents_finish(result)));
+}
+
+export async function appendPrivately(file: Gio.File, text: string): Promise<void> {
+    const stream = await withDirectory(file, () => fromAsync(
+        callback => file.append_to_async(
+            Gio.FileCreateFlags.PRIVATE, GLib.PRIORITY_DEFAULT, null, callback),
+        result => file.append_to_finish(result)));
+    try {
+        let data = new TextEncoder().encode(text);
+        while (data.length > 0) {
+            const bytes = new GLib.Bytes(data);
+            const written = await fromAsync(
+                callback => stream.write_bytes_async(bytes, GLib.PRIORITY_DEFAULT, null, callback),
+                result => stream.write_bytes_finish(result));
+            data = data.subarray(written);
+        }
+    } finally {
+        await fromAsync(
+            callback => stream.close_async(GLib.PRIORITY_DEFAULT, null, callback),
+            result => stream.close_finish(result));
+    }
+}
+
+export async function filesIn(directory: Gio.File): Promise<Gio.File[]> {
+    const enumerator = await ignoreMissing(fromAsync(
+        callback => directory.enumerate_children_async(Gio.FILE_ATTRIBUTE_STANDARD_NAME,
+            Gio.FileQueryInfoFlags.NONE, GLib.PRIORITY_DEFAULT, null, callback),
+        result => directory.enumerate_children_finish(result)));
+    if (!enumerator)
+        return [];
+    const files: Gio.File[] = [];
+    try {
+        for (;;) {
+            const infos = await fromAsync(
+                callback => enumerator.next_files_async(64, GLib.PRIORITY_DEFAULT, null, callback),
+                result => enumerator.next_files_finish(result));
+            if (infos.length === 0)
+                return files;
+            files.push(...infos.map(info => enumerator.get_child(info)));
+        }
+    } finally {
+        await fromAsync(
+            callback => enumerator.close_async(GLib.PRIORITY_DEFAULT, null, callback),
+            result => enumerator.close_finish(result));
+    }
 }
 
 export async function createPrivately(file: Gio.File): Promise<void> {
@@ -80,8 +123,6 @@ export async function ignoreMissing<T>(operation: Promise<T>): Promise<T | null>
     }
 }
 
-// The directory is there for every write but the first, so it is made when a
-// write asks for it rather than looked for before each one.
 async function withDirectory<T>(file: Gio.File, operation: () => Promise<T>): Promise<T> {
     try {
         return await operation();

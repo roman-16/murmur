@@ -8,6 +8,7 @@ export const Key = {
     namesAndTerms: 'names-and-terms',
     openrouterApiKey: 'openrouter-api-key',
     openrouterModel: 'openrouter-model',
+    recordContext: 'record-context',
     recordingFolder: 'recording-folder',
     rememberDictations: 'remember-dictations',
     showPanelOnStart: 'show-panel-on-start',

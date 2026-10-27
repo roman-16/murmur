@@ -12,10 +12,42 @@ export type Track = {diarized: boolean; pieces: TrackPiece[]; unlabelled: string
 
 export type Line = {speaker: string | null; start: number; text: string};
 
+export type Moment =
+    | {kind: 'away'; seconds: number}
+    | {kind: 'back'}
+    | {app: string; kind: 'call'; on: boolean}
+    | {kind: 'camera'; on: boolean}
+    | {app: string; kind: 'focused'; title: string}
+    | {kind: 'lock'; on: boolean}
+    | {device: string | null; kind: 'microphone'}
+    | {kind: 'network'; name: string | null}
+    | {app: string; kind: 'open'; title: string}
+    | {device: string | null; kind: 'output'}
+    | {app: string; artist: string | null; kind: 'playing'; title: string | null}
+    | {kind: 'sharing'; on: boolean}
+    | {app: string; kind: 'stopped'};
+
+export type Happened = Moment & {at: number};
+
+export type Header = {
+    computer: string;
+    day: string;
+    ended: string | null;
+    microphone: string | null;
+    network: string | null;
+    output: string | null;
+    started: string;
+    transcribedBy: string;
+};
+
+export type Surroundings = {header: Header; moments: Happened[]};
+
 const DAY_SECONDS = 24 * 60 * 60;
 const LONG_UTTERANCE_SECONDS = 20;
 const MATCH_SECONDS = 0.5;
 const PAUSE_SECONDS = 1;
+const PLAIN = /^[\p{L}\p{N}](?:[\p{L}\p{N} ,._()+/-]*[\p{L}\p{N}._()+/-])?$/u;
+const RESERVED = /^(?:true|false|yes|no|on|off|null|y|n|[-+.\d]+)$/i;
 const SENTENCE_END = /[.!?…]["')\]]*$/;
 
 type Spoken = Utterance & {id: number | null};
@@ -73,14 +105,101 @@ export function linesOf(tracks: Track[]): Line[] {
     });
 }
 
-export function written(lines: Line[], startedAt: number | null): string {
-    return lines
-        .map(line => {
-            const time = clock((startedAt ?? 0) + line.start);
-            const text = oneLine(line.text);
-            return line.speaker ? `${time} ${line.speaker}: ${text}` : `${time} ${text}`;
-        })
-        .join('\n');
+export function written(
+    lines: Line[], startedAt: number | null, surroundings: Surroundings | null = null): string {
+    const time = (seconds: number) => clock((startedAt ?? 0) + seconds);
+    const said = lines.map(line => {
+        const text = oneLine(line.text);
+        return {
+            moment: false,
+            start: line.start,
+            text: line.speaker
+                ? `${time(line.start)} ${line.speaker}: ${text}`
+                : `${time(line.start)} ${text}`,
+        };
+    });
+    const around = (surroundings?.moments ?? []).map(happened => ({
+        moment: true,
+        start: happened.at,
+        text: `${time(happened.at)} ${momentText(happened)}`,
+    }));
+    const timeline = [...around, ...said]
+        .sort((first, second) =>
+            first.start - second.start || Number(second.moment) - Number(first.moment))
+        .map(entry => entry.text);
+    return [...(surroundings ? headerLines(surroundings.header) : []), ...timeline].join('\n');
+}
+
+export function momentText(moment: Moment): string {
+    switch (moment.kind) {
+        case 'away':
+            return `[away] no input for ${span(moment.seconds)}`;
+        case 'back':
+            return '[back]';
+        case 'call':
+            return moment.on
+                ? `[on a call] ${moment.app} has the microphone`
+                : `[off the call] ${moment.app}`;
+        case 'camera':
+            return moment.on ? '[camera on]' : '[camera off]';
+        case 'focused':
+            return `[focused] ${shown(moment.app, moment.title)}`;
+        case 'lock':
+            return moment.on ? '[locked]' : '[unlocked]';
+        case 'microphone':
+            return `[microphone] ${moment.device ?? 'none'}`;
+        case 'network':
+            return `[network] ${moment.name ?? 'none'}`;
+        case 'open':
+            return `[open] ${shown(moment.app, moment.title)}`;
+        case 'output':
+            return `[output] ${moment.device ?? 'none'}`;
+        case 'playing': {
+            const artist = moment.artist ? ` by ${oneLine(moment.artist)}` : '';
+            return `[playing] ${shown(moment.app, moment.title ?? '')}${artist}`;
+        }
+        case 'sharing':
+            return moment.on ? '[sharing screen]' : '[stopped sharing]';
+        case 'stopped':
+            return `[stopped] ${moment.app}`;
+    }
+}
+
+function shown(app: string, title: string): string {
+    const name = oneLine(title);
+    if (!name)
+        return app;
+    return app ? `${app}: "${name}"` : `"${name}"`;
+}
+
+function span(seconds: number): string {
+    const [amount, unit] = seconds >= 60
+        ? [Math.round(seconds / 60), 'minute']
+        : [Math.round(seconds), 'second'];
+    return `${amount} ${unit}${amount === 1 ? '' : 's'}`;
+}
+
+function headerLines(header: Header): string[] {
+    const fields: [string, string | null][] = [
+        ['computer', yaml(header.computer)],
+        ['day', yaml(header.day)],
+        ['ended', header.ended],
+        ['microphone', header.microphone === null ? null : yaml(header.microphone)],
+        ['network', header.network === null ? null : yaml(header.network)],
+        ['output', header.output === null ? null : yaml(header.output)],
+        ['started', header.started],
+        ['transcribed-by', yaml(header.transcribedBy)],
+    ];
+    return [
+        '---',
+        ...fields.flatMap(([key, value]) => (value === null ? [] : [`${key}: ${value}`])),
+        '---',
+    ];
+}
+
+function yaml(value: string): string {
+    const text = oneLine(value);
+    return PLAIN.test(text) && !RESERVED.test(text) ? text : JSON.stringify(text);
 }
 
 function clock(seconds: number): string {

@@ -4,7 +4,7 @@
 just test-shell
 ```
 
-Boots a throwaway, headless GNOME Shell with two screens, builds the dictation panel and the recording pill inside it, clicks them with a real pointer, runs GStreamer inside it for a few seconds, and reports what worked. It takes about half a minute, touches nothing in your session, and needs no key and no network. It does need a text editor or a terminal installed, as something to focus, and it hears a second or two of whatever the machine hears, into the session's throwaway cache, which it deletes. With nobody logged in at the desktop PipeWire has no microphone, and the session hears a silent stand-in that goes away with it.
+Boots a throwaway, headless GNOME Shell with two screens, builds the dictation panel and the recording pill inside it, clicks them with a real pointer, runs GStreamer inside it for a few seconds, and reports what worked. It takes about half a minute, touches nothing in your session, and needs no key and no network. It does need a text editor or a terminal installed, as something to focus, and `pw-cat`, which ships with PipeWire, to play and listen beside the recording; and it hears a second or two of whatever the machine hears, into the session's throwaway cache, which it deletes. With nobody logged in at the desktop PipeWire has no microphone, and the session hears a silent stand-in that goes away with it.
 
 `just test` covers the changelog parser, which is pure and fast. This covers the half of Murmur that only exists inside a compositor, where the interesting failures are: an actor that is drawn but cannot be clicked, a keyboard that is taken and never given back, chrome that outlives the dictation.
 
@@ -48,6 +48,8 @@ The probe reaches Murmur's modules through `Main.extensionManager.lookup()`, so 
 - An empty file is written and answered for, which is what a transcript of nothing and a list of no recordings both are.
 - GStreamer runs inside the compositor: a recording hears the microphone and the desktop and writes an Ogg Opus file that keeps them on channels of their own and names them in its tags, and a dictation's microphone delivers whole samples and then its end. A second and a half of stereo laid out the same way is planned as overlapping pieces, a channel of it is cut at the length its piece hears, a silent channel is not cut at all, a stretch a whole number of half seconds long is still heard, and the whole of it can be cut as one track. Nothing short of running the pipelines shows that the shell's bindings and every plugin are there.
 - A recording transcribed over the bus ends in a notification offering **Open** and **Copy path**, one where no words were heard included. Hovering its banner shows the buttons, and clicking **Copy path** with the pointer puts the transcript's path on the clipboard, beside the audio and holding what the stand-in said.
+- What goes on around a recording is noted, made to happen for real while Murmur's own microphone is open: the computer's name, the windows open and the one in front, a process playing and one listening through PipeWire and both stopping, a media player on the session bus with its title and artist, time without input and the touch that ends it, and the screen locking and unlocking - and Murmur's own microphone never counted as a call.
+- A recording with a context log is transcribed into a header and bracketed lines among what was said, and the log goes once its audio is gone and the extension starts again.
 - The extension survives being disabled and enabled.
 
 ## What it does not check

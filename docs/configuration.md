@@ -110,9 +110,22 @@ Silence is measured in audio time rather than wall-clock time, so a slow network
 
 Starts recording everything the computer plays and the microphone hears, then stops and transcribes it. `Super+Alt+Space` by default, and a system shortcut like the dictation's, except on the lock screen, where no shortcut of Murmur's is listening.
 
-The audio and the transcript are saved side by side in the **Recordings folder**. The audio is Ogg Opus in two channels at 48 kbit/s: your microphone on the left and everything the computer plays on the right, so you hear yourself in one ear and the call in the other. The transcript has a line for each thing said, with the time of day it was said and who said it:
+The audio and the transcript are saved side by side in the **Recordings folder**. The audio is Ogg Opus in two channels at 48 kbit/s: your microphone on the left and everything the computer plays on the right, so you hear yourself in one ear and the call in the other. The transcript opens with where and when it was recorded, then has a line for each thing said, with the time of day it was said and who said it, among lines for what went on around it, which [**Note what is on screen and playing**](#note-what-is-on-screen-and-playing) describes:
 
 ```markdown
+---
+computer: roman-laptop
+day: Thursday
+ended: 2026-03-26T20:12:40
+microphone: Jabra Evolve2 65 Mono
+network: Home
+output: Jabra Evolve2 65 Stereo
+started: 2026-03-26T19:33:40
+transcribed-by: Mistral Voxtral (voxtral-small-transcribe-3)
+---
+19:33:40 [focused] Discord: "#general | Valheim crew - Discord"
+19:33:40 [playing] Discord
+19:33:40 [on a call] Discord has the microphone
 19:33:52 Roman: Hast du den Link geschickt?
 19:33:55 Speaker 1: Ja, schau in den Chat.
 19:34:01 Speaker 2: I can't hear you guys.
@@ -127,6 +140,28 @@ A recording runs until you stop it, and has no silence stop, since a call has si
 Where a recording's audio and transcript are saved, `~/Documents/Murmur` by default. **Choose** picks a folder, and **Reset** goes back to the default. The folder is created on the first recording if it does not exist yet.
 
 The folder is read as a recording starts, so a recording stays where it started even when the folder changes while it runs, and its notifications name the folder it is in. From the command line, a path starting with `~/` is in your home folder.
+
+### Note what is on screen and playing
+
+On by default. A recording's transcript then notes what went on around it, each at the moment it changed, as a line in brackets among what was said:
+
+| Line | When |
+| --- | --- |
+| `[open] Brave: "Jira - Brave"` | Each window open as the recording starts, with its application and title. A browser's title is the tab in front in that window |
+| `[focused] Brave: "Jira - Brave"` | The window in front, or its title, changes |
+| `[playing] Brave: "Song" by Artist` | An application starts playing, with the title and artist of what it plays where it says, as browsers and music players do |
+| `[stopped] Brave` | It stops |
+| `[on a call] Teams has the microphone` | Another application opens the microphone, which is what a call does; `[off the call]` when it lets go |
+| `[camera on]`, `[camera off]` | Any application opens or closes a camera |
+| `[sharing screen]`, `[stopped sharing]` | The screen is shared, as the top bar's sharing indicator shows |
+| `[away] no input for 5 minutes`, `[back]` | Neither keyboard nor mouse is touched for five minutes, stamped from the last touch, and the first touch after |
+| `[network] Office, VPN Work` | The network changes: the connection in use, and any VPN |
+
+Each is written once it has held for five seconds, so passing through a window on the way to another, or a notification sound, leaves nothing behind. With the switch off, none of these is written, and the header has no `network`.
+
+Either way, the header holds the computer's name, the day and the times the recording started and ended, the microphone and the output it went through, and the service and model that transcribed it; and the timeline holds `[locked]` and `[unlocked]` when the screen locks, and `[microphone]` or `[output]` when the default device changes. None of it is sent to the service: it is added on your machine, from a note Murmur keeps while recording in `~/.local/state/murmur@roman-16.github.io/context/`, which is why transcribing a recording again keeps it. A note whose recording's audio has been deleted is removed the next time Murmur starts.
+
+A file from anywhere else, or a recording from another computer, has no note, and its transcript has no header.
 
 ### Transcribe a file
 
@@ -193,6 +228,7 @@ gsettings set org.gnome.shell.extensions.murmur remember-dictations false
 gsettings set org.gnome.shell.extensions.murmur toggle-dictation "['<Super>space']"
 gsettings set org.gnome.shell.extensions.murmur toggle-recording "['<Super><Alt>space']"
 gsettings set org.gnome.shell.extensions.murmur recording-folder '~/Notes/Calls'
+gsettings set org.gnome.shell.extensions.murmur record-context false
 gsettings set org.gnome.shell.extensions.murmur show-panel-on-start false
 gsettings set org.gnome.shell.extensions.murmur max-dictation-seconds 120
 gsettings set org.gnome.shell.extensions.murmur silence-timeout-seconds 3

@@ -37,7 +37,8 @@ If what you say must not reach a third party, Murmur is the wrong tool, and a lo
 | A dictation's transcription | `~/.local/state/murmur@roman-16.github.io/history.jsonl` | **Unencrypted**, one line per dictation, oldest first, the newest 500 kept |
 | A dictation's audio | Nowhere | It goes from the microphone to the network and is never written to disk. With Mistral or OpenRouter it is held in memory until you stop, and released once it has been sent |
 | A recording's audio | The [recordings folder](configuration.md#recordings-folder), `~/Documents/Murmur/` unless you chose another, as `2026-03-26T22-02-34.opus` | Written as it is recorded, readable by you alone, and kept until you delete it |
-| A recording's transcript | Beside its audio, as `2026-03-26T22-02-34.md` | The service's words, with the times and the speakers Murmur puts to them, readable by you alone, kept until you delete it |
+| A recording's transcript | Beside its audio, as `2026-03-26T22-02-34.md` | The service's words, with the times and the speakers Murmur puts to them, and what was around the recording: the computer's name, the devices, and with **Note what is on screen and playing** on, window titles, what played, which applications had the microphone, the camera, screen sharing, time away and the network. Readable by you alone, kept until you delete it |
+| What was around a recording | `~/.local/state/murmur@roman-16.github.io/context/2026-03-26T22-02-34.jsonl` | Written as the recording runs, so transcribing it again keeps it. Removed the next time Murmur starts after the recording's audio is gone |
 | A file's transcript | Beside the file, as `interview.md` for `interview.m4a` | Readable by you alone. One already there is replaced, after asking |
 | Which recordings still owe a transcript | `~/.local/state/murmur@roman-16.github.io/untranscribed` | The paths of recordings whose transcription has not come back yet, so they can be offered again; a path leaves once its transcript is written |
 
@@ -53,7 +54,11 @@ Three things are worth knowing about it:
 - **A password field is never kept**, when the application says it is one. Wayland applications announce it and are honoured; XWayland applications announce nothing at all, so a password dictated into one would be kept.
 - **A cancelled dictation is never kept.** `Esc` stores nothing, and neither does a dictation that transcribed nothing.
 
-A recording is not part of the history. Its files are its record, and deleting them is the whole of forgetting it.
+A recording is not part of the history. Its files are its record, and deleting them is the whole of forgetting it: the note of what was around it goes with its audio.
+
+## What a recording notes about your screen
+
+With **Note what is on screen and playing** on, which it is unless you turn it off, a transcript holds the title of every window open as the recording starts and of each one you bring to the front, the names of the applications that play or take the microphone and the titles of what they play, and the name of the network. A title is whatever the application puts there, which can be an email's subject, a chat's name or a page you would rather not name; a private browser window's title is noted like any other, since the desktop cannot tell it apart. Nothing of it goes to the service. It is in the transcript, so it goes wherever you put the transcript.
 
 An API key in dconf is the same protection GNOME gives every other setting, which is to say it protects you from other users on the machine and not from software running as you. GNOME extensions have no access to the system keyring, so this is the honest limit rather than a choice.
 

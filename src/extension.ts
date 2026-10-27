@@ -38,8 +38,9 @@ export default class MurmurExtension extends Extension {
         this.#sessionModeId = Main.sessionMode.connect('updated', () => this.#syncLock());
         this.#syncLock();
 
-        this.#recordings.offerUntranscribed()
-            .catch(error => console.error(`murmur: recording: ${errorMessage(error)}`));
+        const report = (error: unknown) => console.error(`murmur: recording: ${errorMessage(error)}`);
+        this.#recordings.offerUntranscribed().catch(report);
+        this.#recordings.forgetVanished().catch(report);
     }
 
     // Murmur runs on the lock screen as well (session-modes lists unlock-dialog)

@@ -29,7 +29,7 @@ Without devbox you need Bun, GJS, GLib's tools, `just`, `librsvg` and `zip` on y
 just build        # compile src/ into dist/
 just check        # type-check only
 just lint         # oxlint, type-check, the process boundary and the changelog; run before every commit
-just test         # check the changelog parser and how a transcript is put together
+just test         # check the changelog parser, how a transcript is put together, and the context log
 just test-shell   # drive the panel with a real pointer in a throwaway nested shell
 just dev          # run in a throwaway, isolated nested GNOME Shell
 just install      # symlink dist/ into your extensions dir
@@ -54,8 +54,8 @@ Inside that session the shortcuts are **`Super+J`** to dictate and **`Super+K`**
 src/extension.ts       the shell half: the shortcuts, the lock screen, and the two features it wires up
 src/prefs.ts           the preferences half
 src/stylesheet.css     geometry for the panel; its colours come from the shell theme
-src/lib/               shared by both, Gio and GLib only: settings, history, the recording files, the D-Bus contract, and the transcript
-src/lib/shell/         shell-only: dictation, recording, audio, panel, indicators, insertion, focus, notifications
+src/lib/               shared by both, Gio and GLib only: settings, history, the recording files and their context log, the D-Bus contract, and the transcript
+src/lib/shell/         shell-only: dictation, recording, audio, what is around a recording, media players, panel, indicators, insertion, focus, notifications
 src/lib/prefs/         preferences-only: rows, shortcut capture, dotool diagnostics, history page
 src/lib/transcription/ the ways audio becomes text, and the table of services
 ```
@@ -65,6 +65,8 @@ src/lib/transcription/ the ways audio becomes text, and the table of services
 A dictation is `dictation.ts`, the panel and the delivery, around `session.ts`, which meters the microphone, watches for silence, and hands the audio to a `Transcription` - the seam every service's dictation comes through: fed chunks, told when the microphone is released, and finally the words. There are two implementations of it. `stream.ts` holds a WebSocket open for the dictation and drives a `StreamProtocol` - the endpoint, the frames to send, and the events to make of what comes back, which is most of `xai.ts`. `upload-transcription.ts` is the other: it keeps the audio and hands it, as a WAV, to the service's `DictationSender` when the dictation ends, which is how `mistral.ts` and `openrouter.ts` take a dictation.
 
 A recording is `recording.ts`, the pill and the notifications, around `recording-files.ts`, which names the files and remembers which still owe a transcript. A recording goes to the service in pieces of at most ten minutes, one channel at a time, and its seam is a `RecordingTranscriber`, one channel of one piece in and what was said out, each utterance with its times and the service's speaker label. Each service's is a few lines over `upload.ts`, which streams the file up as a form or as JSON, sends it again when the service is busy, and hands back the service's answer for the service to read. `transcript.ts` puts the pieces back together: it keeps what each piece heard between its own cuts, matches speaker labels across cuts by the stretch two pieces both heard, and writes the lines. It imports nothing, so `just test` runs it under Bun.
+
+While a recording runs, `context.ts` notes what goes on around it - windows and focus, what plays and what holds the microphone through the shell's own mixer, `media.ts`'s MPRIS players, the camera, screen sharing, time away, the network - and appends each change, once it has held, to a log in the extension's state directory, in the format `context-log.ts` reads and writes. `transcript.ts` turns that log into the header and the bracketed lines among what was said. `context-log.ts` imports only types, so `just test` runs it under Bun too.
 
 A file picked under **Transcribe a file** goes through the same `Recordings`. The preferences cannot run it, since their process ends with the window, so they hand it to the shell over D-Bus: `bus.ts` puts a `Transcribe` method on the shell's own session-bus connection, under the path and interface `murmur-bus.ts` names for both halves.
 
@@ -88,7 +90,7 @@ The two halves run in **different processes** that load different libraries. Imp
 
 ## Testing a change
 
-`just test` covers the changelog parser, because that one decides what gets published, and `transcript.ts`, because what a transcript says about who spoke and when is decided there and nowhere a service could check it.
+`just test` covers the changelog parser, because that one decides what gets published, and `transcript.ts` and `context-log.ts`, because what a transcript says about who spoke, when, and what was going on is decided there and nowhere a service could check it.
 
 `just test-shell` covers the panel, by building it inside a throwaway headless GNOME Shell and clicking it with a real pointer. Run it after anything under `src/lib/shell/`; [`scripts/shell-test/README.md`](scripts/shell-test/README.md) explains why it needs a whole compositor, and why a synthetic click that never lands makes for a test that cannot fail. It is not in CI, because a runner has no GNOME Shell.
 
@@ -104,6 +106,7 @@ Everything past that is the compositor, and the interesting failures are all in 
 - a fullscreen window, which the panel has to be visible over,
 - **all three transcription services**, since each speaks its own protocol and only one of them is exercised by a dictation - and Mistral and OpenRouter are the ones that transcribe nothing until the microphone closes. `MURMUR_PROVIDER=openrouter just dev` switches the throwaway session over,
 - a **recording** with each service, with something playing and something said, stopped both from the shortcut and from the pill's menu, then **Open** and **Copy path** on its notification, and **Discard…**; one longer than ten minutes, with two voices on the call speaking across a cut, to see them keep their numbers,
+- a **recording** through a call in a browser, a video and a few windows brought to the front, then the transcript's header and its bracketed lines; and again with **Note what is on screen and playing** off,
 - **Names and terms** with each service, in a dictation and in a recording,
 - a recording's failure, with the network off when it stops: **Retry** once it is back, and the offer on the next start for one whose notification was dismissed,
 - **Transcribe a file**, with a recording that already has a transcript, an audio file from elsewhere in another format, a file that is not audio, and with Murmur switched off in Extensions,

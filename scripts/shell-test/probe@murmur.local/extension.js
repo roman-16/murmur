@@ -288,6 +288,7 @@ export default class Probe extends Extension {
         await this.#checkTeardown(DictationIndicator);
         await this.#checkRecordingPill(RecordingIndicator);
         const recorded = await this.#checkAudio(murmur.path);
+        await this.#checkContext(murmur.path);
         await this.#checkBus(murmur, recorded);
         recorded?.delete(null);
         this.#report();
@@ -758,6 +759,130 @@ export default class Probe extends Extension {
         return file;
     }
 
+    async #checkContext(path) {
+        const {ContextWatch} = await import(`file://${path}/lib/shell/context.js`);
+        const {contextOf} = await import(`file://${path}/lib/context-log.js`);
+        const {Recorder} = await import(`file://${path}/lib/shell/audio.js`);
+        if (!this.#client) {
+            this.#fail('a recording notes what is around it', 'no client window was opened');
+            return;
+        }
+
+        const cache = GLib.get_user_cache_dir();
+        const audio = Gio.File.new_for_path(GLib.build_filenamev([cache, 'probe-context.opus']));
+        const log = Gio.File.new_for_path(GLib.build_filenamev([cache, 'probe-context.jsonl']));
+        const own = Gio.File.new_for_path(GLib.build_filenamev([cache, 'probe-own.opus']));
+        removeFile(log);
+
+        this.#client.activate(global.get_current_time());
+        await this.#settle(800);
+        const title = this.#client.get_title();
+        const app = Shell.WindowTracker.get_default().get_window_app(this.#client)?.get_name();
+
+        const media = this.#mediaPlayer();
+        await this.#settle();
+        const watch = new ContextWatch({
+            audio, awaySeconds: 2, follow: true, log, settleSeconds: 1,
+            startedUs: GLib.get_monotonic_time(),
+        });
+        const others = [];
+        let recorder = null;
+        try {
+            recorder = await Recorder.open(own);
+            const raw = ['--raw', '--format', 's16', '--rate', '48000', '--channels', '1'];
+            others.push(this.#spawn(['pw-cat', '--playback', ...raw, '--volume', '0', '/dev/zero']));
+            others.push(this.#spawn(['pw-cat', '--record', ...raw, '/dev/null']));
+            await this.#settle(4000);
+            watch.locked = true;
+            watch.locked = false;
+            await this.#point(400, 300);
+            others.forEach(other => other.force_exit());
+            others.length = 0;
+            media.release();
+            await this.#settle(3500);
+        } catch (error) {
+            this.#fail('a recording notes what is around it', `${error}`);
+        } finally {
+            others.forEach(other => other.force_exit());
+            media.release();
+            await watch.stop();
+            await recorder?.finish();
+            removeFile(own);
+        }
+
+        const contents = GLib.file_test(log.get_path(), GLib.FileTest.EXISTS)
+            ? new TextDecoder().decode(log.load_contents(null)[1])
+            : '';
+        removeFile(log);
+        const context = contextOf(contents, audio.get_path());
+        const moments = context?.moments ?? [];
+        const of = kind => moments.filter(moment => moment.kind === kind);
+        const detail = JSON.stringify(context);
+        const playing = of('playing').find(moment => moment.app !== 'Murmur Probe');
+        const calls = of('call');
+
+        this.#ok('a recording notes the computer it was made on',
+            context?.head.computer === GLib.get_host_name(), detail);
+        this.#ok('a recording notes the windows open as it starts',
+            of('open').some(moment => moment.app === app && moment.title === title), detail);
+        this.#ok('a recording notes the window in front and its application',
+            of('focused').some(moment => moment.app === app && moment.title === title), detail);
+        this.#ok('a recording notes an application playing, and stopping',
+            playing !== undefined && of('stopped').some(moment => moment.app === playing.app),
+            detail);
+        this.#ok('a recording names what a media player plays, and by whom',
+            of('playing').some(moment => moment.app === 'Murmur Probe' &&
+                moment.title === 'Probe tune' && moment.artist === 'The Probes'), detail);
+        this.#ok('a recording notes an application taking the microphone, and letting go',
+            calls.some(moment => moment.on) && calls.some(moment => !moment.on), detail);
+        this.#ok('a recording never takes its own microphone for a call',
+            calls.length > 0 && calls.every(moment => moment.app === playing?.app), detail);
+        this.#ok('a recording notes time away from the keyboard, and the return',
+            of('away').length > 0 && of('back').some(moment => moment.at > of('away')[0].at),
+            detail);
+        this.#ok('a recording notes the screen locking and unlocking',
+            JSON.stringify(of('lock').map(moment => moment.on)) === '[true,false]', detail);
+    }
+
+    #spawn(argv) {
+        return Gio.Subprocess.new(argv,
+            Gio.SubprocessFlags.STDOUT_SILENCE | Gio.SubprocessFlags.STDERR_SILENCE);
+    }
+
+    #mediaPlayer() {
+        const root = Gio.DBusExportedObject.wrapJSObject(
+            '<node><interface name="org.mpris.MediaPlayer2">' +
+            '<property name="Identity" type="s" access="read"/>' +
+            '</interface></node>',
+            {Identity: 'Murmur Probe'});
+        const player = Gio.DBusExportedObject.wrapJSObject(
+            '<node><interface name="org.mpris.MediaPlayer2.Player">' +
+            '<property name="PlaybackStatus" type="s" access="read"/>' +
+            '<property name="Metadata" type="a{sv}" access="read"/>' +
+            '</interface></node>',
+            {
+                Metadata: {
+                    'xesam:artist': new GLib.Variant('as', ['The Probes']),
+                    'xesam:title': new GLib.Variant('s', 'Probe tune'),
+                },
+                PlaybackStatus: 'Playing',
+            });
+        root.export(Gio.DBus.session, '/org/mpris/MediaPlayer2');
+        player.export(Gio.DBus.session, '/org/mpris/MediaPlayer2');
+        let ownerId = Gio.bus_own_name_on_connection(Gio.DBus.session,
+            'org.mpris.MediaPlayer2.MurmurProbe', Gio.BusNameOwnerFlags.NONE, null, null);
+        return {
+            release: () => {
+                if (!ownerId)
+                    return;
+                Gio.bus_unown_name(ownerId);
+                ownerId = 0;
+                root.unexport();
+                player.unexport();
+            },
+        };
+    }
+
     async #checkBus(murmur, recorded) {
         const call = (path, service) => new Promise(resolve => {
             Gio.DBus.session.call('org.gnome.Shell', '/org/gnome/Shell/Extensions/Murmur',
@@ -817,8 +942,60 @@ export default class Probe extends Extension {
             role !== undefined && Main.panel.statusArea[role] === undefined);
         this.#ok('the extension answers on the bus again', await call(missing, 'mistral') ===
             `${missing} does not exist`);
+        await this.#checkTranscribedContext(call, murmur);
         await this.#checkTranscribed(call, settings);
         keys.forEach((key, index) => settings.set_string(key, saved[index]));
+    }
+
+    async #checkTranscribedContext(call, murmur) {
+        const cache = GLib.get_user_cache_dir();
+        const name = '2026-10-27T09-15-59';
+        const audio = Gio.File.new_for_path(GLib.build_filenamev([cache, `${name}.opus`]));
+        const transcript = GLib.build_filenamev([cache, `${name}.md`]);
+        const log = GLib.build_filenamev(
+            [GLib.get_user_state_dir(), MURMUR_UUID, 'context', `${name}.jsonl`]);
+        try {
+            await this.#writeStereo(audio);
+        } catch (error) {
+            this.#fail('a transcript opens with where and when it was recorded', `${error}`);
+            return;
+        }
+        GLib.mkdir_with_parents(GLib.path_get_dirname(log), 0o700);
+        GLib.file_set_contents(log, [
+            {audio: audio.get_path(), computer: 'probe-computer', microphone: 'Probe microphone',
+                network: null, output: 'Probe output'},
+            {app: 'Probe', at: 0, kind: 'focused', title: 'Probe window'},
+        ].map(entry => `${JSON.stringify(entry)}\n`).join(''));
+
+        const heard = await this.#transcribed(call, audio);
+        heard.notification?.destroy();
+        const written = GLib.file_test(transcript, GLib.FileTest.EXISTS)
+            ? new TextDecoder().decode(GLib.file_get_contents(transcript)[1])
+            : '';
+        this.#ok('a transcript opens with where and when it was recorded',
+            written.startsWith([
+                '---',
+                'computer: probe-computer',
+                'day: Tuesday',
+                'ended: 2026-10-27T09:16:01',
+                'microphone: Probe microphone',
+                'output: Probe output',
+                'started: 2026-10-27T09:15:59',
+                'transcribed-by: Mistral Voxtral (voxtral-small-transcribe-3)',
+                '---',
+                '09:15:59 [focused] Probe: "Probe window"',
+            ].join('\n')),
+            `${JSON.stringify(written)} after ${heard.said}`);
+        this.#ok('a transcript with a header still holds what was said',
+            written.includes(GLib.getenv('PROBE_SENTENCE') ?? '-'), JSON.stringify(written));
+
+        audio.delete(null);
+        removeFile(Gio.File.new_for_path(transcript));
+        murmur.stateObj.disable();
+        murmur.stateObj.enable();
+        const gone = await this.#until(() => !GLib.file_test(log, GLib.FileTest.EXISTS));
+        this.#ok('what was around a recording goes once its audio is gone', gone, log);
+        removeFile(Gio.File.new_for_path(log));
     }
 
     async #checkTranscribed(call, settings) {
@@ -1004,5 +1181,12 @@ export default class Probe extends Extension {
         } catch (error) {
             this.#fail('the extension survives disable and enable', `${error}`);
         }
+    }
+}
+
+function removeFile(file) {
+    try {
+        file.delete(null);
+    } catch {
     }
 }

@@ -2,20 +2,22 @@ import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 
 import {fromAsync} from '../async.js';
+import type {ContextLog} from '../context-log.js';
 import {errorMessage, isCancelled} from '../errors.js';
 import {deleteFile, exists} from '../files.js';
 import {type RecordingFile, RecordingFiles, recordingOf} from '../recording-files.js';
-import {readProvider, readProviderConfig} from '../settings.js';
+import {Key, readProvider, readProviderConfig} from '../settings.js';
 import {
     isProviderId,
     type ProviderId,
     PROVIDERS,
     type RecordingTranscriber
 } from '../transcription/provider.js';
-import {recordingTranscriberFor} from '../transcription/transcription.js';
+import {recordingTranscriberFor, serviceOf} from '../transcription/transcription.js';
 import {
     linesOf,
     type Piece,
+    type Surroundings,
     type Track,
     type TrackPiece,
     type Transcribed,
@@ -24,15 +26,21 @@ import {
 import {type Channel, cutPiece, type Layout, layoutOf, piecesOf, Recorder} from './audio.js';
 import {copyText} from './clipboard.js';
 import {duration} from './clock.js';
+import {ContextWatch} from './context.js';
 import {notify} from './notify.js';
 import {RecordingIndicator} from './recording-indicator.js';
 
+const AWAY_SECONDS = 300;
 const OVERLAP_SECONDS = 15;
 const PIECE_SECONDS = 600;
+const SETTLE_SECONDS = 5;
+const STAMP = '%Y-%m-%dT%H:%M:%S';
+const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 type Listening = {channel: Channel | null; diarize: boolean; unlabelled: string | null};
 
 type Active = {
+    context: ContextWatch;
     file: RecordingFile;
     indicator: RecordingIndicator;
     recorder: Recorder;
@@ -63,6 +71,7 @@ export class Recordings {
         if (active) {
             clearTick(active);
             active.recorder.close();
+            void active.context.stop();
         }
         for (const indicator of this.#indicators)
             indicator.destroy();
@@ -73,6 +82,8 @@ export class Recordings {
         this.#locked = locked;
         for (const indicator of this.#indicators)
             indicator.locked = locked;
+        if (this.#active)
+            this.#active.context.locked = locked;
     }
 
     async toggle(): Promise<void> {
@@ -98,6 +109,10 @@ export class Recordings {
         } finally {
             this.#starting = false;
         }
+    }
+
+    async forgetVanished(): Promise<void> {
+        await this.#files.forgetVanished();
     }
 
     async offerUntranscribed(): Promise<void> {
@@ -160,13 +175,17 @@ export class Recordings {
         }
 
         const indicator = this.#indicator({transcribing: false});
-        const active: Active = {
-            file,
-            indicator,
-            recorder,
-            startedUs: GLib.get_monotonic_time(),
-            tickId: 0,
-        };
+        const startedUs = GLib.get_monotonic_time();
+        const context = new ContextWatch({
+            audio: file.audio,
+            awaySeconds: AWAY_SECONDS,
+            follow: this.#settings.get_boolean(Key.recordContext),
+            log: this.#files.contextLog(file),
+            settleSeconds: SETTLE_SECONDS,
+            startedUs,
+        });
+        context.locked = this.#locked;
+        const active: Active = {context, file, indicator, recorder, startedUs, tickId: 0};
         this.#active = active;
 
         indicator.onStop = () => void this.#stop(active);
@@ -185,7 +204,7 @@ export class Recordings {
         this.#active = null;
         clearTick(active);
         active.indicator.transcribing();
-        await active.recorder.finish();
+        await Promise.all([active.recorder.finish(), active.context.stop()]);
         await this.#transcribe(active.file, readProvider(this.#settings), active.indicator);
     }
 
@@ -196,6 +215,7 @@ export class Recordings {
         clearTick(active);
         active.recorder.close();
         this.#drop(active.indicator);
+        await active.context.stop();
         await this.#files.discard(active.file)
             .catch(error => console.error(`murmur: recording: ${errorMessage(error)}`));
     }
@@ -233,9 +253,13 @@ export class Recordings {
                 pieces: heard[index] ?? [],
                 unlabelled: track.unlabelled,
             }));
-            const text = written(linesOf(tracks), secondOfDay(file.startedAt));
-            await this.#files.save(file, text);
-            this.#announce(file, secondsOf(pieces), text);
+            const lines = linesOf(tracks);
+            const context = await this.#files.context(file);
+            const surroundings = context && file.startedAt
+                ? surroundingsOf(context, file.startedAt, layout.seconds, serviceOf(provider))
+                : null;
+            await this.#files.save(file, written(lines, secondOfDay(file.startedAt), surroundings));
+            this.#announce(file, secondsOf(pieces), lines.length > 0);
         } catch (error) {
             if (isCancelled(error) || this.#cancellable.is_cancelled())
                 return;
@@ -263,8 +287,7 @@ export class Recordings {
         }
     }
 
-    #announce(file: RecordingFile, seconds: number | null, text: string): void {
-        const heard = text.trim().length > 0;
+    #announce(file: RecordingFile, seconds: number | null, heard: boolean): void {
         const lines = [
             seconds === null ? null : duration(seconds),
             heard ? `Saved as ${file.transcript.get_basename()}` : 'No words were heard',
@@ -336,6 +359,26 @@ function listeningTo(layout: Layout): Listening[] {
 function ownName(): string {
     const name = GLib.get_real_name();
     return name && name !== 'Unknown' ? name : GLib.get_user_name();
+}
+
+function surroundingsOf(
+    context: ContextLog, startedAt: GLib.DateTime, seconds: number | null,
+    service: string): Surroundings {
+    const {head, moments} = context;
+    const ended = seconds === null ? null : startedAt.add_seconds(Math.round(seconds));
+    return {
+        header: {
+            computer: head.computer,
+            day: WEEKDAYS[startedAt.get_day_of_week() - 1] ?? '',
+            ended: ended?.format(STAMP) ?? null,
+            microphone: head.microphone,
+            network: head.network,
+            output: head.output,
+            started: startedAt.format(STAMP) ?? '',
+            transcribedBy: service,
+        },
+        moments,
+    };
 }
 
 function secondOfDay(time: GLib.DateTime | null): number | null {

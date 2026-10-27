@@ -4,7 +4,7 @@ import {type Transcribed, untimed} from '../transcript.js';
 import {type DictationSender, numberOr, type RecordingTranscriber} from './provider.js';
 import {type Answer, listOf, textOf, transcribeDictation, transcribeUpload} from './upload.js';
 
-const MODEL = 'voxtral-small-transcribe-3';
+export const MISTRAL_MODEL = 'voxtral-small-transcribe-3';
 const URL = 'https://api.mistral.ai/v1/audio/transcriptions';
 
 type Field = [string, string];
@@ -42,7 +42,7 @@ export function mistralRecording(options: Options): RecordingTranscriber {
 function fields(options: Options): Field[] {
     return [
         ...options.terms.map((term): Field => ['context_bias', term]),
-        ['model', MODEL],
+        ['model', MISTRAL_MODEL],
     ];
 }
 

@@ -8,7 +8,7 @@ Push-to-talk dictation for GNOME on Wayland: TypeScript in `src/`, compiled to p
 | --- | --- | --- |
 | anything under `src/` | `just lint` | `oxlint`, `tsc --noEmit` against the GNOME Shell type definitions, the process boundary between the shell and the preferences, and the changelog |
 | anything under `src/lib/shell/` | `just test-shell` | The panel, built inside a throwaway headless GNOME Shell and clicked with a real pointer. Takes about half a minute and touches nothing in the session |
-| `CHANGELOG.md`, `src/lib/transcript.ts`, or anything under `scripts/` | `just test` | The parser that decides what gets published, over its rules and the repository's own changelog, and how a recording's pieces become a transcript |
+| `CHANGELOG.md`, `src/lib/transcript.ts`, `src/lib/context-log.ts`, or anything under `scripts/` | `just test` | The parser that decides what gets published, over its rules and the repository's own changelog, how a recording's pieces become a transcript, and how what was around it is kept and written |
 | the packaging, or the files the extension ships | `nix build` | The extension builds from the flake and installs the layout GNOME Shell loads |
 
 Fix every finding before the work counts as done.

@@ -56,6 +56,14 @@ A file without Murmur's two channels - a voice memo, a downloaded talk, a record
 
 The desktop half of a recording is the monitor of your default output, and it follows the default when that changes. An application that plays through a different device than the default is not in the recording.
 
+## A recording notes only what the desktop is told
+
+A browser tells the desktop the title of the tab in front in each of its windows and nothing about the others, so a call in a tab behind another is named only while its tab is in front. Its sound comes from the browser as a whole: `[playing] Brave` names the browser, not the tab. The title and artist come from the tab's media session, which videos and music players publish and calls do not.
+
+`[on a call]` means another application has the microphone open, which a call does, and so does a voice recorder or a level meter. Time away is measured the way the screen blanking measures it, so something that keeps the screen awake, a video or a call, can hold it off. An application is named the way it names itself to the sound server, which is not always the name on its window.
+
+The note is made on the computer that records, and kept there. A recording transcribed on another computer has no header.
+
 ## Your microphone is recorded even when a call has you muted
 
 A recording takes the microphone straight from PipeWire, not from the call, so muting yourself in Teams, Meet or Discord mutes you for the others and not for the recording.

@@ -32,6 +32,11 @@
       <summary>OpenRouter model</summary>
       <description>Which of the transcription models OpenRouter serves transcribes a dictation or a recording, written as the slug on its model page. The preferences list what OpenRouter currently offers; any slug it accepts can be set here.</description>
     </key>
+    <key name="record-context" type="b">
+      <default>true</default>
+      <summary>Note what is on screen and playing</summary>
+      <description>Whether a recording's transcript notes, each at the moment it changed, the windows on screen and the one in front, what plays, which applications have the microphone, the camera, screen sharing, time away from the keyboard and the network. The computer's name, the day, the times, the sound devices, the screen locking and the service are noted either way. None of it is sent to the service.</description>
+    </key>
     <key name="recording-folder" type="s">
       <default>'~/Documents/Murmur'</default>
       <summary>Recordings folder</summary>

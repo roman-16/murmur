@@ -1,7 +1,10 @@
 import {expect, test} from 'bun:test';
 
 import {
+    type Header,
     linesOf,
+    type Moment,
+    momentText,
     type Piece,
     type Track,
     type Transcribed,
@@ -153,4 +156,102 @@ test('skips a silent piece and numbers the next one afresh', () => {
 
 test('writes nothing when nothing was heard', () => {
     expect(written(linesOf([microphone({piece: whole, transcribed: null}), desktop({piece: whole, transcribed: untimed('  ')})]), 0)).toBe('');
+});
+
+const header: Header = {
+    computer: 'roman-nixos',
+    day: 'Tuesday',
+    ended: '2026-10-27T10:02:13',
+    microphone: 'Jabra Evolve2 65 Mono',
+    network: null,
+    output: 'Jabra Evolve2 65 Stereo',
+    started: '2026-10-27T09:15:59',
+    transcribedBy: 'Mistral Voxtral (voxtral-small-transcribe-3)',
+};
+
+test('opens with where and when it was recorded, and puts what went on among what was said', () => {
+    const lines = linesOf([
+        microphone({piece: whole, transcribed: timed(said(2, 4, null, 'Seht ihr meinen Bildschirm?'))}),
+        desktop({piece: whole, transcribed: timed(said(0, 1, 'a', 'Morgen.'))}),
+    ]);
+
+    expect(written(lines, 9 * 3600 + 15 * 60 + 59, {
+        header,
+        moments: [
+            {app: 'Brave', at: 0, kind: 'focused', title: 'Architecture weekly | Microsoft Teams - Brave'},
+            {app: 'Brave', at: 0, kind: 'call', on: true},
+            {at: 3.5, kind: 'sharing', on: true},
+            {at: 2, kind: 'camera', on: true},
+        ],
+    })).toBe([
+        '---',
+        'computer: roman-nixos',
+        'day: Tuesday',
+        'ended: 2026-10-27T10:02:13',
+        'microphone: Jabra Evolve2 65 Mono',
+        'output: Jabra Evolve2 65 Stereo',
+        'started: 2026-10-27T09:15:59',
+        'transcribed-by: Mistral Voxtral (voxtral-small-transcribe-3)',
+        '---',
+        '09:15:59 [focused] Brave: "Architecture weekly | Microsoft Teams - Brave"',
+        '09:15:59 [on a call] Brave has the microphone',
+        '09:15:59 Speaker 1: Morgen.',
+        '09:16:01 [camera on]',
+        '09:16:01 Roman: Seht ihr meinen Bildschirm?',
+        '09:16:02 [sharing screen]',
+    ].join('\n'));
+});
+
+test('quotes a header value only where YAML would read it as something else', () => {
+    const text = written([], 0, {
+        header: {
+            ...header,
+            computer: 'yes',
+            ended: null,
+            microphone: 'Mic: "Studio"',
+            network: "Roman's iPhone, VPN BT",
+            output: '2024',
+        },
+        moments: [],
+    });
+
+    expect(text.split('\n')).toEqual([
+        '---',
+        'computer: "yes"',
+        'day: Tuesday',
+        'microphone: "Mic: \\"Studio\\""',
+        'network: "Roman\'s iPhone, VPN BT"',
+        'output: "2024"',
+        'started: 2026-10-27T09:15:59',
+        'transcribed-by: Mistral Voxtral (voxtral-small-transcribe-3)',
+        '---',
+    ]);
+});
+
+test('writes the header alone when nothing was said or happened', () => {
+    expect(written([], 0, {header, moments: []}).split('\n').at(-1)).toBe('---');
+});
+
+test('says each kind of moment in words', () => {
+    const said: [Moment, string][] = [
+        [{kind: 'away', seconds: 300}, '[away] no input for 5 minutes'],
+        [{kind: 'away', seconds: 1}, '[away] no input for 1 second'],
+        [{kind: 'back'}, '[back]'],
+        [{app: 'Brave', kind: 'call', on: false}, '[off the call] Brave'],
+        [{kind: 'camera', on: false}, '[camera off]'],
+        [{app: 'Ghostty', kind: 'focused', title: ''}, '[focused] Ghostty'],
+        [{app: '', kind: 'focused', title: 'Untitled'}, '[focused] "Untitled"'],
+        [{kind: 'lock', on: true}, '[locked]'],
+        [{kind: 'lock', on: false}, '[unlocked]'],
+        [{device: null, kind: 'microphone'}, '[microphone] none'],
+        [{kind: 'network', name: 'BlueTomato-Corp, VPN BT'}, '[network] BlueTomato-Corp, VPN BT'],
+        [{app: 'Obsidian', kind: 'open', title: 'Backlog - vault - Obsidian'}, '[open] Obsidian: "Backlog - vault - Obsidian"'],
+        [{device: 'Built-in Audio Analog Stereo', kind: 'output'}, '[output] Built-in Audio Analog Stereo'],
+        [{app: 'Brave', artist: 'Some Artist', kind: 'playing', title: 'A Song\n(Live)'}, '[playing] Brave: "A Song (Live)" by Some Artist'],
+        [{app: 'Discord', artist: null, kind: 'playing', title: null}, '[playing] Discord'],
+        [{kind: 'sharing', on: false}, '[stopped sharing]'],
+        [{app: 'Brave', kind: 'stopped'}, '[stopped] Brave'],
+    ];
+
+    expect(said.map(([moment]) => momentText(moment))).toEqual(said.map(([, text]) => text));
 });

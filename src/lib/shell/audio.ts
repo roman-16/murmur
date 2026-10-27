@@ -14,6 +14,8 @@ export type Channel = {index: number; of: number};
 
 export type Layout = {channels: Source[] | null; seconds: number | null};
 
+export const CLIENT_NAME = 'Murmur';
+
 type Gstreamer = typeof Gst;
 
 type Handlers = {
@@ -51,7 +53,7 @@ const SPEECH_CAPS =
 // PipeWire gives a stream two buffers unless it asks for more, a few
 // milliseconds at a short quantum, and drops what it captures while a source
 // that holds them all is waiting. Its converter allows 32 at most.
-const CAPTURE = 'pipewiresrc min-buffers=32';
+const CAPTURE = `pipewiresrc client-name=${CLIENT_NAME} min-buffers=32`;
 const MONO = 'audioconvert ! audio/x-raw,channels=1';
 // WirePlumber links a capture stream that asks for a sink to the monitor of the
 // default output, and follows it when the default changes.
