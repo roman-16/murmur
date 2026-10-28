@@ -693,10 +693,10 @@ export default class Probe extends Extension {
         this.#ok('the pill says it is transcribing', texts(pill).includes('Transcribing…'),
             JSON.stringify(texts(pill)));
         this.#ok('a recording being transcribed has nothing left to stop', !await open());
-        indicator.transcribing({of: 6, piece: 2});
+        indicator.transcribing({done: 2, of: 6});
         await this.#settle();
-        this.#ok('the pill counts the pieces it transcribes',
-            texts(pill).includes('Transcribing\u2026 2 of 6'), JSON.stringify(texts(pill)));
+        this.#ok('the pill counts the pieces it has transcribed',
+            texts(pill).includes('Transcribing\u2026 2 of 6 done'), JSON.stringify(texts(pill)));
 
         indicator.destroy();
         await this.#settle();

@@ -1,7 +1,7 @@
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 
-import {fromAsync} from '../async.js';
+import {fromAsync, mapAtMost, whenCancelled} from '../async.js';
 import type {ContextLog} from '../context-log.js';
 import {errorMessage, isCancelled} from '../errors.js';
 import {deleteFile, exists} from '../files.js';
@@ -19,7 +19,6 @@ import {
     type Piece,
     type Surroundings,
     type Track,
-    type TrackPiece,
     type Transcribed,
     written
 } from '../transcript.js';
@@ -33,6 +32,7 @@ import {RecordingIndicator} from './recording-indicator.js';
 const AWAY_SECONDS = 300;
 const OVERLAP_SECONDS = 15;
 const PIECE_SECONDS = 600;
+const PIECES_AT_ONCE = 3;
 const SETTLE_SECONDS = 5;
 const STAMP = '%Y-%m-%dT%H:%M:%S';
 const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -240,17 +240,11 @@ export class Recordings {
             const pieces = await piecesOf(file.audio, layout.seconds,
                 {longest: PIECE_SECONDS, overlap: OVERLAP_SECONDS}, this.#cancellable);
             const listening = listeningTo(layout);
-            const heard = listening.map((): TrackPiece[] => []);
-            for (const [index, piece] of pieces.entries()) {
-                if (pieces.length > 1)
-                    indicator.transcribing({of: pieces.length, piece: index + 1});
-                const transcribed = await Promise.all(listening.map(track =>
-                    this.#transcribePiece(transcriber, file.audio, piece, track)));
-                transcribed.forEach((result, track) => heard[track]?.push({piece, transcribed: result}));
-            }
+            const heard = await this.#transcribePieces(
+                transcriber, file.audio, pieces, listening, indicator);
             const tracks = listening.map((track, index): Track => ({
                 diarized: track.diarize,
-                pieces: heard[index] ?? [],
+                pieces: pieces.map((piece, at) => ({piece, transcribed: heard[at]?.[index] ?? null})),
                 unlabelled: track.unlabelled,
             }));
             const lines = linesOf(tracks);
@@ -274,14 +268,41 @@ export class Recordings {
         }
     }
 
+    async #transcribePieces(
+        transcriber: RecordingTranscriber, audio: Gio.File, pieces: Piece[], listening: Listening[],
+        indicator: RecordingIndicator): Promise<(Transcribed | null)[][]> {
+        const cancellable = new Gio.Cancellable();
+        const release = whenCancelled(this.#cancellable, () => cancellable.cancel());
+        let done = 0;
+        const counted = () => {
+            if (pieces.length > 1 && !cancellable.is_cancelled())
+                indicator.transcribing({done, of: pieces.length});
+        };
+        counted();
+        try {
+            return await mapAtMost(pieces, PIECES_AT_ONCE, async piece => {
+                const heard = await Promise.all(listening.map(track =>
+                    this.#transcribePiece(transcriber, audio, piece, track, cancellable)));
+                done++;
+                counted();
+                return heard;
+            });
+        } catch (error) {
+            cancellable.cancel();
+            throw error;
+        } finally {
+            release();
+        }
+    }
+
     async #transcribePiece(
-        transcriber: RecordingTranscriber, audio: Gio.File, piece: Piece,
-        track: Listening): Promise<Transcribed | null> {
-        const cut = await cutPiece(audio, piece.heard, track.channel, this.#cancellable);
+        transcriber: RecordingTranscriber, audio: Gio.File, piece: Piece, track: Listening,
+        cancellable: Gio.Cancellable): Promise<Transcribed | null> {
+        const cut = await cutPiece(audio, piece.heard, track.channel, cancellable);
         if (!cut)
             return null;
         try {
-            return await transcriber(cut, {diarize: track.diarize}, this.#cancellable);
+            return await transcriber(cut, {diarize: track.diarize}, cancellable);
         } finally {
             await deleteFile(cut).catch(() => {});
         }

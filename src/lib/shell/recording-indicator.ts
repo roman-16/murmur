@@ -64,8 +64,6 @@ export class RecordingIndicator {
             this.#label.text = clock(seconds);
     }
 
-    // Seen on the lock screen, where a recording carries on, and out of reach
-    // there: nobody at a locked machine gets to stop or discard it.
     set locked(locked: boolean) {
         this.#locked = locked;
         if (locked) {
@@ -82,13 +80,13 @@ export class RecordingIndicator {
         });
     }
 
-    transcribing(progress: {of: number; piece: number} | null = null): void {
+    transcribing(progress: {done: number; of: number} | null = null): void {
         this.#transcribing = true;
         this.#closeDialog();
         this.#button.menu.close();
         this.#syncSensitive();
         this.#label.text = progress
-            ? `Transcribing… ${progress.piece} of ${progress.of}`
+            ? `Transcribing… ${progress.done} of ${progress.of} done`
             : 'Transcribing…';
     }
 

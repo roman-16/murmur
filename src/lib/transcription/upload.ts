@@ -2,11 +2,12 @@ import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Soup from 'gi://Soup?version=3.0';
 
-import {fromAsync, wait} from '../async.js';
+import {fromAsync, wait, whenCancelled} from '../async.js';
 import {errorMessage, isCancelled} from '../errors.js';
 import {endpoint, errorText} from './provider.js';
 
 const DICTATION_TIMEOUT_SECONDS = 60;
+const HEDGE_SECONDS = 90;
 const KEEPALIVE_IDLE_SECONDS = 30;
 const KEEPALIVE_INTERVAL_SECONDS = 10;
 const LINUX_TCP_KEEPIDLE = 4;
@@ -43,6 +44,8 @@ export class Refusal extends Error {
 
 type Reply = {answer: Answer} | {reason: string; retry: boolean; retryAfter: number | null; status: number};
 
+type Outcome = {error: unknown} | {reply: Reply};
+
 type Parts = {head: string; tail: string; type: string};
 
 type Payload = {bytes: GLib.Bytes; type: string};
@@ -53,7 +56,7 @@ export async function transcribeUpload(upload: Upload): Promise<Answer> {
         callback => audio.load_contents_async(cancellable, callback),
         result => audio.load_contents_finish(result)[1]));
     for (let attempt = 0; ; attempt++) {
-        const reply = await send(upload, payload, PIECE_TIMEOUT_SECONDS);
+        const reply = await sendHedged(upload, payload);
         if ('answer' in reply)
             return reply.answer;
         const delay = RETRY_DELAYS_SECONDS[attempt];
@@ -71,6 +74,50 @@ export async function transcribeDictation(
     if ('answer' in reply)
         return reply.answer;
     throw new Refusal(reply.status, reply.reason);
+}
+
+async function sendHedged(upload: Upload, payload: Payload): Promise<Reply> {
+    const requests = new Gio.Cancellable();
+    const release = whenCancelled(upload.cancellable, () => requests.cancel());
+    const request = {...upload, cancellable: requests};
+    try {
+        const first = outcomeOf(send(request, payload, PIECE_TIMEOUT_SECONDS));
+        const early = await Promise.race([first, wait(HEDGE_SECONDS, requests).then(() => null)]);
+        return replyOf(early ?? await firstAnswer([
+            first,
+            outcomeOf(send(request, payload, PIECE_TIMEOUT_SECONDS)),
+        ]));
+    } finally {
+        release();
+        requests.cancel();
+    }
+}
+
+function outcomeOf(reply: Promise<Reply>): Promise<Outcome> {
+    return reply.then(settled => ({reply: settled}), (error: unknown) => ({error}));
+}
+
+function firstAnswer(outcomes: Promise<Outcome>[]): Promise<Outcome> {
+    return new Promise(resolve => {
+        let unsettled = outcomes.length;
+        for (const outcome of outcomes) {
+            void outcome.then(settled => {
+                unsettled--;
+                if (answered(settled) || unsettled === 0)
+                    resolve(settled);
+            });
+        }
+    });
+}
+
+function answered(outcome: Outcome): boolean {
+    return 'reply' in outcome && 'answer' in outcome.reply;
+}
+
+function replyOf(outcome: Outcome): Reply {
+    if ('error' in outcome)
+        throw outcome.error;
+    return outcome.reply;
 }
 
 function payloadOf(body: Body, audio: Uint8Array): Payload {

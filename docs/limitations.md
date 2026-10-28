@@ -42,7 +42,7 @@ Asking the same service again gets much the same transcript, mistakes included. 
 
 ## A recording is billed for each side
 
-The microphone and the desktop go to the service as separate requests, each billed for its full length, so an hour of a call where both sides talk throughout is billed as two. A channel with nothing on it for a whole ten-minute piece, a muted microphone or a call that has not started, is not sent.
+The microphone and the desktop go to the service as separate requests, each billed for its full length, so an hour of a call where both sides talk throughout is billed as two. A channel with nothing on it for a whole ten-minute piece, a muted microphone or a call that has not started, is not sent. A piece the service has not answered after a minute and a half is sent a second time, and billed twice.
 
 ## Over loudspeakers, the others are heard twice
 

@@ -56,6 +56,25 @@ export function wait(seconds: number, cancellable: Gio.Cancellable): Promise<voi
     });
 }
 
+export async function mapAtMost<T, R>(
+    items: T[], limit: number, map: (item: T) => Promise<R>): Promise<R[]> {
+    const results: R[] = [];
+    let failed = false;
+    let next = 0;
+    const work = async () => {
+        for (let index = next++; !failed && index < items.length; index = next++) {
+            try {
+                results[index] = await map(items[index] as T);
+            } catch (error) {
+                failed = true;
+                throw error;
+            }
+        }
+    };
+    await Promise.all(Array.from({length: Math.min(limit, items.length)}, work));
+    return results;
+}
+
 export type Deferred<T> = {
     promise: Promise<T>;
     reject: (reason: unknown) => void;
