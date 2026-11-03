@@ -6,17 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 Adding a version section here is what publishes a release, so this file is the one place a version is decided: see [Releasing](CONTRIBUTING.md#releasing). Versions that shipped before this file existed are on the [releases page](https://github.com/roman-16/murmur/releases).
 
-## [2.0.0] - 2026-10-07
+## [2.0.0] - 2026-11-03
 
 ### Highlights
 
 - **Record anything you hear and say** - `Super+Alt+Space` records a call, a video or whatever else your computer plays, together with your microphone, and leaves the audio and its transcript side by side in `~/Documents/Murmur`, with a line for each thing said: when, who, and what, and a note of the window in front and what was playing.
 - **Mistral by default, Gemini gone** - Murmur starts with Mistral Voxtral, which transcribes a dictation when you stop, and Grok joins it as the service that transcribes as you speak. A setup that used Gemini needs a key from console.mistral.ai, or another service, after updating.
 - **Names spelled your way** - list the names and terms you use under **Names and terms** in the preferences, and every service is asked to spell them that way.
+- **A panel that looks like your desktop** - the dictation panel wears your light or dark style, accent colour, high contrast or User Theme, at about half the size it was, with where the words will land as its headline.
 
 ### Added
 
 - **Grok** joins **Service**, with xAI's newest transcription model: the words appear as you speak, it costs about $0.20 an hour of audio, and xAI ends no dictation of its own.
+- **OpenRouter** joins **Service**: one key for every transcription model it serves - Whisper, Nova, Voxtral, Parakeet and whatever it adds next - chosen from the **Model** list beside it. It cannot transcribe while you speak, so the panel shows only the level and the countdown and the whole dictation arrives when you stop. A dictation runs ten minutes at most.
 - `Super+Alt+Space`, or whatever you set as **Recording shortcut**, records everything your computer plays and your microphone hears - a call in Teams, Meet or Discord, a video, anything - until you press it again, however long that is, then transcribes it. The audio and the transcript are saved side by side in `~/Documents/Murmur`, or the **Recordings folder** you choose in the preferences, named by when the recording started, and the transcript has a line for each thing said, with the time of day and who said it: your name for what your microphone heard, and a number for each voice on the call.
 - A pill in the top bar shows how long a recording has run. Its menu shows what the microphone and the desktop audio are hearing, **Stop and transcribe** and **Discard…**. A recording carries on while the screen is locked.
 - A notification says when a recording is transcribed, with **Open** and **Copy path**. One that could not be transcribed keeps its audio and offers **Retry**, and one that never got that far is offered again the next time you log in.
@@ -33,28 +35,7 @@ Adding a version section here is what publishes a release, so this file is the o
 - **Typing speed** offers 10, 20, 50, 100, 200, 500, 1000, 2000 and 5000 characters a second, and starts at 2000 rather than as fast as dotool goes. Each is the speed the text really goes in at. A speed you had set stays as it was.
 - With Mistral, a dictation is transcribed when you stop, by the model Mistral uses for recordings: the words arrive together instead of as you speak, and it costs about $0.24 an hour instead of $0.36. Grok is the service that shows them as you speak.
 - With Mistral selected, a dictation ends after ten minutes at most, as with OpenRouter.
-
-### Removed
-
-- **Gemini 3.5 Transcribe Live**, and **Tidy up what I say** with it: pick another service under **Service** and add its key.
-- **Transcription delay** and its `transcription-delay-ms` key: a Mistral dictation is transcribed when you stop, so there is nothing left to delay.
-
-### Fixed
-
-- With Mistral or Grok, a dictation the service sends nothing back for ends with a notification saying so, instead of the panel closing with nothing typed.
-- A dictation the service fails partway through leaves what it had already transcribed on the clipboard and in your **History**, instead of losing it.
-
-## [1.9.0] - 2026-09-14
-
-### Added
-
-- **OpenRouter** joins **Service** as a third choice: one key for every transcription model it serves - Whisper, Nova, Voxtral, Parakeet and whatever it adds next - chosen from the **Model** list beside it. It cannot transcribe while you speak, so the panel shows only the level and the countdown and the whole dictation arrives when you stop. A recording runs ten minutes at most.
-
-## [1.8.0] - 2026-09-01
-
-### Changed
-
-- The recording panel is built out of GNOME's own surfaces - the frame a menu wears, the contents a notification wears - so its colour, corners, border, shadow, text and buttons are the ones your desktop already uses: the light style as readily as the dark one, your accent colour, high contrast, and a User Theme if you have one. It is also about half the size it was, and it grows with what you say instead of holding open an empty box.
+- The dictation panel is built out of GNOME's own surfaces - the frame a menu wears, the contents a notification wears - so its colour, corners, border, shadow, text and buttons are the ones your desktop already uses: the light style as readily as the dark one, your accent colour, high contrast, and a User Theme if you have one. It is also about half the size it was, and it grows with what you say instead of holding open an empty box.
 - The keyboard starts on **Stop**, so the highlight marks the button `Enter` presses rather than outlining the whole panel. `Tab` moves it along the buttons, and `Enter` or `Space` presses the one it is on.
 - A level moves with your voice while Murmur listens, in place of the red dot, so a microphone nobody is hearing shows itself before you have finished the sentence.
 - Where the transcription will land is the panel's headline now - **Types into Text Editor**, or **Copies to the clipboard** - above the words rather than below them.
@@ -62,13 +43,18 @@ Adding a version section here is what publishes a release, so this file is the o
 
 ### Removed
 
-- The row of key hints along the bottom of the panel. `Enter`, `Ctrl+Enter`, `Esc` and the recording shortcut all still do what they did.
+- **Gemini 3.5 Transcribe Live**, and **Tidy up what I say** with it: pick another service under **Service** and add its key.
+- **Transcription delay** and its `transcription-delay-ms` key: a Mistral dictation is transcribed when you stop, so there is nothing left to delay.
+- The row of key hints along the bottom of the panel. `Enter`, `Ctrl+Enter`, `Esc` and the dictation shortcut all still do what they did.
 - The panel's collapse button. Clicking anywhere else still puts the panel away, and the top-bar indicator still brings it back.
 - Scrolling back through a long transcription with `Page Up`, `Home` and the arrow keys. The panel keeps the last four lines in view, and everything you said is delivered in full when you stop.
 
 ### Fixed
 
-- The recording indicator in the top bar answers a tap on a touchscreen and `Enter` when you reach it with the keyboard, not only a click.
+- With Mistral or Grok, a dictation the service sends nothing back for ends with a notification saying so, instead of the panel closing with nothing typed.
+- A dictation the service fails partway through leaves what it had already transcribed on the clipboard and in your **History**, instead of losing it.
+- A dictation that fails says why in its notification - a rate limit, the service being busy or crashing on its side - instead of showing an internal error.
+- The dictation indicator in the top bar answers a tap on a touchscreen and `Enter` when you reach it with the keyboard, not only a click.
 
 ## [1.7.1] - 2026-08-31
 
