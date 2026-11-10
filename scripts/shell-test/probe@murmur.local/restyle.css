@@ -1,0 +1,5 @@
+.probe-restyled .message {
+  background: rgba(255, 0, 0, 0.5) !important;
+  border: 2px solid red !important;
+  box-shadow: 0 0 0 4px red !important;
+}

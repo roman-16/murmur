@@ -12,9 +12,6 @@ const SETTLE_MS = 2000;
 const RECORD_MS = 4500;
 const INSERT_MS = 2500;
 
-// Drives the take from inside the compositor: a virtual keyboard reaches
-// Murmur's keybinding the same way a real one does, which nothing outside this
-// session can do while the host owns the keyboard.
 export default class DemoDriver extends Extension {
     #device = null;
     #overviewId = 0;
@@ -25,7 +22,7 @@ export default class DemoDriver extends Extension {
         // closes, which is not what the take should show.
         this.#overviewId = Main.overview.connect('showing', () => Main.overview.hide());
 
-        this.#device = Clutter.get_default_backend()
+        this.#device = global.stage.context.get_backend()
             .get_default_seat()
             .create_virtual_device(Clutter.InputDeviceType.KEYBOARD_DEVICE);
 
@@ -47,7 +44,6 @@ export default class DemoDriver extends Extension {
         this.#device = null;
     }
 
-    // Nothing is worth performing before the recorder is up.
     #whenRecording(action) {
         const marker = GLib.getenv('DEMO_RECORDING_FILE');
         if (!marker || GLib.file_test(marker, GLib.FileTest.EXISTS)) {

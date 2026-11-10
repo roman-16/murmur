@@ -15,6 +15,12 @@ import {Recordings} from './lib/shell/recording.js';
 
 const SHORTCUTS: ShortcutKey[] = [Key.toggleDictation, Key.toggleRecording];
 
+// The type definitions declare the session mode without the fields of the mode
+// it is in, which the shell merges into it.
+function screenLocked(): boolean {
+    return (Main.sessionMode as typeof Main.sessionMode & {isLocked: boolean}).isLocked;
+}
+
 export default class MurmurExtension extends Extension {
     readonly #bound = new Set<ShortcutKey>();
 
@@ -79,7 +85,7 @@ export default class MurmurExtension extends Extension {
     // A dictation types into whatever has the focus, which on the lock screen is
     // the password field, so locking the screen ends one.
     #syncLock(): void {
-        const locked: boolean = Main.sessionMode.isLocked;
+        const locked = screenLocked();
         if (locked) {
             this.#dictation?.destroy();
             this.#dictation = null;
@@ -94,7 +100,7 @@ export default class MurmurExtension extends Extension {
     #syncShortcuts(): void {
         this.#unbindShortcuts();
         const settings = this.#settings;
-        if (!settings || Main.sessionMode.isLocked)
+        if (!settings || screenLocked())
             return;
 
         const actions: Record<ShortcutKey, () => Promise<void> | undefined> = {

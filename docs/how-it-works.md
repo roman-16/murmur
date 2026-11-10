@@ -58,6 +58,8 @@ The panel is a popover with the shell's own notification card inside it, which i
 
 That division is not a preference. A declaration in an extension's stylesheet outranks the theme's, `!important` included, so any colour Murmur set would be a colour no theme could ever change.
 
+The card inside the frame has no surface of its own, so the panel is one surface, the colour a menu is. That holds under an extension that restyles the shell as well. Blur my Shell's popup blur treats the frame as the menu it is and paints every notification translucent; the one inside the panel stays bare, and the panel is one blurred surface, as the calendar and Quick Settings are. Murmur adds no blur and no translucency of its own: without such an extension the panel is as opaque as the theme's menus.
+
 The keyboard sits on **Stop** rather than on the panel itself, so the theme's focus ring marks the action `Enter` takes instead of outlining the whole surface for as long as it is open. `Esc` and `Ctrl+Enter` are taken before the focused button sees them, because a button in the shell activates on `Return` whatever modifier is held.
 
 ## Silence detection

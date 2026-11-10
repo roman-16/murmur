@@ -6,7 +6,7 @@
 
 **Speak into any text field in GNOME, or record everything you hear and say.**
 
-[![Release](https://img.shields.io/github/v/release/roman-16/murmur?sort=semver&style=flat-square&color=6E7BF2)](https://github.com/roman-16/murmur/releases/latest) [![GNOME](https://img.shields.io/badge/GNOME-47%20%7C%2048%20%7C%2049%20%7C%2050-6E7BF2?style=flat-square)](docs/installation.md) [![Session](https://img.shields.io/badge/session-Wayland-6E7BF2?style=flat-square)](docs/installation.md) [![License](https://img.shields.io/github/license/roman-16/murmur?style=flat-square&color=6E7BF2)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/roman-16/murmur?sort=semver&style=flat-square&color=6E7BF2)](https://github.com/roman-16/murmur/releases/latest) [![GNOME](https://img.shields.io/badge/GNOME-47%20%7C%2048%20%7C%2049%20%7C%2050%20%7C%2051-6E7BF2?style=flat-square)](docs/installation.md) [![Session](https://img.shields.io/badge/session-Wayland-6E7BF2?style=flat-square)](docs/installation.md) [![License](https://img.shields.io/github/license/roman-16/murmur?style=flat-square&color=6E7BF2)](LICENSE)
 
 <img src="assets/demo.webp" alt="Murmur transcribing a spoken sentence live and inserting it into a text editor" width="760" />
 
@@ -39,7 +39,7 @@ Then log out and back in, which Wayland requires for a new extension, and enable
 gnome-extensions enable murmur@roman-16.github.io
 ```
 
-You need **GNOME Shell 47 to 50 on Wayland**, **GStreamer** with its base and good plugins and PipeWire's GStreamer plugin, which GNOME's own screen recorder needs anyway, and an **API key** for one of the three transcription services. Installing with Nix, from source, from extensions.gnome.org once the listing is approved, updating and uninstalling: → [Installation](docs/installation.md)
+You need **GNOME Shell 47 to 51 on Wayland**, **GStreamer** with its base and good plugins and PipeWire's GStreamer plugin, which GNOME's own screen recorder needs anyway, and an **API key** for one of the three transcription services. Installing with Nix, from source, from extensions.gnome.org once the listing is approved, updating and uninstalling: → [Installation](docs/installation.md)
 
 ## Get started
 

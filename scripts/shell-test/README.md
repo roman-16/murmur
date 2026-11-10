@@ -24,6 +24,7 @@ So the probe presses the button, from a position it computed off the actor's own
 | `../nested-shell.sh` | The throwaway session, shared with `just dev` and the demo |
 | `session.sh` | Inside the session: waits for the probe to finish |
 | `probe@murmur.local` | An extension that performs the checks from inside the compositor |
+| `probe@murmur.local/restyle.css` | What an extension that restyles the shell paints a notification with, loaded for the one check about it |
 | `mistral-mock.ts` | A stand-in for Mistral on `127.0.0.1`, which `MURMUR_SERVICE_URL` sends every transcription request to. It answers a sentence for the key `probe` and nothing for `probe-silent` |
 | An installed application | A real client to focus, because an extension cannot produce a window |
 
@@ -39,6 +40,7 @@ The probe reaches Murmur's modules through `Main.extensionManager.lookup()`, so 
 - A transcript with line breaks in it becomes one line, so nothing Murmur types is an `Enter`.
 - All four controls are hit-testable, and **clicking each one does something**.
 - Every control is a full-size one, 40px or taller, with its label sitting in the middle of it. Set a height in CSS and a button grows; whether what is written on it follows is St's business, and only measuring it tells you.
+- A stylesheet that paints every notification with `!important`, as an extension that restyles the shell does, leaves the one inside the panel without a surface of its own, so the panel stays one surface under it.
 - Three lines of transcription are in view before a word is spoken.
 - Taking and releasing the keyboard shows on the panel, and clicking the panel takes it back.
 - The panel collapses both ways it should: when an application comes forward, and when it loses the keyboard it was holding.

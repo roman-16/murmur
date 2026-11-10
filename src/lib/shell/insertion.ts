@@ -122,7 +122,7 @@ async function typeWithDotool(
 // is the fallback for when no dotool tier is usable.
 function typeWithVirtualKeyboard(
     text: string, pace: Pace, cancellable: Gio.Cancellable): Promise<void> {
-    const seat = Clutter.get_default_backend().get_default_seat();
+    const seat = global.stage.context.get_backend().get_default_seat();
     const device = seat.create_virtual_device(Clutter.InputDeviceType.KEYBOARD_DEVICE);
     const characters = [...normalizeForKeyval(text)];
     let index = 0;

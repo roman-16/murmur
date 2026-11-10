@@ -588,8 +588,12 @@ function isSource(name: string): name is Source {
 
 // The action signal needs none of GstApp's bindings, which a system can have
 // GStreamer without.
+interface AppSink {
+    emit(signal: 'try-pull-sample', timeoutNs: number): Gst.Sample | null;
+}
+
 function pullSample(sink: Gst.Element): Gst.Sample | null {
-    return (sink.emit('try-pull-sample', 0) as unknown as Gst.Sample | null) ?? null;
+    return (sink as unknown as AppSink).emit('try-pull-sample', 0);
 }
 
 // Loaded when audio is first asked for rather than with the extension, so a

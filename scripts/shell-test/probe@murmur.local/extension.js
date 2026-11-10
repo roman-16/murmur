@@ -34,7 +34,7 @@ export default class Probe extends Extension {
     enable() {
         Main.overview.hide();
         Main.overview.connect('showing', () => Main.overview.hide());
-        this.#pointer = Clutter.get_default_backend()
+        this.#pointer = global.stage.context.get_backend()
             .get_default_seat()
             .create_virtual_device(Clutter.InputDeviceType.POINTER_DEVICE);
         this.#after(SETTLE_MS, () => {
@@ -98,7 +98,7 @@ export default class Probe extends Extension {
     // never receives enter and reads as unhovered however healthy it is. The
     // pointer is therefore put down beside the target and moved onto it.
     async #point(x, y) {
-        const seat = Clutter.get_default_backend().get_default_seat();
+        const seat = global.stage.context.get_backend().get_default_seat();
         seat.warp_pointer(x + 2, y + 2);
         this.#pointer.notify_absolute_motion(GLib.get_monotonic_time(), x + 2, y + 2);
         await this.#settle(100);
@@ -278,6 +278,7 @@ export default class Probe extends Extension {
         await this.#settle(600);
 
         this.#checkSurface();
+        await this.#checkOneSurface();
         await this.#checkButtons(fired);
         await this.#checkKeyboard();
         await this.#checkCollapse();
@@ -376,6 +377,32 @@ export default class Probe extends Extension {
         this.#ok('the keyboard is on the action, not on the frame',
             focus instanceof St.Button && focus.label === 'Stop',
             `focus is ${focus?.constructor?.name} "${focus?.label ?? focus?.style_class}"`);
+    }
+
+    // An extension that restyles the shell's surfaces paints every notification
+    // with `!important`, the one inside the panel included, and the shell loads
+    // its stylesheet the way this one is loaded here.
+    async #checkOneSurface() {
+        const theme = St.ThemeContext.get_for_stage(global.stage).get_theme();
+        const restyle = this.dir.get_child('restyle.css');
+        const [notification] =
+            this.#descendants(this.#card(), actor => actor.style_class === 'message');
+
+        Main.layoutManager.uiGroup.add_style_class_name('probe-restyled');
+        theme.load_stylesheet(restyle);
+        await this.#settle();
+        const node = notification.get_theme_node();
+        const background = node.get_background_color();
+        const border = node.get_border_width(St.Side.TOP);
+        const shadow = node.get_box_shadow();
+        this.#ok('no stylesheet gives the notification inside the panel a surface of its own',
+            background.alpha === 0 && border === 0 && shadow === null,
+            `background alpha ${background.alpha}, border ${border}px, ` +
+                `${shadow === null ? 'no shadow' : 'a shadow'}`);
+
+        theme.unload_stylesheet(restyle);
+        Main.layoutManager.uiGroup.remove_style_class_name('probe-restyled');
+        await this.#settle();
     }
 
     // A button can be hit-tested correctly, wired correctly, and still do
@@ -818,7 +845,7 @@ export default class Probe extends Extension {
         const moments = context?.moments ?? [];
         const of = kind => moments.filter(moment => moment.kind === kind);
         const detail = JSON.stringify(context);
-        const playing = of('playing').find(moment => moment.app !== 'Murmur Probe');
+        const playing = of('playing').find(moment => moment.app === 'pw-cat');
         const calls = of('call');
 
         this.#ok('a recording notes the computer it was made on',

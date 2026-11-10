@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 Adding a version section here is what publishes a release, so this file is the one place a version is decided: see [Releasing](CONTRIBUTING.md#releasing). Versions that shipped before this file existed are on the [releases page](https://github.com/roman-16/murmur/releases).
 
+## [2.1.0] - 2026-11-10
+
+### Added
+
+- GNOME Shell 51 is supported, alongside 47 to 50.
+
+### Fixed
+
+- With Blur my Shell's popup blur on, the dictation panel is one translucent surface like GNOME's menus, instead of a darker card inside a lighter frame.
+
 ## [2.0.0] - 2026-11-03
 
 ### Highlights

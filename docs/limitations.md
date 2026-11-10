@@ -6,7 +6,7 @@ Some of these are deliberate, some are the platform, and some are simply not bui
 
 Murmur reads which client holds a focused text field from the compositor, and it is a GNOME Shell extension besides. An X11 session offers neither, so the extension is useless there. XWayland *applications* inside a Wayland session are fine; an X11 session is not.
 
-## GNOME Shell 47 to 50
+## GNOME Shell 47 to 51
 
 Extensions are compiled against the shell's own JavaScript API, which changes every release. Older or newer versions are not supported until they are tested.
 

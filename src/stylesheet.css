@@ -25,11 +25,16 @@
 
 /* One surface rather than two. The notification inside the frame is what shapes
    the contents; the frame is what the theme dresses, so the panel is the colour
-   a menu is. Cards are raised where a list has several of them to separate. */
-.murmur-panel .message {
-  background: none;
-  border: none;
-  box-shadow: none;
+   a menu is. Cards are raised where a list has several of them to separate.
+
+   Between two extensions `!important` decides, then the more specific
+   selector, then whichever loaded last, and an extension that restyles the
+   shell's surfaces paints every notification with it. Out of every
+   stylesheet's reach, then, and not only the theme's. */
+.popup-menu-content.murmur-panel .message {
+  background: none !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
 .murmur-panel {
