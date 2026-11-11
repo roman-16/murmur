@@ -53,6 +53,7 @@ export MURMUR_PROVIDER=xai
 
 export DEMO_CAPTURE="$tmp/demo"
 export DEMO_DONE_FILE="$tmp/done"
+export DEMO_READY_FILE="$tmp/ready"
 export DEMO_RECORDING_FILE="$DEMO_CAPTURE.recording"
 export NESTED_EXTENSIONS="scripts/demo/driver@murmur.local"
 export NESTED_HEADLESS=1 NESTED_SCREENS=1

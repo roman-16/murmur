@@ -111,9 +111,10 @@ export default class MurmurExtension extends Extension {
         for (const key of SHORTCUTS) {
             if (settings.get_strv(key).length === 0)
                 continue;
-            const id = Main.wm.addKeybinding(key, settings, Meta.KeyBindingFlags.NONE, modes, () => {
-                actions[key]()?.catch(error => console.error(`murmur: ${errorMessage(error)}`));
-            });
+            const id = Main.wm.addKeybinding(
+                key, settings, Meta.KeyBindingFlags.IGNORE_AUTOREPEAT, modes, () => {
+                    actions[key]()?.catch(error => console.error(`murmur: ${errorMessage(error)}`));
+                });
             if (id)
                 this.#bound.add(key);
         }

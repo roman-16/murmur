@@ -106,7 +106,10 @@ export function linesOf(tracks: Track[]): Line[] {
 }
 
 export function written(
-    lines: Line[], startedAt: number | null, surroundings: Surroundings | null = null): string {
+    lines: Line[], startedAt: number | null,
+    surroundings: Surroundings | null = null): string | null {
+    if (lines.length === 0)
+        return null;
     const time = (seconds: number) => clock((startedAt ?? 0) + seconds);
     const said = lines.map(line => {
         const text = oneLine(line.text);

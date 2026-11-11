@@ -151,6 +151,13 @@ fi
 
 extensions="$XDG_DATA_HOME/gnome-shell/extensions"
 mkdir --parents "$extensions"
+
+# A fresh profile reads to the shell as the first login after an upgrade, and
+# before it loads a single extension it then asks extensions.gnome.org whether
+# any of them has an update, which holds Murmur back for as long as the network
+# takes. This is the file it leaves behind once it has asked.
+shell_major=$(gnome-shell --version | sed --quiet 's/[^0-9]*\([0-9]*\).*/\1/p')
+touch "$XDG_DATA_HOME/gnome-shell/update-check-$shell_major"
 ln --symbolic --force --no-dereference --no-target-directory "$PWD/dist" "$extensions/$uuid"
 export GSETTINGS_SCHEMA_DIR="$extensions/$uuid/schemas"
 

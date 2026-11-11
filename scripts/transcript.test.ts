@@ -154,8 +154,8 @@ test('skips a silent piece and numbers the next one afresh', () => {
     expect(lines.map(line => `${line.start} ${line.speaker}`)).toEqual(['10 Speaker 1', '205 Speaker 2']);
 });
 
-test('writes nothing when nothing was heard', () => {
-    expect(written(linesOf([microphone({piece: whole, transcribed: null}), desktop({piece: whole, transcribed: untimed('  ')})]), 0)).toBe('');
+test('has no transcript when nothing was heard', () => {
+    expect(written(linesOf([microphone({piece: whole, transcribed: null}), desktop({piece: whole, transcribed: untimed('  ')})]), 0)).toBeNull();
 });
 
 const header: Header = {
@@ -203,7 +203,7 @@ test('opens with where and when it was recorded, and puts what went on among wha
 });
 
 test('quotes a header value only where YAML would read it as something else', () => {
-    const text = written([], 0, {
+    const text = written([{speaker: null, start: 0, text: 'Hallo.'}], 0, {
         header: {
             ...header,
             computer: 'yes',
@@ -215,7 +215,7 @@ test('quotes a header value only where YAML would read it as something else', ()
         moments: [],
     });
 
-    expect(text.split('\n')).toEqual([
+    expect(text?.split('\n')).toEqual([
         '---',
         'computer: "yes"',
         'day: Tuesday',
@@ -225,11 +225,15 @@ test('quotes a header value only where YAML would read it as something else', ()
         'started: 2026-10-27T09:15:59',
         'transcribed-by: Mistral Voxtral (voxtral-small-transcribe-3)',
         '---',
+        '00:00:00 Hallo.',
     ]);
 });
 
-test('writes the header alone when nothing was said or happened', () => {
-    expect(written([], 0, {header, moments: []}).split('\n').at(-1)).toBe('---');
+test('has no transcript when nothing was said, whatever went on around it', () => {
+    expect(written([], 0, {
+        header,
+        moments: [{app: 'Brave', at: 0, kind: 'focused', title: 'Architecture weekly'}],
+    })).toBeNull();
 });
 
 test('says each kind of moment in words', () => {

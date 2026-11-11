@@ -71,7 +71,7 @@ What each one costs is on its page at [openrouter.ai](https://openrouter.ai/mode
 
 ### Dictation shortcut
 
-Opens the panel and starts listening, then stops and delivers, the same as `Enter`. `Super+Space` by default. It is a system shortcut, so it works whatever is focused, including while the panel is collapsed.
+Opens the panel and starts listening, then stops and delivers, the same as `Enter`. `Super+Space` by default. It is a system shortcut, so it works whatever is focused, including while the panel is collapsed. Holding it down counts as one press.
 
 ### Show the panel when a dictation starts
 
@@ -133,7 +133,7 @@ transcribed-by: Mistral Voxtral (voxtral-small-transcribe-3)
 
 What came in on the microphone carries your name, as the account's settings give it. The voices on the desktop's channel are numbered in the order they first speak; a line the service could not give to anyone reads `Others`. Each channel is transcribed on its own, so two people talking at once are two lines.
 
-A recording runs until you stop it, and has no silence stop, since a call has silences in it.
+A recording runs until you stop it, and has no silence stop, since a call has silences in it. One in which no words were heard is saved as its audio alone: there is nothing to put in a transcript, so none is written.
 
 ### Recordings folder
 
@@ -167,7 +167,7 @@ A file from anywhere else, or a recording from another computer, has no note, an
 
 Transcribes an audio file you choose - a recording again, or audio from anywhere else, in any format GStreamer plays - with the service picked beside it. The list holds the services that have a key, and follows **Service** until you pick another. The file chooser opens in the recordings folder.
 
-The transcript is saved beside the audio under the same name, `interview.md` for `interview.m4a`. When one is already there, Murmur asks before replacing it, and replaces it only once the new transcript is done. The file is transcribed the way a recording is, with its pill, its notification and **Retry**, and billed the same.
+The transcript is saved beside the audio under the same name, `interview.md` for `interview.m4a`. When one is already there, Murmur asks before replacing it, and replaces it only once the new transcript is done; a transcription that hears no words leaves it as it is. The file is transcribed the way a recording is, with its pill, its notification and **Retry**, and billed the same.
 
 A recording of Murmur's is told apart by channel as above. Any other file, one without Murmur's two channels, is heard as one track: every voice is numbered, and the time counts from `00:00:00` unless the file is named the way Murmur names a recording, in which case it is the time of day.
 

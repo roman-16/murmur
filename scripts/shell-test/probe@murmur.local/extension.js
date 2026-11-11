@@ -18,6 +18,14 @@ const CLIENT_APPS = [
     'org.gnome.Ptyxis.desktop',
     'org.gnome.Terminal.desktop',
 ];
+const HOLD_MS = 1500;
+const KEY_STEP_US = 20000;
+const MODIFIER_KEYS = {
+    Alt: Clutter.KEY_Alt_L,
+    Control: Clutter.KEY_Control_L,
+    Shift: Clutter.KEY_Shift_L,
+    Super: Clutter.KEY_Super_L,
+};
 const MURMUR_UUID = 'murmur@roman-16.github.io';
 const SETTLE_MS = 400;
 const WINDOW_TRIES = 30;
@@ -25,6 +33,7 @@ const WINDOW_TRIES = 30;
 export default class Probe extends Extension {
     #app = null;
     #failures = [];
+    #keyboard = null;
     #panel = null;
     #passes = 0;
     #pointer = null;
@@ -34,9 +43,9 @@ export default class Probe extends Extension {
     enable() {
         Main.overview.hide();
         Main.overview.connect('showing', () => Main.overview.hide());
-        this.#pointer = global.stage.context.get_backend()
-            .get_default_seat()
-            .create_virtual_device(Clutter.InputDeviceType.POINTER_DEVICE);
+        const seat = global.stage.context.get_backend().get_default_seat();
+        this.#keyboard = seat.create_virtual_device(Clutter.InputDeviceType.KEYBOARD_DEVICE);
+        this.#pointer = seat.create_virtual_device(Clutter.InputDeviceType.POINTER_DEVICE);
         this.#after(SETTLE_MS, () => {
             this.#run().catch(error => {
                 this.#fail('the probe itself', `${error}\n${error.stack}`);
@@ -121,6 +130,29 @@ export default class Probe extends Extension {
         return {hovered, pressed};
     }
 
+    #keysOf(accelerator) {
+        const modifiers = [...accelerator.matchAll(/<(\w+)>/g)].map(([, name]) => MODIFIER_KEYS[name]);
+        const key = Clutter[`KEY_${accelerator.replace(/<\w+>/g, '')}`];
+        return [...modifiers, key];
+    }
+
+    // Each event needs its own, later timestamp: sent all at once, a modifier
+    // and its key read as separate presses and never reach the shortcut.
+    #keys(keys, state) {
+        let time = GLib.get_monotonic_time();
+        for (const key of keys) {
+            time += KEY_STEP_US;
+            this.#keyboard.notify_keyval(time, key, state);
+        }
+    }
+
+    async #hold(keys, milliseconds) {
+        this.#keys(keys, Clutter.KeyState.PRESSED);
+        await this.#settle(milliseconds);
+        this.#keys(keys.toReversed(), Clutter.KeyState.RELEASED);
+        await this.#settle();
+    }
+
     // Waited for rather than slept on: how long the first pointer event of a
     // session takes to be delivered is not a number worth hard-coding, and a
     // check that samples too early reports a healthy button as broken.
@@ -149,6 +181,10 @@ export default class Probe extends Extension {
         };
         walk(root);
         return found;
+    }
+
+    #texts(root) {
+        return this.#descendants(root, actor => actor instanceof St.Label).map(label => label.text);
     }
 
     #card() {
@@ -270,6 +306,7 @@ export default class Probe extends Extension {
         const fired = [];
         await this.#checkHistory(History);
         await this.#checkEmptyWrite(murmur.path);
+        await this.#checkHeldShortcuts(murmur);
 
         this.#panel = new MurmurPanel();
         this.#panel.destination = {app: 'Text Editor', kind: 'field', password: false};
@@ -345,9 +382,9 @@ export default class Probe extends Extension {
                 !GLib.file_test(history.path, GLib.FileTest.EXISTS));
     }
 
-    // A transcript of nothing and a list of no recordings are both an empty
-    // file, and GIO handed no bytes to write asserts and never answers, which
-    // would leave a recording transcribing for ever.
+    // A list of no recordings is an empty file, and GIO handed no bytes to
+    // write asserts and never answers, which would leave a recording
+    // transcribing for ever.
     async #checkEmptyWrite(path) {
         const {writePrivately} = await import(`file://${path}/lib/files.js`);
         const file = Gio.File.new_for_path(
@@ -359,6 +396,101 @@ export default class Probe extends Extension {
         this.#ok('nothing to write is written', written &&
             GLib.file_test(file.get_path(), GLib.FileTest.EXISTS) &&
             file.query_info('standard::size', Gio.FileQueryInfoFlags.NONE, null).get_size() === 0);
+    }
+
+    // A held key repeats, and the compositor hands a shortcut every repeat
+    // unless its binding asks otherwise. A virtual keyboard reaches a
+    // compositor shortcut only while no client window holds the focus, which
+    // is why this comes before one is opened.
+    async #checkHeldShortcuts(murmur) {
+        const settings = murmur.stateObj.getSettings();
+        const key = settings.get_string('mistral-api-key');
+        const before = new Set(Object.keys(Main.panel.statusArea));
+        settings.set_string('mistral-api-key', 'probe-silent');
+
+        await this.#checkHeldDictation(settings);
+        await this.#checkHeldRecording(settings, before);
+
+        settings.set_string('mistral-api-key', key);
+        if (this.#card() !== null || this.#pills(before).length > 0) {
+            murmur.stateObj.disable();
+            murmur.stateObj.enable();
+            await this.#settle();
+        }
+    }
+
+    async #checkHeldDictation(settings) {
+        const keys = this.#keysOf(settings.get_strv('toggle-dictation')[0]);
+
+        this.#keys(keys, Clutter.KeyState.PRESSED);
+        await this.#until(() => this.#card() !== null, 4, 50);
+        const card = this.#card();
+        await this.#settle(HOLD_MS);
+        this.#keys(keys.toReversed(), Clutter.KeyState.RELEASED);
+        await this.#settle();
+
+        this.#ok('the dictation shortcut starts a dictation', card !== null);
+        this.#ok('a dictation shortcut held down leaves its dictation listening',
+            card !== null && this.#card() === card && this.#texts(card).includes('Listening…'),
+            this.#card() === card ? JSON.stringify(this.#texts(card)) : 'its panel is gone');
+
+        await this.#hold(keys, 100);
+        this.#ok('pressing the dictation shortcut again ends the dictation',
+            await this.#until(() => this.#card() === null, 100));
+    }
+
+    async #checkHeldRecording(settings, before) {
+        const folder = Gio.File.new_for_path(
+            GLib.build_filenamev([GLib.get_user_cache_dir(), 'probe-recordings']));
+        settings.set_string('recording-folder', folder.get_path());
+        const keys = this.#keysOf(settings.get_strv('toggle-recording')[0]);
+        const named = extension => namesIn(folder).filter(name => name.endsWith(extension));
+        const running = () => this.#pills(before)
+            .filter(pill => this.#texts(pill).some(text => /^\d+:\d\d$/.test(text)));
+
+        await this.#hold(keys, HOLD_MS);
+        await this.#until(() => this.#pills(before).length > 0, 50);
+        this.#ok('a recording shortcut held down leaves its recording running',
+            this.#pills(before).length === 1 && running().length === 1 &&
+                named('.opus').length === 1,
+            `${this.#pills(before).length} pills, ${running().length} running, ` +
+                `${JSON.stringify(namesIn(folder))}`);
+
+        const seen = new Set(this.#notifications());
+        await this.#hold(keys, 100);
+        const notification = await this.#notified(seen);
+        this.#ok('a recording stopped with no words heard keeps its audio and writes no transcript',
+            notification?.title === 'No words were heard' && named('.opus').length === 1 &&
+                named('.md').length === 0,
+            `"${notification?.title}" with ${JSON.stringify(namesIn(folder))}`);
+        const waiting = GLib.build_filenamev(
+            [GLib.get_user_state_dir(), MURMUR_UUID, 'untranscribed']);
+        this.#ok('a recording with no words heard is not waiting to be transcribed',
+            notification !== null && GLib.file_test(waiting, GLib.FileTest.EXISTS) &&
+                GLib.file_get_contents(waiting)[1].length === 0);
+
+        notification?.destroy();
+        for (const name of namesIn(folder))
+            removeFile(folder.get_child(name));
+        removeFile(folder);
+        settings.reset('recording-folder');
+    }
+
+    #pills(before) {
+        return Object.keys(Main.panel.statusArea)
+            .filter(key => !before.has(key) && key.startsWith('murmur-recording-'))
+            .map(key => Main.panel.statusArea[key]);
+    }
+
+    #notifications() {
+        return Main.messageTray.getSources()
+            .find(candidate => candidate.title === 'Murmur')?.notifications ?? [];
+    }
+
+    async #notified(seen) {
+        const fresh = () => this.#notifications().find(notification => !seen.has(notification));
+        await this.#until(() => fresh() !== undefined, 100, 200);
+        return fresh() ?? null;
     }
 
     // The theme gives a class meant for sitting inside another surface a
@@ -658,10 +790,8 @@ export default class Probe extends Extension {
             return;
         }
 
-        const texts = root => this.#descendants(root, actor => actor instanceof St.Label)
-            .map(label => label.text);
         this.#ok('the pill shows how long the recording has run',
-            texts(pill).includes('1:12:12'), JSON.stringify(texts(pill)));
+            this.#texts(pill).includes('1:12:12'), JSON.stringify(this.#texts(pill)));
 
         const open = async () => {
             if (!pill.menu.isOpen) {
@@ -675,8 +805,9 @@ export default class Probe extends Extension {
 
         this.#ok('clicking the pill opens its menu', await open());
         this.#ok('the menu shows the microphone and the desktop',
-            ['Microphone', 'Desktop audio'].every(text => texts(pill.menu.actor).includes(text)),
-            JSON.stringify(texts(pill.menu.actor)));
+            ['Microphone', 'Desktop audio']
+                .every(text => this.#texts(pill.menu.actor).includes(text)),
+            JSON.stringify(this.#texts(pill.menu.actor)));
 
         const stop = item('Stop and transcribe');
         if (stop) {
@@ -694,8 +825,8 @@ export default class Probe extends Extension {
         }
         const question = 'Discard 1 h 12 min of recording?';
         const dialogs = Main.layoutManager.modalDialogGroup;
-        this.#ok('discarding asks first', texts(dialogs).includes(question) &&
-            !fired.includes('discard'), JSON.stringify(texts(dialogs)));
+        this.#ok('discarding asks first', this.#texts(dialogs).includes(question) &&
+            !fired.includes('discard'), JSON.stringify(this.#texts(dialogs)));
         const confirm = this.#descendants(dialogs,
             actor => actor instanceof St.Button && actor.label === 'Discard')[0];
         if (confirm) {
@@ -704,7 +835,7 @@ export default class Probe extends Extension {
         }
         this.#ok('confirming discards the recording', fired.includes('discard'),
             JSON.stringify(fired));
-        this.#ok('the question goes once answered', !texts(dialogs).includes(question));
+        this.#ok('the question goes once answered', !this.#texts(dialogs).includes(question));
 
         pill.menu.close();
         indicator.locked = true;
@@ -717,13 +848,14 @@ export default class Probe extends Extension {
 
         indicator.transcribing();
         await this.#settle();
-        this.#ok('the pill says it is transcribing', texts(pill).includes('Transcribing…'),
-            JSON.stringify(texts(pill)));
+        this.#ok('the pill says it is transcribing', this.#texts(pill).includes('Transcribing…'),
+            JSON.stringify(this.#texts(pill)));
         this.#ok('a recording being transcribed has nothing left to stop', !await open());
         indicator.transcribing({done: 2, of: 6});
         await this.#settle();
         this.#ok('the pill counts the pieces it has transcribed',
-            texts(pill).includes('Transcribing\u2026 2 of 6 done'), JSON.stringify(texts(pill)));
+            this.#texts(pill).includes('Transcribing\u2026 2 of 6 done'),
+            JSON.stringify(this.#texts(pill)));
 
         indicator.destroy();
         await this.#settle();
@@ -955,10 +1087,7 @@ export default class Probe extends Extension {
         const answer = recorded ? await call(audio, 'mistral') : 'nothing was recorded';
         const role = Object.keys(Main.panel.statusArea)
             .find(key => !before.has(key) && key.startsWith('murmur-recording-'));
-        const labels = role
-            ? this.#descendants(Main.panel.statusArea[role], actor => actor instanceof St.Label)
-                .map(label => label.text)
-            : [];
+        const labels = role ? this.#texts(Main.panel.statusArea[role]) : [];
         this.#checkExtensionCycle(murmur);
         this.#ok('transcribing a file is accepted', answer === null, JSON.stringify(answer));
         this.#ok('a file being transcribed shows its pill', labels.includes('Transcribing…'),
@@ -1036,6 +1165,21 @@ export default class Probe extends Extension {
             return;
         }
 
+        settings.set_string('mistral-api-key', 'probe-silent');
+        const silent = await this.#transcribed(call, audio);
+        this.#ok('a recording with no words heard says so and leaves no transcript',
+            silent.notification?.title === 'No words were heard' &&
+                !GLib.file_test(transcript, GLib.FileTest.EXISTS),
+            silent.said);
+        this.#ok('a recording with no words heard offers Open and Copy path',
+            this.#offers(silent.notification) === 'Open, Copy path',
+            this.#offers(silent.notification));
+        const pointed = silent.notification ? await this.#copyPath(silent.notification) : silent.said;
+        this.#ok('Copy path puts the audio\'s path on the clipboard', pointed === audio.get_path(),
+            JSON.stringify(pointed));
+        silent.notification?.destroy();
+
+        settings.set_string('mistral-api-key', 'probe');
         const heard = await this.#transcribed(call, audio);
         this.#ok('a transcribed recording ends in a notification',
             heard.notification?.title === 'Recording transcribed', heard.said);
@@ -1051,29 +1195,29 @@ export default class Probe extends Extension {
         this.#ok('the transcript holds what the service heard',
             sentence.length > 0 && written.includes(sentence),
             `${JSON.stringify(written)} after ${heard.said}`);
+        heard.notification?.destroy();
 
         settings.set_string('mistral-api-key', 'probe-silent');
-        const silent = await this.#transcribed(call, audio);
-        this.#ok('a recording with no words heard offers Open and Copy path',
-            (silent.notification?.body?.includes('No words were heard') ?? false) &&
-                this.#offers(silent.notification) === 'Open, Copy path',
-            `${silent.said} with ${this.#offers(silent.notification)}`);
-        silent.notification?.destroy();
+        const again = await this.#transcribed(call, audio);
+        const kept = GLib.file_test(transcript, GLib.FileTest.EXISTS)
+            ? new TextDecoder().decode(GLib.file_get_contents(transcript)[1])
+            : '';
+        this.#ok('a transcript already there outlives a transcription that hears no words',
+            again.notification?.title === 'No words were heard' && written.length > 0 &&
+                kept === written,
+            `${JSON.stringify(kept)} after ${again.said}`);
+        again.notification?.destroy();
         audio.delete(null);
         if (GLib.file_test(transcript, GLib.FileTest.EXISTS))
             GLib.unlink(transcript);
     }
 
     async #transcribed(call, audio) {
-        const source = () => Main.messageTray.getSources()
-            .find(candidate => candidate.title === 'Murmur');
-        const seen = new Set(source()?.notifications ?? []);
+        const seen = new Set(this.#notifications());
         const refusal = await call(audio.get_path(), 'mistral');
         if (refusal !== null)
             return {notification: null, said: `refused: ${refusal}`};
-        const fresh = () => source()?.notifications.find(notification => !seen.has(notification));
-        await this.#until(() => fresh() !== undefined, 100, 200);
-        const notification = fresh() ?? null;
+        const notification = await this.#notified(seen);
         return {
             notification,
             said: notification
@@ -1208,6 +1352,20 @@ export default class Probe extends Extension {
         } catch (error) {
             this.#fail('the extension survives disable and enable', `${error}`);
         }
+    }
+}
+
+function namesIn(folder) {
+    try {
+        const children = folder.enumerate_children(
+            'standard::name', Gio.FileQueryInfoFlags.NONE, null);
+        const names = [];
+        for (let info = children.next_file(null); info; info = children.next_file(null))
+            names.push(info.get_name());
+        children.close(null);
+        return names;
+    } catch {
+        return [];
     }
 }
 

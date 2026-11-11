@@ -8,7 +8,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 const MURMUR_UUID = 'murmur@roman-16.github.io';
 const POLL_MS = 250;
 const STEP_US = 20000;
-const SETTLE_MS = 2000;
+const LEAD_MS = 2000;
 const RECORD_MS = 4500;
 const INSERT_MS = 2500;
 
@@ -26,11 +26,14 @@ export default class DemoDriver extends Extension {
             .get_default_seat()
             .create_virtual_device(Clutter.InputDeviceType.KEYBOARD_DEVICE);
 
-        this.#whenRecording(() => this.#whenReady(() => {
-            this.#dictate();
-            this.#at(RECORD_MS, () => this.#tap(Clutter.KEY_Return));
-            this.#at(RECORD_MS + INSERT_MS, () => this.#finish());
-        }));
+        this.#whenStaged(() => {
+            this.#mark('DEMO_READY_FILE');
+            this.#whenRecording(() => this.#at(LEAD_MS, () => {
+                this.#dictate();
+                this.#at(RECORD_MS, () => this.#tap(Clutter.KEY_Return));
+                this.#at(RECORD_MS + INSERT_MS, () => this.#mark('DEMO_DONE_FILE'));
+            }));
+        });
     }
 
     disable() {
@@ -53,9 +56,10 @@ export default class DemoDriver extends Extension {
         this.#at(POLL_MS, () => this.#whenRecording(action));
     }
 
-    // The session opens in the overview, and the application window is only a
-    // thumbnail there, so the take starts once it is the focused window.
-    #whenReady(action) {
+    // The session opens in the overview, where the application window is only
+    // a thumbnail, and the recorder films from its first frame, so it is told
+    // to start only once that window has the focus on a desktop of its own.
+    #whenStaged(action) {
         if (Main.overview.visible)
             Main.overview.hide();
 
@@ -63,13 +67,13 @@ export default class DemoDriver extends Extension {
             .map(actor => actor.meta_window)
             .find(candidate => candidate.window_type === Meta.WindowType.NORMAL);
 
-        if (!window) {
-            this.#at(POLL_MS, () => this.#whenReady(action));
+        if (window && !Main.overview.visible && global.display.focus_window === window) {
+            action();
             return;
         }
 
-        window.activate(global.get_current_time());
-        this.#at(SETTLE_MS, action);
+        window?.activate(global.get_current_time());
+        this.#at(POLL_MS, () => this.#whenStaged(action));
     }
 
     #at(milliseconds, action) {
@@ -111,9 +115,9 @@ export default class DemoDriver extends Extension {
             press(modifier, Clutter.KeyState.RELEASED);
     }
 
-    #finish() {
-        const marker = GLib.getenv('DEMO_DONE_FILE');
+    #mark(variable) {
+        const marker = GLib.getenv(variable);
         if (marker)
-            GLib.file_set_contents(marker, 'done');
+            GLib.file_set_contents(marker, '');
     }
 }

@@ -8,14 +8,34 @@ const TIMEOUT_S = 60;
 // GNOME's screencast service ties a recording to the D-Bus connection that
 // asked for it, stops it when that connection goes away and refuses a stop from
 // any other, so start, take and stop all happen here.
-const [path, doneFile] = System.programArgs;
-if (!path || !doneFile) {
-    printerr('usage: screencast.js PATH DONE_FILE');
+const [path, readyFile, doneFile] = System.programArgs;
+if (!path || !readyFile || !doneFile) {
+    printerr('usage: screencast.js PATH READY_FILE DONE_FILE');
     System.exit(2);
 }
 
 const framerate = Number(GLib.getenv('DEMO_FRAMERATE') || 30);
 const pipeline = GLib.getenv('DEMO_PIPELINE');
+
+function appears(file) {
+    const deadline = GLib.get_monotonic_time() + TIMEOUT_S * 1000000;
+    while (!GLib.file_test(file, GLib.FileTest.EXISTS)) {
+        if (GLib.get_monotonic_time() > deadline)
+            return false;
+        GLib.usleep(POLL_US);
+    }
+    return true;
+}
+
+// The recording films from its first frame, and the session opens in the
+// overview with the driver loaded whenever the shell gets to it, so nothing is
+// recorded until the driver says the editor is in front. The service is only
+// reached for after that: it leaves when nobody has asked it for anything in a
+// while, and a proxy made before the wait goes on calling the one that left.
+if (!appears(readyFile)) {
+    printerr('the demo driver never brought the editor to the front');
+    System.exit(1);
+}
 
 let proxy;
 try {
@@ -92,13 +112,7 @@ if (!start()) {
 // same frame however long the service took to agree.
 GLib.file_set_contents(`${path}.recording`, '');
 
-const deadline = GLib.get_monotonic_time() + TIMEOUT_S * 1000000;
-while (!GLib.file_test(doneFile, GLib.FileTest.EXISTS)) {
-    if (GLib.get_monotonic_time() > deadline) {
-        printerr('the take did not finish in time');
-        break;
-    }
-    GLib.usleep(POLL_US);
-}
+if (!appears(doneFile))
+    printerr('the take did not finish in time');
 
 proxy.call_sync('StopScreencast', null, Gio.DBusCallFlags.NONE, -1, null);

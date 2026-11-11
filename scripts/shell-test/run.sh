@@ -36,8 +36,8 @@ MURMUR_SERVICE_URL=$(head -1 "$tmp/mock.url")
 
 export NESTED_HEADLESS=1
 export NESTED_EXTENSIONS="scripts/shell-test/probe@murmur.local"
-# The probe reaches the extension directly, so the session needs no working
-# shortcut. Naming one nothing binds keeps the run from borrowing yours.
+# The probe holds these down on a virtual keyboard of its own, so they only
+# have to be ones nothing else in the session binds.
 export DICTATION_SHORTCUT="<Super><Shift><Control><Alt>F12"
 export RECORDING_SHORTCUT="<Super><Shift><Control><Alt>F11"
 

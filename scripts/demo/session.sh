@@ -5,6 +5,7 @@ cd "$(dirname "$0")/../.."
 
 capture=${DEMO_CAPTURE:?DEMO_CAPTURE is unset}
 done_file=${DEMO_DONE_FILE:?DEMO_DONE_FILE is unset}
+ready_file=${DEMO_READY_FILE:?DEMO_READY_FILE is unset}
 candidates=(org.gnome.TextEditor org.gnome.gedit org.gnome.Console org.gnome.Ptyxis org.gnome.Terminal)
 
 # Only what the nested session can reach: its own data directory is a fresh
@@ -43,16 +44,16 @@ if ! gapplication launch "$app_id"; then
     echo "error: could not launch $app_id in the nested session" >&2
     exit 1
 fi
-sleep 1
 
 # gjs aborts when it loads typelibs from a different GLib than its own, which is
 # what it does by default inside a devbox shell on a GNOME system.
-typelibs=$(cd "$(dirname "$(command -v gjs)")/../lib/girepository-1.0" 2>/dev/null && pwd || true)
-if [ -n "$typelibs" ]; then
+typelibs=$(ldd "$(command -v gjs)" 2>/dev/null |
+    sed --quiet 's|.* => \(.*\)/libgirepository-2\.0\.so.*|\1/girepository-1.0|p' || true)
+if [ -d "$typelibs" ]; then
     export GI_TYPELIB_PATH="$typelibs${GI_TYPELIB_PATH:+:$GI_TYPELIB_PATH}"
 fi
 
-gjs -m scripts/demo/screencast.js "$capture" "$done_file"
+gjs -m scripts/demo/screencast.js "$capture" "$ready_file" "$done_file"
 sleep 1
 
 if [ ! -f "$done_file" ]; then

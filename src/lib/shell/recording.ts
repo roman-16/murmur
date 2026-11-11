@@ -247,13 +247,16 @@ export class Recordings {
                 pieces: pieces.map((piece, at) => ({piece, transcribed: heard[at]?.[index] ?? null})),
                 unlabelled: track.unlabelled,
             }));
-            const lines = linesOf(tracks);
             const context = await this.#files.context(file);
             const surroundings = context && file.startedAt
                 ? surroundingsOf(context, file.startedAt, layout.seconds, serviceOf(provider))
                 : null;
-            await this.#files.save(file, written(lines, secondOfDay(file.startedAt), surroundings));
-            this.#announce(file, secondsOf(pieces), lines.length > 0);
+            const transcript = written(linesOf(tracks), secondOfDay(file.startedAt), surroundings);
+            if (transcript === null)
+                await this.#files.forget(file);
+            else
+                await this.#files.save(file, transcript);
+            this.#announce(file, secondsOf(pieces), transcript !== null);
         } catch (error) {
             if (isCancelled(error) || this.#cancellable.is_cancelled())
                 return;
@@ -309,18 +312,19 @@ export class Recordings {
     }
 
     #announce(file: RecordingFile, seconds: number | null, heard: boolean): void {
+        const saved = heard ? file.transcript : file.audio;
         const lines = [
             seconds === null ? null : duration(seconds),
-            heard ? `Saved as ${file.transcript.get_basename()}` : 'No words were heard',
+            heard ? `Saved as ${saved.get_basename()}` : `The audio is in ${file.place}.`,
         ].filter(line => line !== null);
-        const path = file.transcript.get_path();
+        const path = saved.get_path();
         notify({
             actions: [
-                {label: 'Open', run: () => void open(file.transcript)},
+                {label: 'Open', run: () => void open(saved)},
                 ...(path ? [{label: 'Copy path', run: () => copyText(path)}] : []),
             ],
             body: lines.join('\n'),
-            title: 'Recording transcribed',
+            title: heard ? 'Recording transcribed' : 'No words were heard',
         });
     }
 

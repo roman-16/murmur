@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 Adding a version section here is what publishes a release, so this file is the one place a version is decided: see [Releasing](CONTRIBUTING.md#releasing). Versions that shipped before this file existed are on the [releases page](https://github.com/roman-16/murmur/releases).
 
+## [2.1.1] - 2026-11-11
+
+### Fixed
+
+- A recording in which no words were heard leaves no transcript, instead of an empty file or one with only its header and the notes in brackets. **Open** and **Copy path** on its notification go to the audio.
+- Transcribing a file again with a service that hears no words keeps the transcript already beside it, instead of emptying it.
+- Holding the **Dictation shortcut** or the **Recording shortcut** down counts as one press, instead of stopping and starting again for as long as it is held.
+
 ## [2.1.0] - 2026-11-10
 
 ### Added
