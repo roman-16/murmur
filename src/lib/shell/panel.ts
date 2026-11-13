@@ -244,10 +244,7 @@ export class MurmurPanel {
     }
 
     destroy(): void {
-        if (this.#resultId) {
-            GLib.source_remove(this.#resultId);
-            this.#resultId = 0;
-        }
+        this.#clearResult();
         if (this.#keyFocusId) {
             global.stage.disconnect(this.#keyFocusId);
             this.#keyFocusId = 0;
@@ -282,9 +279,6 @@ export class MurmurPanel {
         this.#syncDestination();
     }
 
-    // How loud the microphone is right now, from silence to full scale. Eased
-    // over the interval between two readings, so the bar moves with the voice
-    // rather than stepping.
     set level(level: number) {
         this.#level.ease_property('value', level, {
             duration: LEVEL_MS,
@@ -331,10 +325,6 @@ export class MurmurPanel {
             global.stage.set_key_focus(null);
     }
 
-    // The last thing a dictation says, in the place the user was already
-    // looking, rather than a second message somewhere else. What it replaces is
-    // hidden rather than removed, so a late transcription or destination still
-    // has somewhere harmless to land.
     showResult(message: string): void {
         this.#finished = true;
         this.releaseKeyboard();
@@ -348,6 +338,7 @@ export class MurmurPanel {
         this.#countdown.hide();
         this.#level.hide();
 
+        this.#clearResult();
         this.#resultId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, RESULT_HOLD_MS, () => {
             this.#resultId = 0;
             this.#container.ease({
@@ -360,8 +351,13 @@ export class MurmurPanel {
         });
     }
 
-    // The panel belongs on the screen being worked on, which is a question with
-    // a different answer every time it comes back.
+    #clearResult(): void {
+        if (!this.#resultId)
+            return;
+        GLib.source_remove(this.#resultId);
+        this.#resultId = 0;
+    }
+
     #reveal(): void {
         this.#constraint.index = workingMonitorIndex();
         this.#container.show();
@@ -378,8 +374,6 @@ export class MurmurPanel {
         return button;
     }
 
-    // Cancelling and copying are the panel's own, whichever button the keyboard
-    // is on. Stopping is the button it is on, so Enter and Space are left to it.
     #onKeyPress(event: Clutter.Event): boolean {
         const symbol = event.get_key_symbol();
 
@@ -412,24 +406,16 @@ export class MurmurPanel {
         });
     }
 
-    // Copying is a choice only while the words have somewhere else to go; with
-    // nothing focused it is what stopping already does.
     #syncDestination(): void {
         this.#copy.visible = this.#destination.kind === 'field';
         this.#title.text = destinationText(this.#destination);
     }
 
-    // The keyboard is on the action it would take, so what makes the panel the
-    // focus is the focus being anywhere inside it.
     #holdsKeyboard(): boolean {
         const focus = global.stage.get_key_focus();
         return focus !== null && this.#frame.contains(focus);
     }
 
-    // The panel is on screen exactly while it holds the keyboard. Looking
-    // anywhere else - another window, the overview, a shell dialog - takes that
-    // focus away, and the panel follows it out of sight rather than sitting
-    // there ignoring the keys the user presses.
     #syncKeyboard(): void {
         if (this.#finished)
             return;

@@ -19,8 +19,6 @@ export type SessionHandlers = {
     onSilence: () => void;
 };
 
-// One dictation's audio: it opens the microphone, meters it, watches it for
-// silence, and hands what it hears to the service that turns it into words.
 export class Session {
     readonly #handlers: SessionHandlers;
     readonly #silenceLimitUs: number;
@@ -36,15 +34,10 @@ export class Session {
         config: DictationConfig, handlers: SessionHandlers, cancellable: Gio.Cancellable) {
         this.#handlers = handlers;
         this.#silenceLimitUs = config.silenceSeconds * 1000000;
-        // Every service's words reach the panel, the clipboard and the keyboard
-        // through here, which is what makes one line a property of a transcript
-        // rather than of one service or one way of delivering it.
         this.#transcription = transcriptionFor(
             config.provider, text => handlers.onPartial(oneLine(text)), cancellable);
     }
 
-    // Listens, streams and transcribes until the service is done, then resolves
-    // with the full transcription.
     async run(): Promise<string> {
         const microphone = await Microphone.open();
         this.#microphone = microphone;
@@ -72,7 +65,6 @@ export class Session {
         }
     }
 
-    // Releases the microphone; the service still owes the transcription.
     stop(): void {
         if (!this.#listening)
             return;
@@ -101,9 +93,6 @@ export class Session {
         });
     }
 
-    // How loud the microphone is, and for how long it has been quiet. The
-    // silence is measured in audio time, not wall time, so a backlog of held
-    // samples cannot be mistaken for a long pause.
     #trackAudio(data: Uint8Array): void {
         if (!this.#listening)
             return;
@@ -129,7 +118,7 @@ export class Session {
     #release(): void {
         this.#listening = false;
         this.#clearDrain();
-        this.#microphone?.close();
+        this.#microphone?.destroy();
         this.#microphone = null;
     }
 
@@ -141,7 +130,6 @@ export class Session {
     }
 }
 
-// Signed 16-bit samples, little-endian, as the microphone delivers them.
 function rootMeanSquare(data: Uint8Array, samples: number): number {
     let squareSum = 0;
     for (let index = 0; index + 1 < data.length; index += 2) {

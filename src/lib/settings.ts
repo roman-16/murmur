@@ -3,6 +3,7 @@ import type Gio from 'gi://Gio';
 import {isProviderId, PROVIDERS, type ProviderId} from './transcription/provider.js';
 
 export const Key = {
+    interruptedRecording: 'interrupted-recording',
     maxDictationSeconds: 'max-dictation-seconds',
     mistralApiKey: 'mistral-api-key',
     namesAndTerms: 'names-and-terms',

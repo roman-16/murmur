@@ -45,16 +45,17 @@ export default class MurmurExtension extends Extension {
         this.#syncLock();
 
         const report = (error: unknown) => console.error(`murmur: recording: ${errorMessage(error)}`);
+        this.#recordings.carryOn();
         this.#recordings.offerUntranscribed().catch(report);
         this.#recordings.forgetVanished().catch(report);
     }
 
-    // Murmur runs on the lock screen as well (session-modes lists unlock-dialog)
-    // because a recording has to carry on while the screen is locked: a machine
-    // left alone during a call locks itself. Everything that listens to the
-    // keyboard - the shortcuts, and the dictation with its panel and its eye on
-    // the focused field - is let go of on the lock screen, which #syncLock sees to.
     disable(): void {
+        // session-modes lists unlock-dialog because a recording has to carry on
+        // while the screen is locked: a meeting is recorded with the screen
+        // locked. Everything that listens to the keyboard - the shortcuts, and
+        // the dictation with its panel and its eye on the focused field - is let
+        // go of on the lock screen, which #syncLock sees to.
         if (this.#sessionModeId) {
             Main.sessionMode.disconnect(this.#sessionModeId);
             this.#sessionModeId = 0;

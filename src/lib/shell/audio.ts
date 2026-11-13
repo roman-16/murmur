@@ -1,6 +1,6 @@
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
-import type Gst from 'gi://Gst?version=1.0';
+import type Gst from 'gi://Gst';
 
 import {deferred, fromAsync, whenCancelled} from '../async.js';
 import {cancellation, errorMessage} from '../errors.js';
@@ -67,6 +67,7 @@ const PACKAGES: Record<string, string> = {
     audioconvert: "GStreamer's base plugins",
     audiointerleave: "GStreamer's base plugins",
     audioresample: "GStreamer's base plugins",
+    concat: 'GStreamer',
     decodebin: "GStreamer's base plugins",
     fakesink: 'GStreamer',
     filesink: 'GStreamer',
@@ -92,7 +93,7 @@ export async function layoutOf(audio: Gio.File, cancellable: Gio.Cancellable): P
         {recording: audio}, cancellable, {onComment: comment => comments.push(comment)});
     const seconds = whole.seconds;
     const count = whole.channels('decoded');
-    whole.close();
+    whole.destroy();
     return {channels: channelsOf(comments, count), seconds};
 }
 
@@ -147,7 +148,7 @@ export async function cutPiece(
         try {
             await playback.play(stretch);
         } finally {
-            playback.close();
+            playback.destroy();
         }
         if (loudest > -METER_RANGE_DB)
             return file;
@@ -156,6 +157,24 @@ export async function cutPiece(
     } catch (error) {
         await deleteFile(file).catch(() => {});
         throw error;
+    }
+}
+
+// Opus packets repacked into one stream crash oggmux, and one file holding two
+// streams is read only up to the first, so the parts are decoded into one
+// encoder. Their tags, the channel layout among them, pass through it.
+export async function joinParts(
+    parts: Gio.File[], whole: Gio.File, cancellable: Gio.Cancellable): Promise<void> {
+    const sources = Object.fromEntries(parts.map((part, index) => [`part${index}`, part]));
+    const playback = await Playback.open([
+        'concat name=joined ! identity single-segment=true ! audioconvert ! ' +
+        `opusenc bitrate=${OPUS_BITRATE} ! oggmux ! filesink name=whole`,
+        ...Object.keys(sources).map(name => `filesrc name=${name} ! decodebin ! audioconvert ! joined.`),
+    ].join(' '), {...sources, whole}, cancellable);
+    try {
+        await playback.run();
+    } finally {
+        playback.destroy();
     }
 }
 
@@ -175,7 +194,7 @@ async function quietestMoment(
     try {
         await playback.play(within);
     } finally {
-        playback.close();
+        playback.destroy();
     }
     return quietest.seconds;
 }
@@ -223,6 +242,7 @@ export class Microphone {
             return;
         }
         this.#pull();
+        this.#stopPulling();
         this.#pullId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, PULL_MS, () => {
             this.#pull();
             return GLib.SOURCE_CONTINUE;
@@ -233,9 +253,9 @@ export class Microphone {
         this.#pipeline.end();
     }
 
-    close(): void {
+    destroy(): void {
         this.#stopPulling();
-        this.#pipeline.close();
+        this.#pipeline.destroy();
     }
 
     #end(): void {
@@ -290,7 +310,7 @@ export class Recorder {
     readonly #ended = deferred<void>();
     readonly #pipeline: Pipeline;
 
-    #failed = false;
+    #finishId = 0;
 
     static async open(file: Gio.File): Promise<Recorder> {
         const path = file.get_path();
@@ -300,7 +320,7 @@ export class Recorder {
         const handlers: Handlers = {onEnd: () => {}, onError: () => {}};
         const pipeline = await Pipeline.launch([
             'audiointerleave name=channels ! audioconvert ! taginject name=tags ! ' +
-            `opusenc bitrate=${OPUS_BITRATE} ! oggmux ! filesink name=file`,
+            `opusenc bitrate=${OPUS_BITRATE} ! oggmux ! filesink name=file buffer-mode=unbuffered`,
             ...RECORDED.map(branch),
         ].join(' '), handlers);
         const recorder = new Recorder(pipeline);
@@ -325,35 +345,35 @@ export class Recorder {
     // The end of the stream is what makes the muxer write the last page, so the
     // recording is closed once it has passed through, or has had its chance to.
     async finish(): Promise<void> {
-        if (!this.#failed) {
-            this.#pipeline.end();
-            let timeoutId = 0;
-            await Promise.race([
-                this.#ended.promise,
-                new Promise<void>(resolve => {
-                    timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, FINISH_TIMEOUT_MS, () => {
-                        timeoutId = 0;
-                        resolve();
-                        return GLib.SOURCE_REMOVE;
-                    });
-                }),
-            ]);
-            if (timeoutId)
-                GLib.source_remove(timeoutId);
-        }
-        this.#pipeline.close();
+        this.#pipeline.end();
+        this.#clearFinish();
+        this.#finishId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, FINISH_TIMEOUT_MS, () => {
+            this.#finishId = 0;
+            this.#ended.resolve();
+            return GLib.SOURCE_REMOVE;
+        });
+        await this.#ended.promise;
+        this.destroy();
     }
 
-    close(): void {
-        this.#pipeline.close();
+    destroy(): void {
+        this.#clearFinish();
+        this.#ended.resolve();
+        this.#pipeline.destroy();
+    }
+
+    #clearFinish(): void {
+        if (!this.#finishId)
+            return;
+        GLib.source_remove(this.#finishId);
+        this.#finishId = 0;
     }
 
     #fail(message: string): void {
-        if (this.#failed)
-            return;
-        this.#failed = true;
         this.#ended.resolve();
-        this.onFailure?.(message);
+        const onFailure = this.onFailure;
+        this.onFailure = null;
+        onFailure?.(message);
     }
 }
 
@@ -371,7 +391,7 @@ class Playback {
         for (const [name, file] of Object.entries(files)) {
             const path = file.get_path();
             if (!path) {
-                pipeline.close();
+                pipeline.destroy();
                 throw new Error(`${file.get_uri()} is not a local file`);
             }
             pipeline.byName(name)?.set_property('location', path);
@@ -385,7 +405,7 @@ class Playback {
             pipeline.pause();
             await playback.#prerolled.promise;
         } catch (error) {
-            playback.close();
+            playback.destroy();
             throw error;
         }
         return playback;
@@ -410,13 +430,17 @@ class Playback {
 
     async play(stretch: Stretch): Promise<void> {
         this.#pipeline.seek(stretch);
+        await this.run();
+    }
+
+    async run(): Promise<void> {
         this.#pipeline.start();
         await this.#ended.promise;
     }
 
-    close(): void {
+    destroy(): void {
         this.#release();
-        this.#pipeline.close();
+        this.#pipeline.destroy();
     }
 
     #fail(error: unknown): void {
@@ -428,10 +452,9 @@ class Playback {
 class Pipeline {
     readonly #bin: Gst.Pipeline;
     readonly #bus: Gst.Bus;
-    readonly #busId: number;
     readonly #gst: Gstreamer;
 
-    #closed = false;
+    #busId: number;
 
     static async launch(description: string, handlers: Handlers): Promise<Pipeline> {
         const gst = await loadGstreamer();
@@ -491,16 +514,16 @@ class Pipeline {
     }
 
     end(): void {
-        if (!this.#closed)
+        if (this.#busId)
             this.#bin.send_event(this.#gst.Event.new_eos());
     }
 
-    close(): void {
-        if (this.#closed)
-            return;
-        this.#closed = true;
-        this.#bus.disconnect(this.#busId);
-        this.#bus.remove_signal_watch();
+    destroy(): void {
+        if (this.#busId) {
+            this.#bus.disconnect(this.#busId);
+            this.#busId = 0;
+            this.#bus.remove_signal_watch();
+        }
         this.#bin.set_state(this.#gst.State.NULL);
     }
 
@@ -508,7 +531,7 @@ class Pipeline {
         if (this.#bin.set_state(state) !== this.#gst.StateChangeReturn.FAILURE)
             return;
         const reason = this.#bus.pop_filtered(this.#gst.MessageType.ERROR)?.parse_error()[0]?.message;
-        this.close();
+        this.destroy();
         throw new Error(reason ?? 'the audio could not be opened');
     }
 
@@ -600,9 +623,10 @@ function pullSample(sink: Gst.Element): Gst.Sample | null {
 // system without GStreamer is told so when it presses a shortcut instead of
 // finding an extension that fails to load.
 function loadGstreamer(): Promise<Gstreamer> {
-    gstreamer ??= import('gi://Gst?version=1.0').then(
+    gstreamer ??= import('gi://Gst').then(
         ({default: gst}) => {
-            gst.init([]);
+            if (!gst.is_initialized())
+                gst.init([]);
             return gst;
         },
         (error: unknown) => {

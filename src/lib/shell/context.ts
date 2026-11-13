@@ -24,6 +24,7 @@ export type ContextOptions = {
     audio: Gio.File;
     awaySeconds: number;
     follow: boolean;
+    interruptedSeconds: number | null;
     log: Gio.File;
     settleSeconds: number;
     startedUs: number;
@@ -48,7 +49,6 @@ export class ContextWatch {
     #locked = false;
     #media: MediaPlayers | null = null;
     #queue: Promise<void>;
-    #stopped = false;
 
     constructor(options: ContextOptions) {
         this.#options = options;
@@ -65,26 +65,23 @@ export class ContextWatch {
     }
 
     async stop(): Promise<void> {
-        if (!this.#stopped) {
-            this.#stopped = true;
-            this.#cancellable.cancel();
-            this.#unfollow();
-            for (const disconnect of this.#disconnects.splice(0))
-                disconnect();
-            this.#media?.destroy();
-            this.#media = null;
-        }
+        this.#cancellable.cancel();
+        this.#unfollow();
+        for (const disconnect of this.#disconnects.splice(0))
+            disconnect();
+        this.#media?.destroy();
+        this.#media = null;
         await this.#started;
         await this.#queue;
     }
 
     async #start(): Promise<void> {
-        const {audio, follow, log} = this.#options;
+        const {audio, follow, interruptedSeconds, log} = this.#options;
         const [media, network] = await Promise.all([
             follow ? MediaPlayers.open(this.#cancellable).catch(() => null) : null,
             follow ? openNetwork(this.#cancellable) : null,
         ]);
-        if (this.#stopped) {
+        if (this.#cancellable.is_cancelled()) {
             media?.destroy();
             return;
         }
@@ -99,8 +96,11 @@ export class ContextWatch {
             network: network ? networkName(network) : null,
             output: ready ? descriptionOf(mixer.get_default_sink()) : null,
         };
-        await appendPrivately(log, logLine(head));
-        if (this.#stopped)
+        if (interruptedSeconds === null)
+            await appendPrivately(log, logLine(head));
+        else
+            this.#append({at: this.#now(), kind: 'interrupted', seconds: interruptedSeconds});
+        if (this.#cancellable.is_cancelled())
             return;
 
         this.#observe('microphone', {device: head.microphone, kind: 'microphone'}, 'silent');
@@ -319,7 +319,7 @@ export class ContextWatch {
     }
 
     #append(happened: Happened): void {
-        if (this.#stopped)
+        if (this.#cancellable.is_cancelled())
             return;
         const {log} = this.#options;
         this.#queue = this.#queue

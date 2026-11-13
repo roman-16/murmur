@@ -410,10 +410,13 @@ export default class Probe extends Extension {
 
         await this.#checkHeldDictation(settings);
         await this.#checkHeldRecording(settings, before);
+        settings.set_string('mistral-api-key', 'probe');
+        await this.#checkCarriedOn(murmur, settings, before);
 
         settings.set_string('mistral-api-key', key);
         if (this.#card() !== null || this.#pills(before).length > 0) {
             murmur.stateObj.disable();
+            settings.reset('interrupted-recording');
             murmur.stateObj.enable();
             await this.#settle();
         }
@@ -468,6 +471,65 @@ export default class Probe extends Extension {
         this.#ok('a recording with no words heard is not waiting to be transcribed',
             notification !== null && GLib.file_test(waiting, GLib.FileTest.EXISTS) &&
                 GLib.file_get_contents(waiting)[1].length === 0);
+
+        notification?.destroy();
+        for (const name of namesIn(folder))
+            removeFile(folder.get_child(name));
+        removeFile(folder);
+        settings.reset('recording-folder');
+    }
+
+    // The shell disables and re-enables an extension in one pass when one
+    // enabled before it is switched off, which a lock does to every extension
+    // that does not run on the lock screen.
+    async #checkCarriedOn(murmur, settings, before) {
+        const folder = Gio.File.new_for_path(
+            GLib.build_filenamev([GLib.get_user_cache_dir(), 'probe-carried-on']));
+        settings.set_string('recording-folder', folder.get_path());
+        const keys = this.#keysOf(settings.get_strv('toggle-recording')[0]);
+        const named = extension => namesIn(folder).filter(name => name.endsWith(extension));
+        const running = () => this.#pills(before)
+            .filter(pill => this.#texts(pill).some(text => /^\d+:\d\d$/.test(text)));
+        const sizeOf = name => folder.get_child(name)
+            .query_info('standard::size', Gio.FileQueryInfoFlags.NONE, null).get_size();
+
+        await this.#hold(keys, 100);
+        await this.#until(() => running().length === 1, 50);
+        await this.#settle(2000);
+        const [audio] = named('.opus');
+        this.#ok('a recording is on disk while it runs',
+            audio !== undefined && sizeOf(audio) > 0,
+            audio === undefined ? 'no audio file' : `${sizeOf(audio)} bytes`);
+
+        murmur.stateObj.disable();
+        murmur.stateObj.enable();
+        const gone = running().length === 0;
+        await this.#until(() => running().length === 1, 50);
+        this.#ok('a recording carries on once the shell has switched Murmur off and on',
+            gone && running().length === 1 && named('.opus').length === 2,
+            `${running().length} running, ${JSON.stringify(namesIn(folder))}`);
+        await this.#settle(2000);
+
+        const seen = new Set(this.#notifications());
+        await this.#hold(keys, 100);
+        const notification = await this.#notified(seen);
+        this.#ok('a recording that carried on is one audio file and one transcript',
+            notification?.title === 'Recording transcribed' && named('.opus').length === 1 &&
+                named('.md').length === 1,
+            `"${notification?.title}" with ${JSON.stringify(namesIn(folder))}`);
+
+        if (audio !== undefined && named('.md').length === 1) {
+            const {layoutOf} = await import(`file://${murmur.path}/lib/shell/audio.js`);
+            const {channels, seconds} =
+                await layoutOf(folder.get_child(audio), new Gio.Cancellable());
+            this.#ok('its audio holds what was recorded before and after, on the same channels',
+                seconds > 3 && JSON.stringify(channels) === '["microphone","desktop"]',
+                `${seconds} seconds, ${JSON.stringify(channels)}`);
+            const [, transcript] = folder.get_child(named('.md')[0]).load_contents(null);
+            const text = new TextDecoder().decode(transcript);
+            this.#ok('its transcript notes where nothing was recorded',
+                /\[interrupted\] nothing recorded for \d+ seconds?/.test(text), text);
+        }
 
         notification?.destroy();
         for (const name of namesIn(folder))
@@ -911,7 +973,7 @@ export default class Probe extends Extension {
         await this.#settle(1000);
         microphone.finish();
         await this.#until(() => ended);
-        microphone.close();
+        microphone.destroy();
         this.#ok('a dictation hears the microphone in whole samples', bytes > 0 && whole,
             `${bytes} bytes`);
         this.#ok('a dictation hears the end of what it heard', ended);
@@ -941,7 +1003,7 @@ export default class Probe extends Extension {
         const media = this.#mediaPlayer();
         await this.#settle();
         const watch = new ContextWatch({
-            audio, awaySeconds: 2, follow: true, log, settleSeconds: 1,
+            audio, awaySeconds: 2, follow: true, interruptedSeconds: null, log, settleSeconds: 1,
             startedUs: GLib.get_monotonic_time(),
         });
         const others = [];
@@ -1321,7 +1383,7 @@ export default class Probe extends Extension {
     }
 
     async #writeStereo(file) {
-        const {default: Gst} = await import('gi://Gst?version=1.0');
+        const {default: Gst} = await import('gi://Gst');
         Gst.init(null);
         const source = (wave, mask, pad) =>
             `audiotestsrc num-buffers=150 samplesperbuffer=480 wave=${wave} ! ` +

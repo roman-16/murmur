@@ -245,6 +245,7 @@ test('says each kind of moment in words', () => {
         [{kind: 'camera', on: false}, '[camera off]'],
         [{app: 'Ghostty', kind: 'focused', title: ''}, '[focused] Ghostty'],
         [{app: '', kind: 'focused', title: 'Untitled'}, '[focused] "Untitled"'],
+        [{kind: 'interrupted', seconds: 2}, '[interrupted] nothing recorded for 2 seconds'],
         [{kind: 'lock', on: true}, '[locked]'],
         [{kind: 'lock', on: false}, '[unlocked]'],
         [{device: null, kind: 'microphone'}, '[microphone] none'],

@@ -6,6 +6,11 @@
     <value nick="xai" value="2"/>
   </enum>
   <schema id="org.gnome.shell.extensions.murmur" path="/org/gnome/shell/extensions/murmur/">
+    <key name="interrupted-recording" type="(sxx)">
+      <default>('', 0, 0)</default>
+      <summary>Interrupted recording</summary>
+      <description>The recording that was running when Murmur was last switched off: its audio file, the microseconds recorded by then, and when that was in microseconds since the epoch. Murmur carries the recording on when it is switched back on within moments, as happens when GNOME Shell disables and re-enables extensions. Not a preference.</description>
+    </key>
     <key name="max-dictation-seconds" type="i">
       <default>600</default>
       <range min="15" max="86400"/>

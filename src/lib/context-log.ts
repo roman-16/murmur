@@ -18,6 +18,7 @@ const FIELDS: Record<Moment['kind'], Record<string, Field>> = {
     call: {app: 'string', on: 'boolean'},
     camera: {on: 'boolean'},
     focused: {app: 'string', title: 'string'},
+    interrupted: {seconds: 'number'},
     lock: {on: 'boolean'},
     microphone: {device: 'text'},
     network: {name: 'text'},

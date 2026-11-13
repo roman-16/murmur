@@ -22,7 +22,15 @@ import {
     type Transcribed,
     written
 } from '../transcript.js';
-import {type Channel, cutPiece, type Layout, layoutOf, piecesOf, Recorder} from './audio.js';
+import {
+    type Channel,
+    cutPiece,
+    joinParts,
+    type Layout,
+    layoutOf,
+    piecesOf,
+    Recorder
+} from './audio.js';
 import {copyText} from './clipboard.js';
 import {duration} from './clock.js';
 import {ContextWatch} from './context.js';
@@ -30,9 +38,11 @@ import {notify} from './notify.js';
 import {RecordingIndicator} from './recording-indicator.js';
 
 const AWAY_SECONDS = 300;
+const CARRY_ON_SECONDS = 10;
 const OVERLAP_SECONDS = 15;
 const PIECE_SECONDS = 600;
 const PIECES_AT_ONCE = 3;
+const QUIET_MS = 1000;
 const SETTLE_SECONDS = 5;
 const STAMP = '%Y-%m-%dT%H:%M:%S';
 const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -48,14 +58,21 @@ type Active = {
     tickId: number;
 };
 
+type Carried = {interruptedSeconds: number | null; recordedUs: number};
+
+type Interrupted = {audio: string; cutUs: number; recordedUs: number};
+
 export class Recordings {
     readonly #cancellable = new Gio.Cancellable();
     readonly #files: RecordingFiles;
     readonly #indicators = new Set<RecordingIndicator>();
+    readonly #recorders = new Set<Recorder>();
     readonly #settings: Gio.Settings;
     readonly #transcribing = new Set<string>();
 
     #active: Active | null = null;
+    #carryOnId = 0;
+    #interrupted: Interrupted | null = null;
     #locked = false;
     #starting = false;
 
@@ -66,13 +83,17 @@ export class Recordings {
 
     destroy(): void {
         this.#cancellable.cancel();
+        this.#clearCarryOn();
         const active = this.#active;
         this.#active = null;
         if (active) {
             clearTick(active);
-            active.recorder.close();
+            this.#settings.set_value(Key.interruptedRecording, interruptionOf(active));
             void active.context.stop();
         }
+        for (const recorder of this.#recorders)
+            recorder.destroy();
+        this.#recorders.clear();
         for (const indicator of this.#indicators)
             indicator.destroy();
         this.#indicators.clear();
@@ -93,6 +114,13 @@ export class Recordings {
         }
         if (this.#starting)
             return;
+        if (this.#interrupted) {
+            const file = recordingOf(Gio.File.new_for_path(this.#interrupted.audio));
+            this.#clearCarryOn();
+            this.#forgetInterruption();
+            await this.#transcribe(file, readProvider(this.#settings));
+            return;
+        }
 
         const provider = readProviderConfig(this.#settings);
         if (!provider.apiKey) {
@@ -111,12 +139,33 @@ export class Recordings {
         }
     }
 
+    carryOn(): void {
+        const interrupted = interruptedOf(this.#settings);
+        if (!interrupted)
+            return;
+        const awayUs = GLib.get_real_time() - interrupted.cutUs;
+        if (awayUs < 0 || awayUs > CARRY_ON_SECONDS * 1000000) {
+            this.#settings.reset(Key.interruptedRecording);
+            return;
+        }
+        this.#interrupted = interrupted;
+        this.#clearCarryOn();
+        this.#carryOnId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, QUIET_MS, () => {
+            this.#carryOnId = 0;
+            void this.#resume(interrupted);
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
     async forgetVanished(): Promise<void> {
         await this.#files.forgetVanished();
     }
 
     async offerUntranscribed(): Promise<void> {
         for (const file of await this.#files.untranscribed()) {
+            if (file.audio.get_path() === this.#interrupted?.audio ||
+                this.#active?.file.audio.equal(file.audio))
+                continue;
             const when = file.startedAt?.format('%d.%m.%Y %H:%M');
             notify({
                 actions: [
@@ -161,25 +210,51 @@ export class Recordings {
 
     async #start(): Promise<void> {
         const file = await this.#files.create();
-        let recorder: Recorder;
+        let recording = false;
         try {
-            recorder = await Recorder.open(file.audio);
+            recording = await this.#record(file, file.audio, {interruptedSeconds: null, recordedUs: 0});
+        } finally {
+            if (!recording)
+                await this.#files.discard(file).catch(() => {});
+        }
+    }
+
+    async #resume(interrupted: Interrupted): Promise<void> {
+        const file = recordingOf(Gio.File.new_for_path(interrupted.audio));
+        this.#starting = true;
+        try {
+            const part = await this.#files.nextPart(file);
+            const interruptedSeconds = (GLib.get_real_time() - interrupted.cutUs) / 1000000;
+            const recording = await this.#record(
+                file, part, {interruptedSeconds, recordedUs: interrupted.recordedUs});
+            if (recording)
+                this.#forgetInterruption();
         } catch (error) {
-            await this.#files.discard(file).catch(() => {});
-            throw error;
+            if (this.#cancellable.is_cancelled())
+                return;
+            this.#forgetInterruption();
+            notify({body: errorMessage(error), title: 'The recording could not carry on'});
+            void this.#transcribe(file, readProvider(this.#settings));
+        } finally {
+            this.#starting = false;
         }
+    }
+
+    async #record(file: RecordingFile, into: Gio.File, carried: Carried): Promise<boolean> {
+        const recorder = await Recorder.open(into);
         if (this.#cancellable.is_cancelled()) {
-            recorder.close();
-            await this.#files.discard(file).catch(() => {});
-            return;
+            recorder.destroy();
+            return false;
         }
+        this.#recorders.add(recorder);
 
         const indicator = this.#indicator({transcribing: false});
-        const startedUs = GLib.get_monotonic_time();
+        const startedUs = GLib.get_monotonic_time() - carried.recordedUs;
         const context = new ContextWatch({
             audio: file.audio,
             awaySeconds: AWAY_SECONDS,
             follow: this.#settings.get_boolean(Key.recordContext),
+            interruptedSeconds: carried.interruptedSeconds,
             log: this.#files.contextLog(file),
             settleSeconds: SETTLE_SECONDS,
             startedUs,
@@ -196,6 +271,7 @@ export class Recordings {
             void this.#stop(active);
         };
         this.#tick(active);
+        return true;
     }
 
     async #stop(active: Active): Promise<void> {
@@ -205,6 +281,7 @@ export class Recordings {
         clearTick(active);
         active.indicator.transcribing();
         await Promise.all([active.recorder.finish(), active.context.stop()]);
+        this.#recorders.delete(active.recorder);
         await this.#transcribe(active.file, readProvider(this.#settings), active.indicator);
     }
 
@@ -213,7 +290,8 @@ export class Recordings {
             return;
         this.#active = null;
         clearTick(active);
-        active.recorder.close();
+        active.recorder.destroy();
+        this.#recorders.delete(active.recorder);
         this.#drop(active.indicator);
         await active.context.stop();
         await this.#files.discard(active.file)
@@ -236,6 +314,8 @@ export class Recordings {
             if (!provider.apiKey)
                 throw new Error(`Set your ${PROVIDERS[service].vendor} API key in the extension preferences`);
             const transcriber = recordingTranscriberFor(provider);
+            await this.#files.makeWhole(
+                file, (parts, whole) => joinParts(parts, whole, this.#cancellable));
             const layout = await layoutOf(file.audio, this.#cancellable);
             const pieces = await piecesOf(file.audio, layout.seconds,
                 {longest: PIECE_SECONDS, overlap: OVERLAP_SECONDS}, this.#cancellable);
@@ -346,14 +426,41 @@ export class Recordings {
         indicator.destroy();
     }
 
+    #clearCarryOn(): void {
+        if (!this.#carryOnId)
+            return;
+        GLib.source_remove(this.#carryOnId);
+        this.#carryOnId = 0;
+    }
+
+    #forgetInterruption(): void {
+        this.#interrupted = null;
+        this.#settings.reset(Key.interruptedRecording);
+    }
+
     #tick(active: Active): void {
         active.indicator.elapsed = elapsedSeconds(active);
+        clearTick(active);
         active.tickId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => {
             active.tickId = 0;
             this.#tick(active);
             return GLib.SOURCE_REMOVE;
         });
     }
+}
+
+function interruptedOf(settings: Gio.Settings): Interrupted | null {
+    const [audio, recordedUs, cutUs] =
+        settings.get_value(Key.interruptedRecording).deepUnpack<[string, number, number]>();
+    return audio ? {audio, cutUs, recordedUs} : null;
+}
+
+function interruptionOf(active: Active): GLib.Variant {
+    return new GLib.Variant('(sxx)', [
+        active.file.audio.get_path() ?? '',
+        GLib.get_monotonic_time() - active.startedUs,
+        GLib.get_real_time(),
+    ]);
 }
 
 function elapsedSeconds(active: Active): number {

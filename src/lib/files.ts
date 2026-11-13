@@ -1,5 +1,6 @@
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
+import type GObject from 'gi://GObject';
 
 import {fromAsync} from './async.js';
 
@@ -103,6 +104,22 @@ export async function deleteFile(file: Gio.File): Promise<void> {
     await ignoreMissing(fromAsync(
         callback => file.delete_async(GLib.PRIORITY_DEFAULT, null, callback),
         result => file.delete_finish(result)));
+}
+
+// GJS takes a function where the type definitions ask for a closure.
+export async function moveOver(file: Gio.File, destination: Gio.File): Promise<void> {
+    await fromAsync(
+        callback => file.move_async(destination, Gio.FileCopyFlags.OVERWRITE,
+            GLib.PRIORITY_DEFAULT, null, null, callback as unknown as GObject.Closure),
+        result => file.move_finish(result));
+}
+
+export async function sizeOf(file: Gio.File): Promise<number> {
+    const info = await fromAsync(
+        callback => file.query_info_async(Gio.FILE_ATTRIBUTE_STANDARD_SIZE,
+            Gio.FileQueryInfoFlags.NONE, GLib.PRIORITY_DEFAULT, null, callback),
+        result => file.query_info_finish(result));
+    return info.get_size();
 }
 
 export async function exists(file: Gio.File): Promise<boolean> {

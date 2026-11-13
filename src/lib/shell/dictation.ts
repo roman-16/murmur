@@ -127,9 +127,6 @@ export class Dictation {
 
         if (destination.kind === 'clipboard') {
             copyText(transcript);
-            // The panel fades itself out once the message has been read; the
-            // reference stays so that disabling the extension still tears it
-            // down, and destroying it twice is harmless.
             this.#panel?.showResult('Copied to the clipboard');
             return;
         }
@@ -139,11 +136,6 @@ export class Dictation {
             await insertText(transcript, pace, cancellable);
     }
 
-    // A password the client announced as one is delivered and forgotten; there
-    // is nothing to gain from a dictation that is kept where the password is.
-    //
-    // The words land first and the record follows: waiting for the disk before
-    // typing would hand a slow filesystem a say in how soon the text appears.
     #remember(transcript: string, destination: Destination): void {
         if (!this.#settings.get_boolean(Key.rememberDictations))
             return;
@@ -172,14 +164,12 @@ export class Dictation {
     }
 
     #stop(): void {
-        if (!this.#session)
-            return;
         this.#clearCountdown();
         if (this.#panel) {
             this.#panel.status = 'Finishing…';
             this.#panel.countdown = '';
         }
-        this.#session.stop();
+        this.#session?.stop();
     }
 
     #closeUi(): void {

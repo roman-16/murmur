@@ -1,6 +1,6 @@
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
-import Soup from 'gi://Soup?version=3.0';
+import Soup from 'gi://Soup';
 
 import {fromAsync, wait, whenCancelled} from '../async.js';
 import {errorMessage, isCancelled} from '../errors.js';

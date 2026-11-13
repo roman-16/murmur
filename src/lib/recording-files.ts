@@ -7,13 +7,17 @@ import {
     deleteFile,
     exists,
     filesIn,
+    moveOver,
     readText,
+    sizeOf,
     writePrivately
 } from './files.js';
 import {Key} from './settings.js';
 
 const AUDIO = '.opus';
 const CONTEXT = '.jsonl';
+const JOINED = 'joined';
+const JOINING = 'joining';
 const NAME = /^(\d{4})-(\d{2})-(\d{2})T(\d{2})-(\d{2})-(\d{2})$/;
 const TRANSCRIPT = '.md';
 
@@ -24,6 +28,8 @@ export type RecordingFile = {
     startedAt: GLib.DateTime | null;
     transcript: Gio.File;
 };
+
+export type Join = (parts: Gio.File[], whole: Gio.File) => Promise<void>;
 
 export class RecordingFiles {
     readonly #contexts: Gio.File;
@@ -55,7 +61,42 @@ export class RecordingFiles {
         await this.forget(recording);
     }
 
+    async nextPart(recording: RecordingFile): Promise<Gio.File> {
+        const numbers = (await partsOf(recording)).map(part => part.number);
+        const part = sibling(recording, String(Math.max(1, ...numbers) + 1));
+        await createPrivately(part);
+        return part;
+    }
+
+    async makeWhole(recording: RecordingFile, join: Join): Promise<void> {
+        const joined = sibling(recording, JOINED);
+        if (!await exists(joined)) {
+            const parts = (await partsOf(recording)).map(part => part.file);
+            if (parts.length === 0)
+                return;
+            const heard = await withAudio([recording.audio, ...parts]);
+            const [only] = heard;
+            if (heard.length > 1) {
+                const joining = sibling(recording, JOINING);
+                await deleteFile(joining);
+                await createPrivately(joining);
+                await join(heard, joining);
+                await moveOver(joining, joined);
+            } else if (only && !only.equal(recording.audio)) {
+                await moveOver(only, joined);
+            }
+        }
+        for (const part of await partsOf(recording))
+            await deleteFile(part.file);
+        if (await exists(joined))
+            await moveOver(joined, recording.audio);
+    }
+
     async discard(recording: RecordingFile): Promise<void> {
+        for (const part of await partsOf(recording))
+            await deleteFile(part.file);
+        await deleteFile(sibling(recording, JOINED));
+        await deleteFile(sibling(recording, JOINING));
         await deleteFile(recording.audio);
         await deleteFile(this.contextLog(recording));
         await this.forget(recording);
@@ -118,6 +159,33 @@ export function recordingFolder(settings: Gio.Settings): Gio.File {
 
 export function defaultRecordingFolder(settings: Gio.Settings): string {
     return settings.get_default_value(Key.recordingFolder)?.unpack() as string;
+}
+
+function sibling(recording: RecordingFile, label: string): Gio.File {
+    const basename = `${recording.name}.${label}${AUDIO}`;
+    return recording.audio.get_parent()?.get_child(basename) ?? Gio.File.new_for_path(basename);
+}
+
+async function partsOf(recording: RecordingFile): Promise<{file: Gio.File; number: number}[]> {
+    const folder = recording.audio.get_parent();
+    if (!folder || !recording.startedAt || !recording.audio.get_basename()?.endsWith(AUDIO))
+        return [];
+    const prefix = `${recording.name}.`;
+    const parts: {file: Gio.File; number: number}[] = [];
+    for (const file of await filesIn(folder)) {
+        const basename = file.get_basename() ?? '';
+        if (!basename.startsWith(prefix) || !basename.endsWith(AUDIO))
+            continue;
+        const label = basename.slice(prefix.length, -AUDIO.length);
+        if (/^\d+$/.test(label))
+            parts.push({file, number: Number(label)});
+    }
+    return parts.sort((one, other) => one.number - other.number);
+}
+
+async function withAudio(files: Gio.File[]): Promise<Gio.File[]> {
+    const sizes = await Promise.all(files.map(file => sizeOf(file).catch(() => 0)));
+    return files.filter((_, index) => (sizes[index] ?? 0) > 0);
 }
 
 function folderAt(path: string): Gio.File {

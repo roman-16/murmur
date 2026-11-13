@@ -18,6 +18,7 @@ export type Moment =
     | {app: string; kind: 'call'; on: boolean}
     | {kind: 'camera'; on: boolean}
     | {app: string; kind: 'focused'; title: string}
+    | {kind: 'interrupted'; seconds: number}
     | {kind: 'lock'; on: boolean}
     | {device: string | null; kind: 'microphone'}
     | {kind: 'network'; name: string | null}
@@ -147,6 +148,8 @@ export function momentText(moment: Moment): string {
             return moment.on ? '[camera on]' : '[camera off]';
         case 'focused':
             return `[focused] ${shown(moment.app, moment.title)}`;
+        case 'interrupted':
+            return `[interrupted] nothing recorded for ${span(moment.seconds)}`;
         case 'lock':
             return moment.on ? '[locked]' : '[unlocked]';
         case 'microphone':

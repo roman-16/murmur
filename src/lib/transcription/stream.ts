@@ -1,6 +1,6 @@
 import type Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
-import Soup from 'gi://Soup?version=3.0';
+import Soup from 'gi://Soup';
 
 import {deferred, fromAsync, whenCancelled} from '../async.js';
 import {errorMessage, isCancelled} from '../errors.js';
@@ -97,10 +97,7 @@ export class StreamTranscription implements Transcription {
     #flush(): void {
         if (!this.#protocol.ready)
             return;
-        if (this.#setupId) {
-            GLib.source_remove(this.#setupId);
-            this.#setupId = 0;
-        }
+        this.#clearSetup();
         const pending = this.#pending;
         this.#pending = [];
         for (const chunk of pending)
@@ -161,6 +158,7 @@ export class StreamTranscription implements Transcription {
     #awaitSetup(): void {
         if (this.#protocol.ready)
             return;
+        this.#clearSetup();
         this.#setupId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, SETUP_TIMEOUT_MS, () => {
             this.#setupId = 0;
             this.#fail('the service did not start a transcription session');
@@ -221,13 +219,17 @@ export class StreamTranscription implements Transcription {
         this.#completion.reject(new Error('cancelled'));
     }
 
+    #clearSetup(): void {
+        if (!this.#setupId)
+            return;
+        GLib.source_remove(this.#setupId);
+        this.#setupId = 0;
+    }
+
     #dispose(): void {
         this.#pending = [];
 
-        if (this.#setupId) {
-            GLib.source_remove(this.#setupId);
-            this.#setupId = 0;
-        }
+        this.#clearSetup();
         if (this.#tailId) {
             GLib.source_remove(this.#tailId);
             this.#tailId = 0;

@@ -8,6 +8,9 @@ import {gettext as _} from 'resource:///org/gnome/Shell/Extensions/js/extensions
 import {fromAsync} from '../async.js';
 import {dotoolTiers} from '../dotool.js';
 
+const PROBE_FLAGS = Gio.SubprocessFlags.STDIN_PIPE |
+    Gio.SubprocessFlags.STDOUT_SILENCE |
+    Gio.SubprocessFlags.STDERR_SILENCE;
 const PROBE_TIMEOUT_MS = 1500;
 const STATE_CLASSES = ['error', 'success', 'warning'];
 
@@ -52,66 +55,84 @@ export function makeDotoolStatusRow(): Adw.ActionRow {
     };
 
     let generation = 0;
+    let probe: Gio.Subprocess | null = null;
+    let probeTimeoutId = 0;
+
+    const clearProbeTimeout = () => {
+        if (!probeTimeoutId)
+            return;
+        GLib.source_remove(probeTimeoutId);
+        probeTimeoutId = 0;
+    };
+
+    const endProbe = () => {
+        clearProbeTimeout();
+        probe?.force_exit();
+        probe = null;
+    };
+
+    const answers = async (bin: string): Promise<boolean> => {
+        endProbe();
+        let process: Gio.Subprocess;
+        try {
+            process = Gio.Subprocess.new([bin], PROBE_FLAGS);
+        } catch {
+            return false;
+        }
+        probe = process;
+        clearProbeTimeout();
+        probeTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, PROBE_TIMEOUT_MS, () => {
+            probeTimeoutId = 0;
+            process.force_exit();
+            return GLib.SOURCE_REMOVE;
+        });
+
+        try {
+            await fromAsync(
+                callback => process.communicate_utf8_async('', null, callback),
+                result => process.communicate_utf8_finish(result));
+            return process.get_successful();
+        } catch {
+            return false;
+        } finally {
+            if (probe === process)
+                endProbe();
+        }
+    };
+
     const refresh = async () => {
         const current = ++generation;
         show({kind: 'checking'});
-        const status = await checkDotool();
-        if (current === generation)
+        const status = await checkDotool(answers, () => current !== generation);
+        if (status && current === generation)
             show(status);
     };
 
     recheck.connect('clicked', () => void refresh());
+    row.connect('destroy', () => {
+        generation++;
+        endProbe();
+    });
     void refresh();
     return row;
 }
 
-async function checkDotool(): Promise<DotoolStatus> {
+async function checkDotool(
+    answers: (bin: string) => Promise<boolean>,
+    superseded: () => boolean): Promise<DotoolStatus | null> {
     const tiers = dotoolTiers();
     if (tiers.length === 0)
         return {kind: 'notinstalled'};
 
     for (const bin of tiers) {
-        if (await probeTier(bin))
+        if (superseded())
+            return null;
+        if (await answers(bin))
             return {kind: 'active'};
     }
-    return await diagnose();
+    return superseded() ? null : await diagnose();
 }
 
-// Run a tier with empty input; exit 0 means it is usable.
-async function probeTier(bin: string): Promise<boolean> {
-    const flags = Gio.SubprocessFlags.STDIN_PIPE |
-        Gio.SubprocessFlags.STDOUT_SILENCE |
-        Gio.SubprocessFlags.STDERR_SILENCE;
-
-    let process: Gio.Subprocess;
-    try {
-        process = Gio.Subprocess.new([bin], flags);
-    } catch {
-        return false;
-    }
-
-    // The handler clears the id, so a surviving id means the tier answered in time.
-    let timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, PROBE_TIMEOUT_MS, () => {
-        timeoutId = 0;
-        process.force_exit();
-        return GLib.SOURCE_REMOVE;
-    });
-
-    try {
-        await fromAsync(
-            callback => process.communicate_utf8_async('', null, callback),
-            result => process.communicate_utf8_finish(result));
-        return timeoutId !== 0 && process.get_successful();
-    } catch {
-        return false;
-    } finally {
-        if (timeoutId)
-            GLib.source_remove(timeoutId);
-    }
-}
-
-// Every tier failed: tell "in the input group but the session has not picked it
-// up yet" (fixable by re-login) apart from genuine gaps.
 async function diagnose(): Promise<DotoolStatus> {
     if (!GLib.file_test('/dev/uinput', GLib.FileTest.EXISTS))
         return {kind: 'nouinput'};

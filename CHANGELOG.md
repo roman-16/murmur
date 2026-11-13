@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 Adding a version section here is what publishes a release, so this file is the one place a version is decided: see [Releasing](CONTRIBUTING.md#releasing). Versions that shipped before this file existed are on the [releases page](https://github.com/roman-16/murmur/releases).
 
+## [2.1.2] - 2026-11-13
+
+### Fixed
+
+- A recording carries on when GNOME switches Murmur off and on again under it, as the first screen lock after Murmur is switched on does, instead of ending there. It stays one audio file and one transcript, with an `[interrupted]` line where a second or two went unrecorded.
+- A crash or a power cut mid-recording keeps the audio up to its last second, instead of losing the newest ten seconds, or all of a shorter recording.
+
 ## [2.1.1] - 2026-11-11
 
 ### Fixed

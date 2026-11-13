@@ -19,7 +19,7 @@ direnv allow      # or: devbox shell
 cp .env.example .env      # a key for one service, and optionally MURMUR_PROVIDER, OPENROUTER_MODEL, DICTATION_SHORTCUT and RECORDING_SHORTCUT
 ```
 
-Without devbox you need Bun, GJS, GLib's tools, `just`, `librsvg` and `zip` on your own, and GStreamer with its base and good plugins and PipeWire's GStreamer plugin, which the shell itself loads.
+Without devbox you need Bun, GJS, GLib's tools, `just`, `librsvg`, Python, `uv` and `zip` on your own, and GStreamer with its base and good plugins and PipeWire's GStreamer plugin, which the shell itself loads.
 
 ## Everyday commands
 
@@ -35,10 +35,11 @@ just dev          # run in a throwaway, isolated nested GNOME Shell
 just install      # symlink dist/ into your extensions dir
 just notes        # print the version and the notes CHANGELOG.md would publish
 just prefs        # open the preferences dialog
+just review       # run the checker extensions.gnome.org shows above a review, on the built extension
 just pack         # build the .shell-extension.zip
 ```
 
-`just lint` has to pass with no findings. It is the quality gate, and CI runs the same recipe on every push and pull request, alongside `just test` and `nix build`.
+`just lint` has to pass with no findings. It is the quality gate, and CI runs the same recipe on every push and pull request, alongside `just test`, `just review` and `nix build`.
 
 ```bash
 nix build         # build the extension through the flake, as a Nix install does
@@ -94,6 +95,8 @@ The two halves run in **different processes** that load different libraries. Imp
 
 `just test-shell` covers the panel, by building it inside a throwaway headless GNOME Shell and clicking it with a real pointer. Run it after anything under `src/lib/shell/`; [`scripts/shell-test/README.md`](scripts/shell-test/README.md) explains why it needs a whole compositor, and why a synthetic click that never lands makes for a test that cannot fail. It is not in CI, because a runner has no GNOME Shell.
 
+`just review` runs Shexli, the checker whose notices extensions.gnome.org prints above every review, on what `just build` produced, at the commit of the site's repository the `justfile` pins. It fails on any notice but the ones `scripts/review.ts` expects: the clipboard one stays for as long as Murmur copies to the clipboard, which its description declares. The checker reads names, not behaviour: it finds a teardown only in a method called `destroy`, `dispose`, `cleanup`, `stop` or `disable`, and the reason for `unlock-dialog` only as the first comment inside `disable()`.
+
 Everything past that is the compositor, and the interesting failures are all in the interaction. Before opening a pull request that touches dictation, recording or insertion, try it in `just dev` and then in a real session against, at minimum:
 
 - a GTK application, for an ordinary field,
@@ -110,7 +113,8 @@ Everything past that is the compositor, and the interesting failures are all in 
 - **Names and terms** with each service, in a dictation and in a recording,
 - a recording's failure, with the network off when it stops: **Retry** once it is back, and the offer on the next start for one whose notification was dismissed,
 - **Transcribe a file**, with a recording that already has a transcript, an audio file from elsewhere in another format, a file that is not audio, and with Murmur switched off in Extensions,
-- **locking the screen** mid-recording and mid-dictation: the recording carries on with its pill and its menu shut, the dictation ends, and neither shortcut answers until you unlock.
+- **locking the screen** mid-recording and mid-dictation: the recording carries on with its pill and its menu shut, the dictation ends, and neither shortcut answers until you unlock,
+- switching **another extension off** in Extensions mid-recording, one that was enabled before Murmur: the pill goes and is back about a second later, and the recording, once stopped, is one audio file and one transcript with an `[interrupted]` line.
 
 `journalctl --user --follow /usr/bin/gnome-shell | grep --ignore-case murmur` shows what the extension reports.
 

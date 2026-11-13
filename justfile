@@ -4,6 +4,7 @@ dist := root / "dist"
 ext_dir := env_var_or_default("XDG_DATA_HOME", env_var("HOME") / ".local/share") / "gnome-shell/extensions" / uuid
 
 oxlint := "bun " + root / "node_modules/oxlint/bin/oxlint"
+shexli := "9158aa69b69da506d6ae8189314e802f4176adfb"
 tsc := "bun " + root / "node_modules/typescript/bin/tsc"
 
 # Install the npm toolchain (type definitions, TypeScript, oxlint) when stale
@@ -67,6 +68,15 @@ test:
 test-shell: build
     glib-compile-schemas '{{dist}}/schemas'
     bash '{{root}}/scripts/shell-test/run.sh'
+
+# Run the checker extensions.gnome.org shows above a review, on the built extension
+review: build
+    #!/usr/bin/env bash
+    set -euo pipefail
+    UV_PYTHON_PREFERENCE=only-system uvx \
+        --from 'git+https://github.com/GNOME/extensions-web@{{shexli}}#subdirectory=shexli' \
+        shexli --format json '{{dist}}' \
+        | bun '{{root}}/scripts/review.ts' '{{replace_regex(shexli, "^(.{10}).*$", "$1")}}'
 
 # Print the version and the release notes CHANGELOG.md would publish
 notes:
