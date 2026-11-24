@@ -132,7 +132,7 @@ export default class Probe extends Extension {
 
     #keysOf(accelerator) {
         const modifiers = [...accelerator.matchAll(/<(\w+)>/g)].map(([, name]) => MODIFIER_KEYS[name]);
-        const key = Clutter[`KEY_${accelerator.replace(/<\w+>/g, '')}`];
+        const key = Clutter[`KEY_${accelerator.slice(accelerator.lastIndexOf('>') + 1)}`];
         return [...modifiers, key];
     }
 
