@@ -13,6 +13,31 @@ The service selected under **Service** has no key in the settings. The notificat
 
 If it names a service you did not mean to use, the **Service** row is set to it; switching back finds the other key exactly where you left it.
 
+## "Download the engine to transcribe on this computer", or "The engine needs an update"
+
+This computer is the service, and its engine is not on this computer yet, or a newer Murmur needs a newer one. **Download** on the notification fetches it, as does **Download** on the **Engine** row in the preferences; the notification says how much and from where. After a download from the notification, press the shortcut again. A recording that was waiting for it is transcribed once the engine is in.
+
+## "Install Python 3 to transcribe on this computer"
+
+The engine runs in Python 3.9 or later, and there is no `python3` on the path GNOME Shell was started with. Install your distribution's `python3` package and log out and back in. On NixOS, install Murmur from the flake, whose package brings its own.
+
+## "Choose a model file", or "The model file is gone"
+
+This computer has no speech model to run: none was chosen yet, or the file was moved, renamed or deleted, or sits on a drive that is not there right now. Choose one under **Model** in the preferences. Any GGUF file the engine runs will do; [huggingface.co/handy-computer](https://huggingface.co/handy-computer) has ready ones.
+
+## "isn't a speech model the engine can run"
+
+The file you chose is a GGUF file the engine does not take for transcription: a chat model's, an embedding model's, or a speech model of a family it does not know. The previous model stays. Pick a file from a family the engine lists, at [transcribe.cpp](https://github.com/handy-computer/transcribe.cpp).
+
+## "The engine doesn't run here"
+
+The **Engine** row shows this when Python can load the downloaded engine's library but the library cannot load what it needs from the system, which the message names. That is NixOS, whose libraries are not where a Linux library expects them: install Murmur from the flake there. On another system, the named library belongs to your distribution's C++ runtime or Vulkan loader.
+
+## Dictating on this computer is slow
+
+- **The Engine row says `on the processor`.** The engine found no graphics card it can use through Vulkan, so the model runs on the processor. Install your graphics driver's Vulkan support, or choose a smaller model: a Parakeet model keeps up on a processor where a large Whisper does not.
+- **Only the first dictation is slow.** The engine prepares the graphics card for a model the first time it runs there, again after a driver update. Choosing the model in the preferences does it ahead of the first dictation.
+
 ## OpenRouter reports that the model is unknown
 
 The slug under **Model** is not one OpenRouter serves, which happens to a model that has been retired or set by hand with a typo. Open the **Model** list and pick one: it is fetched from OpenRouter, so it holds exactly what is available now.
@@ -25,8 +50,8 @@ Murmur hears through GStreamer, inside the shell, and needs its base and good pl
 
 - **Check the microphone.** *Settings → Sound → Input* should show the level moving while you speak. Murmur listens to the default input device.
 - **Check the key.** A key that is invalid, expired or out of quota surfaces as an error notification carrying the service's own words - Mistral says *Invalid API Key*. xAI turns a key away before a dictation's connection opens, so what reaches you is its status instead: *the service refused the connection (400 Bad Request)* means the key is not one xAI knows.
-- **Check the network.** Transcription reaches `api.x.ai`, `api.mistral.ai` or `openrouter.ai`, depending on the service; without it the dictation produces nothing.
-- **With Mistral or OpenRouter, nothing appears until you stop.** That is how they work, not a fault: they transcribe the dictation in one go rather than as you speak. See [Limitations](limitations.md).
+- **Check the network.** Transcription reaches `api.x.ai`, `api.mistral.ai` or `openrouter.ai`, depending on the service; without it the dictation produces nothing. This computer needs no network.
+- **With Mistral, OpenRouter or a model on this computer that does not stream, nothing appears until you stop.** That is how they work, not a fault: they transcribe the dictation in one go rather than as you speak. See [Limitations](limitations.md). A model that streams shows its words only with **Words as you speak** on.
 - **"The service did not start a transcription session"** means the connection was accepted and then went quiet, which is the service's end being unwell rather than anything local. Try again, and try another service.
 
 ## It copied to the clipboard when I expected typing
@@ -83,7 +108,7 @@ The recording listens to the monitor of your default output, so sound played thr
 
 ## "The recording could not be transcribed"
 
-The audio is in the recordings folder, which the notification names, whatever the reason, and **Retry** sends it again. The notification carries the service's own words: a key it refused, a service that stayed busy through three more tries, or, with OpenRouter, a provider that ran out of time on a piece, in which case another model or another service is the fix. A recording whose notification was dismissed is offered again when you next log in.
+The audio is in the recordings folder, which the notification names, whatever the reason, and **Retry** sends it again. The notification carries the service's own words: a key it refused, a service that stayed busy through three more tries, or, with OpenRouter, a provider that ran out of time on a piece, in which case another model or another service is the fix. With This computer it carries the engine's: a model file that is gone, or a model that failed on the audio. A recording whose notification was dismissed is offered again when you next log in.
 
 ## "No words were heard"
 

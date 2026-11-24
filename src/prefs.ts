@@ -10,12 +10,14 @@ import {History} from './lib/history.js';
 import {makeDotoolStatusRow} from './lib/prefs/dotool-status.js';
 import {makeRecordingFolderRow} from './lib/prefs/folder.js';
 import {makeHistoryPage} from './lib/prefs/history.js';
+import {makeLocalGroup} from './lib/prefs/local.js';
 import {makeModelRow} from './lib/prefs/model.js';
-import {makeChoiceRow, makePresetRow, makeSpinRow} from './lib/prefs/rows.js';
+import {makeChoiceRow, makePresetRow, makeSpinRow, showWhileSelected} from './lib/prefs/rows.js';
 import {makeShortcutRow} from './lib/prefs/shortcut.js';
 import {makeTranscribeFileRow} from './lib/prefs/transcribe.js';
 import {recordingPlace} from './lib/recording-files.js';
 import {Key, readIntRange, readProvider, readTerms, termsOf} from './lib/settings.js';
+import {Engine} from './lib/transcription/engine.js';
 import {PROVIDER_IDS, PROVIDERS, type ProviderId} from './lib/transcription/provider.js';
 
 const TYPING_SPEEDS = [10, 20, 50, 100, 200, 500, 1000, 2000, 5000];
@@ -23,16 +25,18 @@ const TYPING_SPEEDS = [10, 20, 50, 100, 200, 500, 1000, 2000, 5000];
 export default class MurmurPreferences extends ExtensionPreferences {
     override async fillPreferencesWindow(window: Adw.PreferencesWindow): Promise<void> {
         const settings = this.getSettings();
+        const engine = new Engine(this);
         const page = new Adw.PreferencesPage({
             icon_name: 'audio-input-microphone-symbolic',
             title: _('General'),
         });
         page.add(transcriptionGroup(settings));
+        page.add(makeLocalGroup(window, settings, engine));
         page.add(mistralGroup(settings));
         page.add(openrouterGroup(settings));
         page.add(xaiGroup(settings));
         page.add(dictationGroup(window, settings));
-        page.add(recordingGroup(window, settings));
+        page.add(recordingGroup(window, settings, engine));
         page.add(insertionGroup(settings));
         window.add(page);
         window.add(makeHistoryPage(window, settings, new History(this.uuid)));
@@ -44,7 +48,7 @@ function transcriptionGroup(settings: Gio.Settings): Adw.PreferencesGroup {
     const group = new Adw.PreferencesGroup({title: _('Transcription')});
     group.add(makeChoiceRow(settings, Key.transcriptionProvider, {
         title: _('Service'),
-        subtitle: _('Where Murmur sends your dictations and your recordings'),
+        subtitle: _('What turns your dictations and recordings into text'),
         choices: PROVIDER_IDS
             .map(id => ({label: PROVIDERS[id].label, value: id}))
             .sort((first, second) => first.label.localeCompare(second.label)),
@@ -57,7 +61,7 @@ function termsRow(settings: Gio.Settings): Adw.EntryRow {
     const row = new Adw.EntryRow({
         show_apply_button: true,
         title: _('Names and terms'),
-        tooltip_text: _('Separated by commas, and spelled the way a transcript should spell them. Every dictation, recording and file takes them to the service'),
+        tooltip_text: _('Separated by commas, and spelled the way a transcript should spell them. Every dictation, recording and file takes them along, to the services and the models that use them'),
     });
     const sync = () => {
         row.text = readTerms(settings).join(', ');
@@ -93,15 +97,10 @@ function xaiGroup(settings: Gio.Settings): Adw.PreferencesGroup {
 function providerGroup(settings: Gio.Settings, id: ProviderId): Adw.PreferencesGroup {
     const {keySource, label} = PROVIDERS[id];
     const group = new Adw.PreferencesGroup({
-        description: _('Your key from %s').replace('%s', keySource),
+        description: keySource ? _('Your key from %s').replace('%s', keySource) : null,
         title: label,
     });
-
-    const sync = () => {
-        group.visible = readProvider(settings) === id;
-    };
-    sync();
-    settings.connect(`changed::${Key.transcriptionProvider}`, sync);
+    showWhileSelected(group, settings, id);
     return group;
 }
 
@@ -162,7 +161,7 @@ function maxDictationRow(settings: Gio.Settings): Adw.SpinRow {
 }
 
 function recordingGroup(
-    window: Adw.PreferencesWindow, settings: Gio.Settings): Adw.PreferencesGroup {
+    window: Adw.PreferencesWindow, settings: Gio.Settings, engine: Engine): Adw.PreferencesGroup {
     const group = new Adw.PreferencesGroup({title: _('Recording')});
     const shortcut = makeShortcutRow(window, settings, Key.toggleRecording, {
         title: _('Recording shortcut'),
@@ -184,7 +183,7 @@ function recordingGroup(
     settings.bind(Key.recordContext, contextRow, 'active', Gio.SettingsBindFlags.DEFAULT);
     group.add(contextRow);
 
-    group.add(makeTranscribeFileRow(window, settings));
+    group.add(makeTranscribeFileRow(window, settings, engine));
     return group;
 }
 

@@ -2,7 +2,7 @@
 
 ## Pick a service and add its key
 
-Murmur transcribes in the cloud, so it needs a key of your own. Three services are on offer, and you pick one in the preferences:
+Murmur transcribes in the cloud with a key of your own, or on your own computer with a model of your own. Four services are on offer, and you pick one in the preferences:
 
 ```bash
 gnome-extensions prefs murmur@roman-16.github.io
@@ -13,8 +13,11 @@ gnome-extensions prefs murmur@roman-16.github.io
 | **Grok** | [console.x.ai](https://console.x.ai) | The only one that shows the words while you speak, and the most accurate at it. About $0.20 an hour dictating and $0.20 an hour recording a call where both sides talk, and the key works once the account holds credit. A dictation runs as long as you set, a recording as long as you like |
 | **Mistral Voxtral** | [console.mistral.ai](https://console.mistral.ai) | The default. About $0.24 an hour dictating and $0.50 an hour recording a call where both sides talk, billed from the first minute. A dictation's words arrive when you stop, and it runs ten minutes at most |
 | **OpenRouter** | [openrouter.ai/settings/keys](https://openrouter.ai/settings/keys) | One key for every transcription model it serves - Whisper, Nova, Voxtral, Parakeet - which you pick under **Model**. It cannot transcribe while you speak, so the words arrive when you stop. A dictation runs ten minutes at most |
+| **This computer** | No key | Free, and nothing you say leaves your computer. It runs a speech model file you choose, fast with a graphics card. Models that stream show the words while you speak; the others give them when you stop. A dictation runs ten minutes at most |
 
 Choose it under **Service**, paste your key into **API key** below it, and that is the whole setup. If the people you talk to have names a model would misspell, list them under **Names and terms**. Each service keeps its own key, so switching back and forth costs nothing.
+
+For **This computer**, press **Download** on the **Engine** row once - 163 MB, which a Nix install already has - then the folder button on the **Model** row to choose a model: a `.gguf` file from [huggingface.co/handy-computer](https://huggingface.co/handy-computer), such as `parakeet-tdt-0.6b-v3-Q8_0.gguf` for 25 European languages, `parakeet-unified-en-0.6b-Q8_0.gguf` for English as you speak, or `Qwen3-ASR-1.7B-Q8_0.gguf` for the fewest mistakes with a graphics card. The settings the model takes appear under it. It needs Python 3.9 or later, which the row asks for when it is missing. See [Configuration](configuration.md#this-computer).
 
 Nothing else has to be configured before the first dictation or the first recording.
 

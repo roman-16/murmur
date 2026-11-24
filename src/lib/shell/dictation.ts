@@ -4,7 +4,8 @@ import GLib from 'gi://GLib';
 import {errorMessage} from '../errors.js';
 import type {History} from '../history.js';
 import {Key, readDictationConfig} from '../settings.js';
-import {PROVIDERS} from '../transcription/provider.js';
+import type {Engine} from '../transcription/engine.js';
+import {setupNeeded} from '../transcription/setup.js';
 import {copyText} from './clipboard.js';
 import {clock} from './clock.js';
 import {DictationIndicator} from './dictation-indicator.js';
@@ -13,10 +14,14 @@ import {insertText, typingPace, type Pace} from './insertion.js';
 import {notify} from './notify.js';
 import {MurmurPanel, type PanelAction} from './panel.js';
 import {Session} from './session.js';
+import type {SetupNotices} from './setup-notices.js';
 
 export class Dictation {
+    readonly #engine: Engine;
     readonly #focusTracker: FocusTracker;
     readonly #history: History;
+    readonly #lifetime = new Gio.Cancellable();
+    readonly #notices: SetupNotices;
     readonly #settings: Gio.Settings;
 
     #cancellable: Gio.Cancellable | null = null;
@@ -26,14 +31,19 @@ export class Dictation {
     #indicator: DictationIndicator | null = null;
     #panel: MurmurPanel | null = null;
     #session: Session | null = null;
+    #starting = false;
 
-    constructor(settings: Gio.Settings, history: History) {
+    constructor(
+        settings: Gio.Settings, history: History, engine: Engine, notices: SetupNotices) {
+        this.#engine = engine;
         this.#focusTracker = new FocusTracker();
         this.#history = history;
+        this.#notices = notices;
         this.#settings = settings;
     }
 
     destroy(): void {
+        this.#lifetime.cancel();
         this.cancel();
         this.#focusTracker.destroy();
     }
@@ -43,12 +53,21 @@ export class Dictation {
             this.#stop();
             return;
         }
+        if (this.#starting)
+            return;
 
         const config = readDictationConfig(this.#settings);
-        if (!config.provider.apiKey) {
-            const {vendor} = PROVIDERS[config.provider.kind];
-            notify({title: `Set your ${vendor} API key in the extension preferences`});
-            return;
+        this.#starting = true;
+        try {
+            const setup = await setupNeeded(config.provider, this.#engine);
+            if (this.#lifetime.is_cancelled())
+                return;
+            if (setup) {
+                this.#notices.show(setup);
+                return;
+            }
+        } finally {
+            this.#starting = false;
         }
 
         const focusTracker = this.#focusTracker;
@@ -70,7 +89,7 @@ export class Dictation {
         const cancellable = new Gio.Cancellable();
         this.#cancellable = cancellable;
         let heard = '';
-        const session = new Session(config, {
+        const session = new Session(config, this.#engine, {
             onLevel: level => {
                 panel.level = level;
             },

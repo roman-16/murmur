@@ -2,7 +2,8 @@ import Adw from 'gi://Adw';
 import Gio from 'gi://Gio';
 import Gtk from 'gi://Gtk';
 
-import {readIntRange} from '../settings.js';
+import {Key, readIntRange, readProvider} from '../settings.js';
+import type {ProviderId} from '../transcription/provider.js';
 
 export type Preset = {
     label: string;
@@ -13,6 +14,20 @@ export type Choice = {
     label: string;
     value: string;
 };
+
+export function showWhileSelected(
+    widget: Gtk.Widget, settings: Gio.Settings, id: ProviderId,
+    onShown: () => void = () => {}): void {
+    const sync = () => {
+        const selected = readProvider(settings) === id;
+        if (selected && !widget.visible)
+            onShown();
+        widget.visible = selected;
+    };
+    widget.visible = false;
+    sync();
+    settings.connect(`changed::${Key.transcriptionProvider}`, sync);
+}
 
 // Presets over a plain integer key, so a value set outside the ladder still
 // shows up as the closest one.

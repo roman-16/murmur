@@ -6,7 +6,7 @@
 | --- | --- |
 | **GNOME Shell 47 to 51** | On a **Wayland** session. Murmur reads which client holds a focused field from the compositor, which an X11 session cannot tell it |
 | **GStreamer and PipeWire** | Capture the microphone and, while recording, what the computer plays, and encode the recording. The base and good plugins and PipeWire's GStreamer plugin are what GNOME's own screen recorder uses, so a GNOME desktop usually has them already: `gstreamer1-plugins-base`, `gstreamer1-plugins-good` and `pipewire-gstreamer` on Fedora, `gir1.2-gstreamer-1.0`, `gstreamer1.0-plugins-base`, `gstreamer1.0-plugins-good` and `gstreamer1.0-pipewire` on Debian and Ubuntu, `gst-plugins-base`, `gst-plugins-good` and `gst-plugin-pipewire` on Arch. Murmur names the missing piece when you press a shortcut |
-| **An API key** | Transcription runs on Mistral Voxtral by default, on Grok, or on any model OpenRouter transcribes with; each service needs a key of its own, from [console.mistral.ai](https://console.mistral.ai), [console.x.ai](https://console.x.ai) or [openrouter.ai/settings/keys](https://openrouter.ai/settings/keys). See [Privacy](privacy.md) for what that means |
+| **An API key, or a model of your own** | Transcription runs on Mistral Voxtral by default, on Grok, or on any model OpenRouter transcribes with; each service needs a key of its own, from [console.mistral.ai](https://console.mistral.ai), [console.x.ai](https://console.x.ai) or [openrouter.ai/settings/keys](https://openrouter.ai/settings/keys). Or it runs on your own computer, with no key: then it takes **Python 3.9** or later, which Fedora, Debian and Ubuntu desktops usually have, a one-time download of the engine from the preferences, and a speech model file you choose. See [Privacy](privacy.md) for what each means |
 | **[dotool](https://sr.ht/~geb/dotool/)** (recommended) | Types arbitrary Unicode into any application. Without it Murmur falls back to the shell's virtual keyboard, which is limited to your keyboard layout. See [Where the text goes](text-insertion.md) |
 
 Check your session with `echo $XDG_SESSION_TYPE`; it has to say `wayland`.
@@ -58,6 +58,8 @@ gnome-extensions enable murmur@roman-16.github.io
 
 Either way, log out and back in afterwards. GStreamer and its PipeWire plugin come with GNOME itself, whose shell is wrapped with them, and dotool is `pkgs.dotool` plus membership in the group that owns `/dev/uinput`.
 
+The package brings This computer's engine with it - Python, transcribe.cpp built against the store's Vulkan, and its two helper models - so with Nix there is nothing to download, only a model file to choose. That is about 400 MB in the closure, whether you transcribe on this computer or not.
+
 On its own, `nix build` writes the extension to `result/share/gnome-shell/extensions/murmur@roman-16.github.io`.
 
 ## From source
@@ -101,9 +103,11 @@ rm ~/.local/share/gnome-shell/extensions/murmur@roman-16.github.io
 
 A Nix install goes away with the entry in your configuration and the next rebuild.
 
-Your settings, including the API key, live in dconf and outlive the extension, and so does what you dictated. Clear both with:
+Your settings, including the API key, live in dconf and outlive the extension, and so do what you dictated and the engine This computer downloaded. Clear all three with:
 
 ```bash
 dconf reset -f /org/gnome/shell/extensions/murmur/
-rm -r ~/.local/state/murmur@roman-16.github.io
+rm -r ~/.local/state/murmur@roman-16.github.io ~/.local/share/murmur@roman-16.github.io
 ```
+
+A model file you chose stays where it is: Murmur never moved or copied it.

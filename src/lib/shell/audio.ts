@@ -5,7 +5,7 @@ import type Gst from 'gi://Gst';
 import {deferred, fromAsync, whenCancelled} from '../async.js';
 import {cancellation, errorMessage} from '../errors.js';
 import {deleteFile} from '../files.js';
-import {SAMPLE_RATE} from '../transcription/provider.js';
+import {type PieceFormat, SAMPLE_RATE} from '../transcription/provider.js';
 import type {Piece, Stretch} from '../transcript.js';
 
 export type Source = 'desktop' | 'microphone';
@@ -78,6 +78,12 @@ const PACKAGES: Record<string, string> = {
     opusenc: "GStreamer's base plugins",
     pipewiresrc: "PipeWire's GStreamer plugin",
     taginject: "GStreamer's good plugins",
+    wavenc: "GStreamer's good plugins",
+};
+
+const ENCODERS: Record<PieceFormat, string> = {
+    ogg: `audioresample ! opusenc bitrate=${PIECE_BITRATE} ! oggmux`,
+    wav: `audioresample ! audioconvert ! ${SPEECH_CAPS} ! wavenc`,
 };
 
 let gstreamer: Promise<Gstreamer> | null = null;
@@ -125,10 +131,10 @@ export async function piecesOf(
 }
 
 export async function cutPiece(
-    audio: Gio.File, stretch: Stretch, channel: Channel | null,
+    audio: Gio.File, stretch: Stretch, channel: Channel | null, format: PieceFormat,
     cancellable: Gio.Cancellable): Promise<Gio.File | null> {
     const [file, stream] = await fromAsync(
-        callback => Gio.file_new_tmp_async('murmur-XXXXXX.ogg', GLib.PRIORITY_DEFAULT,
+        callback => Gio.file_new_tmp_async(`murmur-XXXXXX.${format}`, GLib.PRIORITY_DEFAULT,
             cancellable, callback),
         result => Gio.file_new_tmp_finish(result));
     try {
@@ -138,8 +144,7 @@ export async function cutPiece(
         let loudest = -Infinity;
         const playback = await Playback.open(
             `filesrc name=recording ! decodebin ! ${channel ? only(channel) : MONO} ! ` +
-            `level interval=${QUIET_INTERVAL_NS} ! audioresample ! ` +
-            `opusenc bitrate=${PIECE_BITRATE} ! oggmux ! filesink name=piece`,
+            `level interval=${QUIET_INTERVAL_NS} ! ${ENCODERS[format]} ! filesink name=piece`,
             {piece: file, recording: audio}, cancellable, {
                 onLevel: ({decibels}) => {
                     loudest = Math.max(loudest, decibels);

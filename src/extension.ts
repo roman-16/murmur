@@ -12,6 +12,8 @@ import {MurmurBus} from './lib/shell/bus.js';
 import {Dictation} from './lib/shell/dictation.js';
 import {withdrawAll} from './lib/shell/notify.js';
 import {Recordings} from './lib/shell/recording.js';
+import {SetupNotices} from './lib/shell/setup-notices.js';
+import {Engine} from './lib/transcription/engine.js';
 
 const SHORTCUTS: ShortcutKey[] = [Key.toggleDictation, Key.toggleRecording];
 
@@ -26,7 +28,9 @@ export default class MurmurExtension extends Extension {
 
     #bus: MurmurBus | null = null;
     #dictation: Dictation | null = null;
+    #engine: Engine | null = null;
     #history: History | null = null;
+    #notices: SetupNotices | null = null;
     #recordings: Recordings | null = null;
     #sessionModeId = 0;
     #settings: Gio.Settings | null = null;
@@ -36,7 +40,9 @@ export default class MurmurExtension extends Extension {
         const settings = this.getSettings();
         this.#settings = settings;
         this.#history = new History(this.uuid);
-        this.#recordings = new Recordings(settings, this.uuid);
+        this.#engine = new Engine(this);
+        this.#notices = new SetupNotices(this.#engine);
+        this.#recordings = new Recordings(settings, this.uuid, this.#engine, this.#notices);
         this.#bus = new MurmurBus(this.#recordings);
 
         this.#settingsChangedIds = SHORTCUTS.map(key =>
@@ -71,6 +77,9 @@ export default class MurmurExtension extends Extension {
         this.#dictation = null;
         this.#recordings?.destroy();
         this.#recordings = null;
+        this.#notices?.destroy();
+        this.#notices = null;
+        this.#engine = null;
         withdrawAll();
         this.#history = null;
         this.#settings = null;
@@ -90,8 +99,10 @@ export default class MurmurExtension extends Extension {
         if (locked) {
             this.#dictation?.destroy();
             this.#dictation = null;
-        } else if (!this.#dictation && this.#settings && this.#history) {
-            this.#dictation = new Dictation(this.#settings, this.#history);
+        } else if (!this.#dictation && this.#settings && this.#history && this.#engine &&
+            this.#notices) {
+            this.#dictation =
+                new Dictation(this.#settings, this.#history, this.#engine, this.#notices);
         }
         if (this.#recordings)
             this.#recordings.locked = locked;

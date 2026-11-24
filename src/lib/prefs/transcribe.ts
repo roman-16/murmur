@@ -10,7 +10,9 @@ import {errorMessage} from '../errors.js';
 import {BUS_NAME, INTERFACE, OBJECT_PATH} from '../murmur-bus.js';
 import {recordingFolder, recordingOf} from '../recording-files.js';
 import {Key, readProvider, readProviderConfig} from '../settings.js';
+import type {Engine} from '../transcription/engine.js';
 import {PROVIDER_IDS, PROVIDERS, type ProviderId} from '../transcription/provider.js';
+import {setupNeeded} from '../transcription/setup.js';
 
 const UNREACHABLE = [
     Gio.DBusError.NAME_HAS_NO_OWNER,
@@ -21,7 +23,7 @@ const UNREACHABLE = [
 ];
 
 export function makeTranscribeFileRow(
-    window: Adw.PreferencesWindow, settings: Gio.Settings): Adw.ActionRow {
+    window: Adw.PreferencesWindow, settings: Gio.Settings, engine: Engine): Adw.ActionRow {
     const row = new Adw.ActionRow({title: _('Transcribe a file')});
     const services = new Gtk.DropDown({
         tooltip_text: _('The service that transcribes it'),
@@ -37,46 +39,56 @@ export function makeTranscribeFileRow(
     row.add_suffix(choose);
     row.activatable_widget = choose;
 
-    let keyed: ProviderId[] = [];
+    let ready: ProviderId[] = [];
+    let generation = 0;
     const select = (id: ProviderId) => {
-        const index = keyed.indexOf(id);
+        const index = ready.indexOf(id);
         if (index >= 0)
             services.selected = index;
     };
-    const sync = () => {
-        const current = keyedServices(settings);
-        if (current.join() === keyed.join())
+    const sync = async () => {
+        const current = ++generation;
+        const found = await readyServices(settings, engine);
+        if (current !== generation || found.join() === ready.join())
             return;
-        const previous = keyed[services.selected];
-        keyed = current;
-        services.model = new Gtk.StringList({strings: keyed.map(id => PROVIDERS[id].label)});
+        const previous = ready[services.selected];
+        ready = found;
+        services.model = new Gtk.StringList({strings: ready.map(id => PROVIDERS[id].label)});
         select(readProvider(settings));
         if (previous)
             select(previous);
 
-        const ready = keyed.length > 0;
-        services.visible = ready;
-        choose.sensitive = ready;
-        row.subtitle = ready
+        const any = ready.length > 0;
+        services.visible = any;
+        choose.sensitive = any;
+        row.subtitle = any
             ? _('Any audio, or a recording again. The transcript goes beside it.')
-            : _('Add an API key above first');
+            : _('Add an API key or a model above first');
     };
-    sync();
-    settings.connect('changed', sync);
+    services.visible = false;
+    choose.sensitive = false;
+    row.subtitle = _('Add an API key or a model above first');
+    void sync();
+    settings.connect('changed', () => void sync());
     settings.connect(`changed::${Key.transcriptionProvider}`, () => select(readProvider(settings)));
+    const forget = engine.onInstalled(() => void sync());
+    row.connect('destroy', forget);
 
     choose.connect('clicked', () => {
-        const service = keyed[services.selected];
+        const service = ready[services.selected];
         if (service)
             void transcribe(window, settings, service);
     });
     return row;
 }
 
-function keyedServices(settings: Gio.Settings): ProviderId[] {
-    return PROVIDER_IDS
-        .filter(id => readProviderConfig(settings, id).apiKey)
-        .sort((first, second) => PROVIDERS[first].label.localeCompare(PROVIDERS[second].label));
+async function readyServices(settings: Gio.Settings, engine: Engine): Promise<ProviderId[]> {
+    const found: ProviderId[] = [];
+    for (const id of PROVIDER_IDS) {
+        if (!await setupNeeded(readProviderConfig(settings, id), engine))
+            found.push(id);
+    }
+    return found.sort((first, second) => PROVIDERS[first].label.localeCompare(PROVIDERS[second].label));
 }
 
 async function transcribe(

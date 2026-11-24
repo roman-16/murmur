@@ -10,21 +10,29 @@ Murmur reads which client holds a focused text field from the compositor, and it
 
 Extensions are compiled against the shell's own JavaScript API, which changes every release. Older or newer versions are not supported until they are tested.
 
-## It needs the network and an API key
+## The cloud services need the network and an API key
 
-Transcription happens on xAI's, Mistral's or OpenRouter's servers. There is no offline mode and no local model, so no network means no dictation, and every dictation and recording is billed to the key you gave it. A recording made offline keeps its audio and asks to be transcribed once it can be. [Privacy](privacy.md) covers the trade-off in full.
+With Grok, Mistral or OpenRouter, transcription happens on their servers, so no network means no dictation, and every dictation and recording is billed to the key you gave it. A recording made offline keeps its audio and asks to be transcribed once it can be. [Privacy](privacy.md) covers the trade-off in full.
 
-The three services are the three that exist. OpenRouter opens up every transcription model it serves, but there is no way to point Murmur at a service it does not know, or at something self-hosted, without editing the code.
+This computer needs neither, but it needs a computer up to the model: a graphics card the engine reaches through Vulkan makes any model fast, while on the processor alone only the smaller ones keep up - on a recent desktop processor, Parakeet v3 takes under a second for ten seconds of speech, Whisper large-v3 turbo nearly ten. The first dictation after the graphics driver changes takes several seconds longer, while the engine prepares the card again.
 
-## With Mistral or OpenRouter, nothing appears until you stop
+There is no way to point Murmur at a service it does not know, or at a transcription server of your own, without editing the code. This computer runs every model family the engine runs, and no other.
 
-Mistral and OpenRouter transcribe a dictation in one request when you stop, and the words arrive together a moment later: OpenRouter has no streaming transcription API, and Mistral's costs twice what its model for files does. The panel still shows the level, the countdown and where the text will land, but the transcription itself cannot be watched as it is spoken. Grok can, which is the reason to pick it.
+## On this computer, the engine is a download of its own
 
-A dictation either of them fails is lost whole, since nothing had arrived before it failed; with Grok, the words already shown are copied to the clipboard.
+extensions.gnome.org does not let an extension carry programs, so This computer's engine is not in the extension: the preferences download it, 163 MB once, after you press **Download**, and again when an update of Murmur needs a newer one. It runs in Python 3.9 or later, which most GNOME desktops have and the preferences ask for when they do not. Installed with Nix, the package brings all of it.
 
-## With Mistral or OpenRouter, a dictation ends after ten minutes
+The downloaded engine is built for the usual Linux systems. On NixOS it finds neither the C++ library nor Vulkan it needs, so there it comes from the Nix package.
 
-**Maximum dictation time** goes no higher than that with Mistral or OpenRouter, which have to be handed the whole dictation in one piece, held in memory until then. Grok imposes nothing of its own, so with it a dictation runs for as long as you set, up to a day.
+## With Mistral, OpenRouter or a model that does not stream, nothing appears until you stop
+
+Mistral and OpenRouter transcribe a dictation in one request when you stop, and the words arrive together a moment later: OpenRouter has no streaming transcription API, and Mistral's costs twice what its model for files does. A model on this computer that does not stream, which is most of them, hears the dictation whole when you stop as well. The panel still shows the level, the countdown and where the text will land, but the transcription itself cannot be watched as it is spoken. Grok can, and so can a model on this computer that streams, such as Parakeet Unified EN, Nemotron Speech Streaming or Voxtral Realtime.
+
+A dictation any of these fails is lost whole, since nothing had arrived before it failed; with one that shows the words as you speak, the words already shown are copied to the clipboard.
+
+## With Mistral, OpenRouter or This computer, a dictation ends after ten minutes
+
+**Maximum dictation time** goes no higher than that with Mistral or OpenRouter, which have to be handed the whole dictation in one piece, held in memory until then, or with This computer, whose engine holds it the same way for a model that does not stream. Grok imposes nothing of its own, so with it a dictation runs for as long as you set, up to a day.
 
 ## A long recording goes up in pieces
 
@@ -36,13 +44,13 @@ OpenRouter's providers give a request about a minute, so a model slow on ten min
 
 Your lines are yours because they came in on your microphone, which makes them certain - and makes everything else the microphone hears yours too. Several people in one room share your microphone and your name.
 
-Everyone on a call shares the desktop's channel, and only the service can tell their voices apart. It numbers them within a piece, and a number carries over to the next piece only for someone who speaks in the half minute both pieces heard; whoever is silent there comes back with a new one. A voice from a game or a video is a speaker like any other. Grok labels each word on its own and sometimes changes its mind mid-sentence, which splits that sentence over two lines. With an OpenRouter model that cannot tell speakers apart, the call's lines all read `Others`, and with one that gives no times, a piece is one line at the moment it starts, the half minute it shares with the next written twice.
+Everyone on a call shares the desktop's channel, and only the service can tell their voices apart. It numbers them within a piece, and a number carries over to the next piece only for someone who speaks in the half minute both pieces heard; whoever is silent there comes back with a new one. A voice from a game or a video is a speaker like any other. Grok labels each word on its own and sometimes changes its mind mid-sentence, which splits that sentence over two lines. With an OpenRouter model that cannot tell speakers apart, the call's lines all read `Others`, and with one that gives no times, a piece is one line at the moment it starts, the half minute it shares with the next written twice. This computer tells at most four voices apart in a ten-minute piece, and a fifth shares a number with one of them.
 
 Asking the same service again gets much the same transcript, mistakes included. Transcribing a file again is for trying another service or another model.
 
 ## A recording is billed for each side
 
-The microphone and the desktop go to the service as separate requests, each billed for its full length, so an hour of a call where both sides talk throughout is billed as two. A channel with nothing on it for a whole ten-minute piece, a muted microphone or a call that has not started, is not sent. A piece the service has not answered after a minute and a half is sent a second time, and billed twice.
+The microphone and the desktop go to a cloud service as separate requests, each billed for its full length, so an hour of a call where both sides talk throughout is billed as two. A channel with nothing on it for a whole ten-minute piece, a muted microphone or a call that has not started, is not sent. A piece the service has not answered after a minute and a half is sent a second time, and billed twice.
 
 ## Over loudspeakers, the others are heard twice
 

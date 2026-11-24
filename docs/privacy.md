@@ -1,16 +1,19 @@
 # Privacy
 
-Murmur transcribes in the cloud. That is a real trade-off, and this page states exactly what it means rather than burying it.
+Murmur transcribes in the cloud, or on your own computer with **This computer**. The cloud is a real trade-off, and this page states exactly what it means rather than burying it.
 
 ## What leaves your machine
 
-**Your voice, while you dictate, everything your computer plays while you record, and any audio file you choose to transcribe.** Audio goes over an encrypted connection to the service you chose, along with your API key in a request header and the **Names and terms** you listed. Your own name, which a transcript gives your lines, is added on your machine and never sent. That is the only network connection Murmur makes.
+**With a cloud service: your voice, while you dictate, everything your computer plays while you record, and any audio file you choose to transcribe.** Audio goes over an encrypted connection to the service you chose, along with your API key in a request header and the **Names and terms** you listed. Your own name, which a transcript gives your lines, is added on your machine and never sent. That is the only network connection Murmur makes.
+
+**With This computer: nothing.** The audio goes to an engine process on your own computer, through a pipe, and the words come back the same way. The only connections are the engine's one-time download, after you press **Download**: transcribe.cpp from `files.pythonhosted.org`, PyPI's file host, and its two helper models from `huggingface.co`, each checked against the checksum Murmur carries for it. The model file you choose is yours; Murmur fetches none.
 
 | Service | Host | Key travels as | A dictation is sent | A recording or a file is sent |
 | --- | --- | --- | --- | --- |
 | Grok | `api.x.ai` | `Authorization: Bearer` | Streamed over a WebSocket while you speak | In pieces of at most ten minutes, one request each, when you stop |
 | Mistral Voxtral (default) | `api.mistral.ai` | `Authorization: Bearer` | Whole, in one request, when you stop | In pieces of at most ten minutes, one request each, when you stop |
 | OpenRouter | `openrouter.ai` | `Authorization: Bearer` | Whole, in one request, when you stop | In pieces of at most ten minutes, one request each, when you stop |
+| This computer | None | There is no key | Nowhere | Nowhere |
 
 That is also everything. No usage statistics, no crash reports, no analytics, no update checks, and nothing that identifies Murmur as the client. Murmur contacts the host of the service you chose, or of the one you pick for a file, and only over a dictation, a recording or a file transcription you started.
 
@@ -26,23 +29,24 @@ What happens to that audio afterwards is the service's business, governed by the
 
 A recording holds other people: everyone in the call, and whatever else was playing. Their voices go to the service as yours do. Tell them you are recording, and what your jurisdiction and your employer require of a recording is yours to know before you make one.
 
-If what you say must not reach a third party, Murmur is the wrong tool, and a local model is the right one.
+If what you say must not reach a third party, pick **This computer**, and keep the recordings folder somewhere that is not synced to a cloud of its own.
 
 ## What is stored on your machine
 
 | What | Where | Notes |
 | --- | --- | --- |
 | Your API keys | dconf, under `/org/gnome/shell/extensions/murmur/` | **Unencrypted**, like every GSettings value. Any process running as you can read it. Each service keeps its own, and the one you are not using stays there until you clear it |
-| Your other settings | The same place | Shortcuts, limits, your names and terms |
+| Your other settings | The same place | Shortcuts, limits, your names and terms, the model file's path and its settings |
+| This computer's engine | `~/.local/share/murmur@roman-16.github.io/engine/` | transcribe.cpp and its two helper models, about 200 MB, kept until you delete them. A Nix install keeps them in the store instead |
 | A dictation's transcription | `~/.local/state/murmur@roman-16.github.io/history.jsonl` | **Unencrypted**, one line per dictation, oldest first, the newest 500 kept |
-| A dictation's audio | Nowhere | It goes from the microphone to the network and is never written to disk. With Mistral or OpenRouter it is held in memory until you stop, and released once it has been sent |
+| A dictation's audio | Nowhere | It goes from the microphone to the network, or to the engine, and is never written to disk. With Mistral, OpenRouter or a model on this computer that does not stream, it is held in memory until you stop, and released once it has been transcribed |
 | A recording's audio | The [recordings folder](configuration.md#recordings-folder), `~/Documents/Murmur/` unless you chose another, as `2026-03-26T22-02-34.opus` | Written as it is recorded, readable by you alone, and kept until you delete it |
 | A recording's transcript | Beside its audio, as `2026-03-26T22-02-34.md` | The service's words, with the times and the speakers Murmur puts to them, and what was around the recording: the computer's name, the devices, and with **Note what is on screen and playing** on, window titles, what played, which applications had the microphone, the camera, screen sharing, time away and the network. Readable by you alone, kept until you delete it |
 | What was around a recording | `~/.local/state/murmur@roman-16.github.io/context/2026-03-26T22-02-34.jsonl` | Written as the recording runs, so transcribing it again keeps it. Removed the next time Murmur starts after the recording's audio is gone |
 | A file's transcript | Beside the file, as `interview.md` for `interview.m4a` | Readable by you alone. One already there is replaced, after asking |
 | Which recordings still owe a transcript | `~/.local/state/murmur@roman-16.github.io/untranscribed` | The paths of recordings whose transcription has not come back yet, so they can be offered again; a path leaves once its transcript is written |
 
-The folder is the Documents folder your desktop names, `~/Documents` unless it is called something else in your language, and Murmur creates `Murmur` inside it readable by you alone. While a recording is being sent, each piece is cut into a temporary file of the same privacy for each channel, and deleted once it has been sent.
+The folder is the Documents folder your desktop names, `~/Documents` unless it is called something else in your language, and Murmur creates `Murmur` inside it readable by you alone. While a recording is being transcribed, each piece is cut into a temporary file of the same privacy for each channel, and deleted once it has been transcribed.
 
 ## Your dictation history
 
@@ -76,7 +80,7 @@ A recording carries on while the screen is locked, and its pill stays in the top
 
 ## What it costs
 
-Transcription is billed to the account the key belongs to, by the audio you send. Murmur sends only what it hears between pressing a shortcut and stopping. **Maximum dictation time**, ten minutes by default, caps what a forgotten dictation can spend, and **Stop after silence** ends a dictation you walked away from. A recording runs until you stop it, and the pill in the top bar is the reminder that it is running.
+With This computer, transcription costs nothing but the power your computer draws. With a cloud service, it is billed to the account the key belongs to, by the audio you send. Murmur sends only what it hears between pressing a shortcut and stopping. **Maximum dictation time**, ten minutes by default, caps what a forgotten dictation can spend, and **Stop after silence** ends a dictation you walked away from. A recording runs until you stop it, and the pill in the top bar is the reminder that it is running.
 
 | Service | An hour of dictation | An hour of recording |
 | --- | --- | --- |

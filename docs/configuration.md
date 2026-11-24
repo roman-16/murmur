@@ -12,20 +12,20 @@ Every setting takes effect on the next dictation or recording. Nothing needs a r
 
 ### Service
 
-Which service transcribes your dictations and your recordings. Only the chosen one's settings are on screen; the others' keys stay where they are, so switching back is one click.
+Which service transcribes your dictations and your recordings. Only the chosen one's settings are on screen; the others' keys and models stay where they are, so switching back is one click.
 
-| | Grok | Mistral Voxtral | OpenRouter |
-| --- | --- | --- | --- |
-| Key from | [console.x.ai](https://console.x.ai), once the account holds credit | [console.mistral.ai](https://console.mistral.ai) | [openrouter.ai/settings/keys](https://openrouter.ai/settings/keys) |
-| Dictation costs | About $0.20 an hour of audio | About $0.24 an hour of audio | The model's own price, on its [model page](https://openrouter.ai/models?output_modalities=transcription) |
-| Recording costs | About $0.10 an hour of each channel with something on it | About $0.24 an hour of each channel with something on it | The same model, at the same price |
-| Dictated text appears | While you speak | When you stop | When you stop |
-| Longest dictation | As long as you set; xAI publishes no session limit | 10 minutes | 10 minutes |
-| Longest recording | As long as you like | As long as you like | As long as you like |
-| Speakers in a recording | Told apart | Told apart | Told apart by the models that can |
-| Names and terms | The first 100, of up to 50 characters | All of them | The first 1000, of up to 100 characters, by the models that take them |
-| Own settings | None | None | **Model** |
-| Language | Detected by the model, and it follows a switch mid-dictation | Detected by the model | Detected by the model |
+| | Grok | Mistral Voxtral | OpenRouter | This computer |
+| --- | --- | --- | --- | --- |
+| Key from | [console.x.ai](https://console.x.ai), once the account holds credit | [console.mistral.ai](https://console.mistral.ai) | [openrouter.ai/settings/keys](https://openrouter.ai/settings/keys) | No key: Python 3, the engine and a speech model file of your own |
+| Dictation costs | About $0.20 an hour of audio | About $0.24 an hour of audio | The model's own price, on its [model page](https://openrouter.ai/models?output_modalities=transcription) | Nothing |
+| Recording costs | About $0.10 an hour of each channel with something on it | About $0.24 an hour of each channel with something on it | The same model, at the same price | Nothing |
+| Dictated text appears | While you speak | When you stop | When you stop | While you speak with a model that streams, otherwise when you stop |
+| Longest dictation | As long as you set; xAI publishes no session limit | 10 minutes | 10 minutes | 10 minutes |
+| Longest recording | As long as you like | As long as you like | As long as you like | As long as you like |
+| Speakers in a recording | Told apart | Told apart | Told apart by the models that can | Told apart, up to four in each ten-minute piece |
+| Names and terms | The first 100, of up to 50 characters | All of them | The first 1000, of up to 100 characters, by the models that take them | All of them, by the models that use them |
+| Own settings | None | None | **Model** | **Engine**, **Model**, and whatever the model takes |
+| Language | Detected by the model, and it follows a switch mid-dictation | Detected by the model | Detected by the model | Detected by the model, or set under **Language** |
 
 Mistral Voxtral is the default. Grok is the most accurate of the three while you speak - first on Artificial Analysis's English streaming benchmark in September 2026, with 2.7% of words wrong - costs less, and ends no dictation of its own. Its key works once the xAI account holds credit.
 
@@ -34,6 +34,8 @@ With Grok a dictation streams to its realtime model while you speak. With Mistra
 A recording goes up when it stops, in pieces of at most ten minutes, to the service's model for files: Grok's own, Voxtral Small Transcribe 3 with Mistral, and the model you picked with OpenRouter. Your microphone and what the computer plays are sent as separate requests, each billed for its own length, so a call where both sides talk throughout costs about twice what its length alone would; a channel with nothing on it for a whole piece is not sent.
 
 OpenRouter is one key for every transcription model it serves - Whisper, Deepgram Nova, Voxtral, Parakeet, and whatever it adds next. It does not say which of them can tell speakers apart, time what they heard or take names and terms, so Murmur asks for all of it and gives up what a model turns away, one thing at a time, for the rest of the session. The providers behind it give a request about a minute, so a model slow on ten minutes of audio can fail a recording; its audio stays, for a **Retry** or another service.
+
+This computer sends nothing anywhere: a speech model you choose, a GGUF file, runs on your own graphics card, or on the processor where there is none. See [This computer](#this-computer) below.
 
 ### Names and terms
 
@@ -46,12 +48,13 @@ They go to the service with every dictation, recording and file, and the service
 | Grok | The first 100, each up to 50 characters; a longer one is left out |
 | Mistral | All of them, as written: `Ashlands boss` goes as `Ashlands boss` |
 | OpenRouter | The first 1000, each up to 100 characters, to a model that takes them. A model that does not is asked again without them |
+| This computer | All of them, to a model that uses them. Under **Model**, one that does not says it ignores names and terms |
 
 Leave it empty and nothing is sent.
 
 ### API key
 
-Your key for the service above. Murmur does nothing without it and says so when you press either shortcut, naming the service it wants a key for.
+Your key for the service above; This computer needs none. Murmur does nothing without it and says so when you press either shortcut, naming the service it wants a key for.
 
 It is stored like every other GNOME setting, in dconf, unencrypted. [Privacy](privacy.md) covers what that means.
 
@@ -66,6 +69,28 @@ gsettings set org.gnome.shell.extensions.murmur openrouter-model openai/whisper-
 ```
 
 What each one costs is on its page at [openrouter.ai](https://openrouter.ai/models?output_modalities=transcription); Murmur does not show a price, because the models are priced by the hour, by the minute and by the token and the API does not say which.
+
+### This computer
+
+The service that transcribes on your own computer. It runs an engine, [transcribe.cpp](https://github.com/handy-computer/transcribe.cpp), and a speech model you choose, and nothing you say leaves the machine.
+
+**Engine** says which engine is installed and what it runs on: `transcribe.cpp 0.4.2, on the NVIDIA GeForce RTX 4070 SUPER`, or `on the processor` without a graphics card it can use. The engine is not part of the extension, which extensions.gnome.org forbids, so the row offers **Download** the first time: 163 MB from PyPI and Hugging Face, once, into `~/.local/share/murmur@roman-16.github.io/engine/`. Closing the preferences stops a download, and **Download** starts it again. It needs Python 3.9 or later, which the row asks for when it is missing. Installed with Nix, the engine comes with the package and there is nothing to download.
+
+With the engine come two small models of its own, which Murmur uses on every recording whatever model you choose: one that finds where speech is, so every model's lines are timed, and one that tells the voices on a call apart.
+
+**Model** is the speech model, a `.gguf` file anywhere on your computer: the folder button opens a file chooser. Any model the engine runs will do - Whisper, Parakeet, Canary, Qwen3-ASR, Voxtral, Cohere Transcribe, Granite Speech, Moonshine, SenseVoice and more; ready files for all of them are at [huggingface.co/handy-computer](https://huggingface.co/handy-computer). Choosing one tries it first, on the graphics card, which also prepares the card for it, so the first dictation does not wait for that. A file the engine cannot run, a chat model's for one, is refused with a toast and the previous model stays. The row then names the file and what the model is: its languages, whether it streams, and whether it ignores your names and terms.
+
+Below it are the model's own settings: exactly the ones the engine says this model takes, and kept for each model file separately, so switching back to a model brings its settings back.
+
+- **Language**, for a model that speaks more than one: **Automatic** detects it, or pick the one you speak.
+- **Words as you speak**, for a model that streams: the panel shows the words while you talk, as with Grok. Off, the model hears the whole dictation when you stop.
+- **Wait for settled words**, under it: the panel shows a word only once the model has stopped revising it, so the text is steadier and a little later.
+- **Punctuation** and **Numbers as digits**, for a model that can turn either off or on.
+- **Model settings**: the settings of the model's family, by the engine's own names - a lookahead in milliseconds for one, a temperature for another. Each says **Automatic** until you change it, and the undo button sets it back. A setting marked *Only while words appear as you speak* changes nothing in a recording.
+
+A value is tried on the model when you set it, and one the model refuses is not kept: the row says what the engine said, `The model refused it: invalid argument`.
+
+A dictation starts the engine when you press the shortcut, so the model loads while you speak, and the engine is gone again once the words are in. A recording is transcribed one piece at a time, since every piece loads the model onto the same graphics card. When the card has no memory left, the engine carries on with the processor, more slowly, rather than lose the words.
 
 ## Dictation
 
@@ -95,8 +120,9 @@ How high it goes is the selected service's business, so the number you set is al
 | Grok | **86400 seconds**, a day. xAI publishes no limit; the ceiling is Murmur declining to offer a dictation with no end at all |
 | Mistral Voxtral | **600 seconds**. The whole dictation is sent in one request, so its length is also how much audio is held in memory and how much the model is asked to take at once, and Mistral turns away a request whose audio and names and terms together outrun its model's context |
 | OpenRouter | **600 seconds**, for the same reason |
+| This computer | **600 seconds**. A model that does not stream hears the whole dictation at once, and the engine holds all of it until then |
 
-Switching to Mistral or OpenRouter with a longer time set lowers it to 600, and switching back to Grok leaves it there.
+Switching to Mistral, OpenRouter or This computer with a longer time set lowers it to 600, and switching back to Grok leaves it there.
 
 ### Stop after silence
 
@@ -165,7 +191,7 @@ A file from anywhere else, or a recording from another computer, has no note, an
 
 ### Transcribe a file
 
-Transcribes an audio file you choose - a recording again, or audio from anywhere else, in any format GStreamer plays - with the service picked beside it. The list holds the services that have a key, and follows **Service** until you pick another. The file chooser opens in the recordings folder.
+Transcribes an audio file you choose - a recording again, or audio from anywhere else, in any format GStreamer plays - with the service picked beside it. The list holds the services that are ready - a cloud service with a key, This computer with its engine and a model - and follows **Service** until you pick another. The file chooser opens in the recordings folder.
 
 The transcript is saved beside the audio under the same name, `interview.md` for `interview.m4a`. When one is already there, Murmur asks before replacing it, and replaces it only once the new transcript is done; a transcription that hears no words leaves it as it is. The file is transcribed the way a recording is, with its pill, its notification and **Retry**, and billed the same.
 
@@ -173,13 +199,13 @@ A recording of Murmur's is told apart by channel as above. Any other file, one w
 
 The same service gives the same words for the same audio, so a recording transcribed again by the service that got it wrong mostly comes back wrong the same way. Pick another service, or another OpenRouter model.
 
-A script can ask for the same thing over D-Bus, with the file's full path and `mistral`, `openrouter` or `xai`:
+A script can ask for the same thing over D-Bus, with the file's full path and `local`, `mistral`, `openrouter` or `xai`:
 
 ```bash
 gdbus call --session --dest org.gnome.Shell --object-path /org/gnome/Shell/Extensions/Murmur --method org.gnome.Shell.Extensions.Murmur.Transcribe ~/Downloads/interview.m4a xai
 ```
 
-It answers `()` once the transcription has started, or with the reason it refused: a file that is not there or is not audio, a service with no key, the recording still running, or a file already being transcribed.
+It answers `()` once the transcription has started, or with the reason it refused: a file that is not there or is not audio, a service that is not set up, the recording still running, or a file already being transcribed.
 
 ## History
 
@@ -223,6 +249,7 @@ gsettings set org.gnome.shell.extensions.murmur xai-api-key "$(cat ~/.secrets/xa
 gsettings set org.gnome.shell.extensions.murmur mistral-api-key "$(cat ~/.secrets/mistral)"
 gsettings set org.gnome.shell.extensions.murmur openrouter-api-key "$(cat ~/.secrets/openrouter)"
 gsettings set org.gnome.shell.extensions.murmur openrouter-model meta/muse-voice-transcribe-1.0
+gsettings set org.gnome.shell.extensions.murmur local-model ~/Models/parakeet-tdt-0.6b-v3-Q8_0.gguf
 gsettings set org.gnome.shell.extensions.murmur names-and-terms "['Lukas', 'Valheim', 'Ashlands']"
 gsettings set org.gnome.shell.extensions.murmur remember-dictations false
 gsettings set org.gnome.shell.extensions.murmur toggle-dictation "['<Super>space']"
@@ -237,7 +264,9 @@ gsettings set org.gnome.shell.extensions.murmur typing-speed 500
 
 | Key | Type | Default | Range |
 | --- | --- | --- | --- |
-| `max-dictation-seconds` | integer | 600 | 15 to 86400, and to 600 in the preferences while Mistral or OpenRouter is selected |
+| `local-model` | string | empty | The full path of a speech model the engine runs |
+| `local-model-settings` | dictionary | empty | For each model file's full path, the settings changed from the engine's own: `language`, `live`, `settle`, `pnc`, `itn`, or the family's own as `ParakeetBufferedStreamOptions.right_ms` |
+| `max-dictation-seconds` | integer | 600 | 15 to 86400, and to 600 in the preferences while Mistral, OpenRouter or This computer is selected |
 | `mistral-api-key` | string | empty | |
 | `names-and-terms` | string list | empty | |
 | `openrouter-api-key` | string | empty | |
@@ -248,7 +277,7 @@ gsettings set org.gnome.shell.extensions.murmur typing-speed 500
 | `silence-timeout-seconds` | integer | 0 | 0 to 30 |
 | `toggle-dictation` | string list | `['<Super>space']` | |
 | `toggle-recording` | string list | `['<Super><Alt>space']` | |
-| `transcription-provider` | `mistral`, `openrouter` or `xai` | `mistral` | |
+| `transcription-provider` | `local`, `mistral`, `openrouter` or `xai` | `mistral` | |
 | `typing-speed` | integer | 2000 | 10 to 5000 |
 | `xai-api-key` | string | empty | |
 

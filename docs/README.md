@@ -5,7 +5,7 @@
 | Page | What's in it |
 | --- | --- |
 | [Installation](installation.md) | Every install route, requirements, updating, uninstalling |
-| [Getting started](getting-started.md) | Your API key, your first dictation, the keys, your first recording |
+| [Getting started](getting-started.md) | Your API key or your model, your first dictation, the keys, your first recording |
 | [Configuration](configuration.md) | Every setting, what it changes, and its `gsettings` key |
 
 ## Reference

@@ -1362,12 +1362,16 @@ export default class Probe extends Extension {
 
         const {heard} = pieces[1];
         try {
-            const tone = await cutPiece(file, heard, {index: 0, of: 2}, cancellable);
-            const silence = await cutPiece(file, heard, {index: 1, of: 2}, cancellable);
-            const both = await cutPiece(file, heard, null, cancellable);
-            const halves = await cutPiece(file, {end: 1, start: 0}, {index: 0, of: 2}, cancellable);
+            const tone = await cutPiece(file, heard, {index: 0, of: 2}, 'ogg', cancellable);
+            const silence = await cutPiece(file, heard, {index: 1, of: 2}, 'ogg', cancellable);
+            const both = await cutPiece(file, heard, null, 'ogg', cancellable);
+            const halves =
+                await cutPiece(file, {end: 1, start: 0}, {index: 0, of: 2}, 'ogg', cancellable);
+            const wave = await cutPiece(file, heard, {index: 0, of: 2}, 'wav', cancellable);
             const cut = tone && await layoutOf(tone, cancellable);
-            [tone, both, halves].forEach(piece => piece?.delete(null));
+            const waveCut = wave && await layoutOf(wave, cancellable);
+            const header = wave && new TextDecoder().decode(wave.load_contents(null)[1].subarray(0, 4));
+            [tone, both, halves, wave].forEach(piece => piece?.delete(null));
             this.#ok('a channel is cut out of the recording at the length its piece hears',
                 cut !== null && Math.abs(cut.seconds - (heard.end - heard.start)) < 0.05 &&
                 cut.channels === null,
@@ -1375,6 +1379,10 @@ export default class Probe extends Extension {
             this.#ok('a channel with nothing on it is not cut at all', silence === null);
             this.#ok('a recording can be cut as one track', both !== null);
             this.#ok('a piece a whole number of half seconds long is heard', halves !== null);
+            this.#ok('a piece for this computer is cut as a WAV the length its piece hears',
+                header === 'RIFF' && waveCut !== null &&
+                Math.abs(waveCut.seconds - (heard.end - heard.start)) < 0.05,
+                `${header} ${JSON.stringify(waveCut)} for ${JSON.stringify(heard)}`);
         } catch (error) {
             this.#fail('a channel is cut out of the recording at the length its piece hears',
                 `${error}`);

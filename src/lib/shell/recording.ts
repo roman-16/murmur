@@ -7,12 +7,15 @@ import {errorMessage, isCancelled} from '../errors.js';
 import {deleteFile, exists} from '../files.js';
 import {type RecordingFile, RecordingFiles, recordingOf} from '../recording-files.js';
 import {Key, readProvider, readProviderConfig} from '../settings.js';
+import type {Engine} from '../transcription/engine.js';
 import {
     isProviderId,
+    type PieceFormat,
     type ProviderId,
     PROVIDERS,
     type RecordingTranscriber
 } from '../transcription/provider.js';
+import {setupError, setupNeeded} from '../transcription/setup.js';
 import {recordingTranscriberFor, serviceOf} from '../transcription/transcription.js';
 import {
     linesOf,
@@ -36,18 +39,20 @@ import {duration} from './clock.js';
 import {ContextWatch} from './context.js';
 import {notify} from './notify.js';
 import {RecordingIndicator} from './recording-indicator.js';
+import type {SetupNotices} from './setup-notices.js';
 
 const AWAY_SECONDS = 300;
 const CARRY_ON_SECONDS = 10;
 const OVERLAP_SECONDS = 15;
 const PIECE_SECONDS = 600;
-const PIECES_AT_ONCE = 3;
 const QUIET_MS = 1000;
 const SETTLE_SECONDS = 5;
 const STAMP = '%Y-%m-%dT%H:%M:%S';
 const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 type Listening = {channel: Channel | null; diarize: boolean; unlabelled: string | null};
+
+type Transcriber = {format: PieceFormat; piecesAtOnce: number; transcribe: RecordingTranscriber};
 
 type Active = {
     context: ContextWatch;
@@ -64,8 +69,10 @@ type Interrupted = {audio: string; cutUs: number; recordedUs: number};
 
 export class Recordings {
     readonly #cancellable = new Gio.Cancellable();
+    readonly #engine: Engine;
     readonly #files: RecordingFiles;
     readonly #indicators = new Set<RecordingIndicator>();
+    readonly #notices: SetupNotices;
     readonly #recorders = new Set<Recorder>();
     readonly #settings: Gio.Settings;
     readonly #transcribing = new Set<string>();
@@ -76,8 +83,10 @@ export class Recordings {
     #locked = false;
     #starting = false;
 
-    constructor(settings: Gio.Settings, uuid: string) {
+    constructor(settings: Gio.Settings, uuid: string, engine: Engine, notices: SetupNotices) {
+        this.#engine = engine;
         this.#files = new RecordingFiles(settings, uuid);
+        this.#notices = notices;
         this.#settings = settings;
     }
 
@@ -122,15 +131,15 @@ export class Recordings {
             return;
         }
 
-        const provider = readProviderConfig(this.#settings);
-        if (!provider.apiKey) {
-            const {vendor} = PROVIDERS[provider.kind];
-            notify({title: `Set your ${vendor} API key in the extension preferences`});
-            return;
-        }
-
         this.#starting = true;
         try {
+            const setup = await setupNeeded(readProviderConfig(this.#settings), this.#engine);
+            if (this.#cancellable.is_cancelled())
+                return;
+            if (setup) {
+                this.#notices.show(setup);
+                return;
+            }
             await this.#start();
         } catch (error) {
             notify({body: errorMessage(error), title: 'The recording could not start'});
@@ -192,8 +201,9 @@ export class Recordings {
         const name = file.audio.get_basename() ?? path;
         if (file.transcript.equal(file.audio))
             throw new Error(`${name} would be written over by its own transcript`);
-        if (!readProviderConfig(this.#settings, service).apiKey)
-            throw new Error(`Set your ${PROVIDERS[service].vendor} API key in the extension preferences`);
+        const setup = await setupNeeded(readProviderConfig(this.#settings, service), this.#engine);
+        if (setup)
+            throw setupError(setup);
         if (this.#active?.file.audio.equal(file.audio))
             throw new Error('That recording is still going - stop it first');
         if (!await exists(file.audio))
@@ -311,9 +321,18 @@ export class Recordings {
         const indicator = shown ?? this.#indicator({transcribing: true});
         try {
             const provider = readProviderConfig(this.#settings, service);
-            if (!provider.apiKey)
-                throw new Error(`Set your ${PROVIDERS[service].vendor} API key in the extension preferences`);
-            const transcriber = recordingTranscriberFor(provider);
+            const setup = await setupNeeded(provider, this.#engine);
+            if (setup?.kind === 'engine') {
+                this.#notices.show(setup, () => void this.#transcribe(file, service));
+                return;
+            }
+            if (setup)
+                throw setupError(setup);
+            const transcriber: Transcriber = {
+                format: PROVIDERS[service].pieceFormat,
+                piecesAtOnce: PROVIDERS[service].piecesAtOnce,
+                transcribe: recordingTranscriberFor(provider, this.#engine),
+            };
             await this.#files.makeWhole(
                 file, (parts, whole) => joinParts(parts, whole, this.#cancellable));
             const layout = await layoutOf(file.audio, this.#cancellable);
@@ -352,7 +371,7 @@ export class Recordings {
     }
 
     async #transcribePieces(
-        transcriber: RecordingTranscriber, audio: Gio.File, pieces: Piece[], listening: Listening[],
+        transcriber: Transcriber, audio: Gio.File, pieces: Piece[], listening: Listening[],
         indicator: RecordingIndicator): Promise<(Transcribed | null)[][]> {
         const cancellable = new Gio.Cancellable();
         const release = whenCancelled(this.#cancellable, () => cancellable.cancel());
@@ -363,7 +382,7 @@ export class Recordings {
         };
         counted();
         try {
-            return await mapAtMost(pieces, PIECES_AT_ONCE, async piece => {
+            return await mapAtMost(pieces, transcriber.piecesAtOnce, async piece => {
                 const heard = await Promise.all(listening.map(track =>
                     this.#transcribePiece(transcriber, audio, piece, track, cancellable)));
                 done++;
@@ -379,13 +398,13 @@ export class Recordings {
     }
 
     async #transcribePiece(
-        transcriber: RecordingTranscriber, audio: Gio.File, piece: Piece, track: Listening,
+        transcriber: Transcriber, audio: Gio.File, piece: Piece, track: Listening,
         cancellable: Gio.Cancellable): Promise<Transcribed | null> {
-        const cut = await cutPiece(audio, piece.heard, track.channel, cancellable);
+        const cut = await cutPiece(audio, piece.heard, track.channel, transcriber.format, cancellable);
         if (!cut)
             return null;
         try {
-            return await transcriber(cut, {diarize: track.diarize}, cancellable);
+            return await transcriber.transcribe(cut, {diarize: track.diarize}, cancellable);
         } finally {
             await deleteFile(cut).catch(() => {});
         }

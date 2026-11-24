@@ -22,6 +22,7 @@ build: deps
     {{tsc}}
     bun '{{root}}/scripts/metadata.ts' > '{{dist}}/metadata.json'
     cp '{{root}}/LICENSE' '{{root}}/src/stylesheet.css' '{{dist}}'
+    cp '{{root}}/src/lib/transcription/engine.json' '{{root}}/src/lib/transcription/engine.py' '{{dist}}/lib/transcription'
     cp --recursive '{{root}}/schemas' '{{dist}}'
 
 # Type-check without emitting
@@ -60,9 +61,10 @@ boundaries:
         {{root}}/src/lib/*.ts {{root}}/src/lib/transcription/*.ts
     exit $status
 
-# Check the changelog parser, which decides what gets published
+# Check the changelog parser, the transcript, the context log and the engine's answers
 test:
     bun test '{{root}}/scripts'
+    PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover --start-directory '{{root}}/scripts' --pattern '*_test.py'
 
 # Drive the panel with a real pointer in a throwaway nested GNOME Shell
 test-shell: build

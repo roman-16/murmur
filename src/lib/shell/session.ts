@@ -3,6 +3,7 @@ import GLib from 'gi://GLib';
 
 import type {DictationConfig} from '../settings.js';
 import {oneLine} from '../transcript.js';
+import type {Engine} from '../transcription/engine.js';
 import {SAMPLE_RATE, type Transcription} from '../transcription/provider.js';
 import {transcriptionFor} from '../transcription/transcription.js';
 import {meterFromDecibels, Microphone} from './audio.js';
@@ -31,11 +32,12 @@ export class Session {
     #silentUs = 0;
 
     constructor(
-        config: DictationConfig, handlers: SessionHandlers, cancellable: Gio.Cancellable) {
+        config: DictationConfig, engine: Engine, handlers: SessionHandlers,
+        cancellable: Gio.Cancellable) {
         this.#handlers = handlers;
         this.#silenceLimitUs = config.silenceSeconds * 1000000;
         this.#transcription = transcriptionFor(
-            config.provider, text => handlers.onPartial(oneLine(text)), cancellable);
+            config.provider, engine, text => handlers.onPartial(oneLine(text)), cancellable);
     }
 
     async run(): Promise<string> {

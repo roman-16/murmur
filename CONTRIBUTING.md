@@ -4,7 +4,7 @@ Thanks for helping out. Issues, ideas and pull requests are all welcome.
 
 ## Scope
 
-Murmur is push-to-talk dictation and recording for GNOME on Wayland: one shortcut, one panel, text into the focused field; another shortcut, one pill, everything you hear and say into a file and its transcript. Things that fit are better transcription, better insertion, fewer surprises. Things that do not: other desktops, other session types, a local model bundled into the extension, and anything that needs a background service, since running entirely inside the shell is the point.
+Murmur is push-to-talk dictation and recording for GNOME on Wayland: one shortcut, one panel, text into the focused field; another shortcut, one pill, everything you hear and say into a file and its transcript. Things that fit are better transcription, better insertion, fewer surprises. Things that do not: other desktops, other session types, a program or a model shipped inside the extension, and anything that needs a background service, since running inside the shell is the point. The one process Murmur starts beside it, This computer's engine, lives exactly as long as the transcription that started it.
 
 That last one is also why the dictation panel is shell chrome rather than a window: a window would need a second process, and everything a window would give it (alt-tab, minimise, stacking) is worth less than the panel appearing the instant you press the shortcut.
 
@@ -16,7 +16,7 @@ The toolchain is pinned with [devbox](https://www.jetify.com/devbox) and [direnv
 git clone https://github.com/roman-16/murmur.git
 cd murmur
 direnv allow      # or: devbox shell
-cp .env.example .env      # a key for one service, and optionally MURMUR_PROVIDER, OPENROUTER_MODEL, DICTATION_SHORTCUT and RECORDING_SHORTCUT
+cp .env.example .env      # a key for one service or a LOCAL_MODEL, and optionally MURMUR_PROVIDER, OPENROUTER_MODEL, DICTATION_SHORTCUT and RECORDING_SHORTCUT
 ```
 
 Without devbox you need Bun, GJS, GLib's tools, `just`, `librsvg`, Python, `uv` and `zip` on your own, and GStreamer with its base and good plugins and PipeWire's GStreamer plugin, which the shell itself loads.
@@ -29,7 +29,7 @@ Without devbox you need Bun, GJS, GLib's tools, `just`, `librsvg`, Python, `uv` 
 just build        # compile src/ into dist/
 just check        # type-check only
 just lint         # oxlint, type-check, the process boundary and the changelog; run before every commit
-just test         # check the changelog parser, how a transcript is put together, and the context log
+just test         # check the changelog parser, how a transcript is put together, the context log, and the engine's answers
 just test-shell   # drive the panel with a real pointer in a throwaway nested shell
 just dev          # run in a throwaway, isolated nested GNOME Shell
 just install      # symlink dist/ into your extensions dir
@@ -45,7 +45,7 @@ just pack         # build the .shell-extension.zip
 nix build         # build the extension through the flake, as a Nix install does
 ```
 
-`just dev` boots a nested GNOME Shell with its own `XDG_DATA_HOME`, picks up the API keys in `.env`, and touches nothing in your real session. It also unsets `GTK_IM_MODULE`, because the desktop session points clients at ibus and the nested one runs none: a GTK client that cannot reach its input method never enables the Wayland text-input protocol, so every field in the nested session would look like no field and every dictation would go to the clipboard. It is the fastest way to try a change; a real session needs a log out and back in for every reload, because Wayland cannot restart the shell in place.
+`just dev` boots a nested GNOME Shell with its own `XDG_DATA_HOME`, picks up the API keys and the `LOCAL_MODEL` in `.env`, borrows the engine you downloaded for This computer, and touches nothing in your real session. It also unsets `GTK_IM_MODULE`, because the desktop session points clients at ibus and the nested one runs none: a GTK client that cannot reach its input method never enables the Wayland text-input protocol, so every field in the nested session would look like no field and every dictation would go to the clipboard. It is the fastest way to try a change; a real session needs a log out and back in for every reload, because Wayland cannot restart the shell in place.
 
 Inside that session the shortcuts are **`Super+J`** to dictate and **`Super+K`** to record, set by `DICTATION_SHORTCUT` and `RECORDING_SHORTCUT` in `.env`, because a key combination belongs to one compositor: your own session matches `Super+Space` first and the nested shell never sees it. When a run in a window does need the real combination, `scripts/nested-shell.sh` borrows it from your session and gives it back on exit; a headless run, like the demo's, takes nothing from your session.
 
@@ -58,22 +58,24 @@ src/stylesheet.css     geometry for the panel; its colours come from the shell t
 src/lib/               shared by both, Gio and GLib only: settings, history, the recording files and their context log, the D-Bus contract, and the transcript
 src/lib/shell/         shell-only: dictation, recording, audio, what is around a recording, media players, panel, indicators, insertion, focus, notifications
 src/lib/prefs/         preferences-only: rows, shortcut capture, dotool diagnostics, history page
-src/lib/transcription/ the ways audio becomes text, and the table of services
+src/lib/transcription/ the ways audio becomes text, the table of services, and This computer's engine
 ```
 
 `audio.ts` is everything Murmur hears, through GStreamer pipelines inside the shell: a `Microphone` for a dictation, whose samples are collected from the main loop because GJS cannot run on GStreamer's threads, a `Recorder` that lays the microphone and the default output's monitor side by side, as the two channels of an Opus file it writes as it goes and tags as Murmur's, and the pieces a recording is cut into for transcription, one channel at a time.
 
-A dictation is `dictation.ts`, the panel and the delivery, around `session.ts`, which meters the microphone, watches for silence, and hands the audio to a `Transcription` - the seam every service's dictation comes through: fed chunks, told when the microphone is released, and finally the words. There are two implementations of it. `stream.ts` holds a WebSocket open for the dictation and drives a `StreamProtocol` - the endpoint, the frames to send, and the events to make of what comes back, which is most of `xai.ts`. `upload-transcription.ts` is the other: it keeps the audio and hands it, as a WAV, to the service's `DictationSender` when the dictation ends, which is how `mistral.ts` and `openrouter.ts` take a dictation.
+A dictation is `dictation.ts`, the panel and the delivery, around `session.ts`, which meters the microphone, watches for silence, and hands the audio to a `Transcription` - the seam every service's dictation comes through: fed chunks, told when the microphone is released, and finally the words. There are three implementations of it. `stream.ts` holds a WebSocket open for the dictation and drives a `StreamProtocol` - the endpoint, the frames to send, and the events to make of what comes back, which is most of `xai.ts`. `upload-transcription.ts` keeps the audio and hands it, as a WAV, to the service's `DictationSender` when the dictation ends, which is how `mistral.ts` and `openrouter.ts` take a dictation. `local.ts` pipes the audio into This computer's engine as it is heard.
 
-A recording is `recording.ts`, the pill and the notifications, around `recording-files.ts`, which names the files and remembers which still owe a transcript. A recording goes to the service in pieces of at most ten minutes, one channel at a time, and its seam is a `RecordingTranscriber`, one channel of one piece in and what was said out, each utterance with its times and the service's speaker label. Each service's is a few lines over `upload.ts`, which streams the file up as a form or as JSON, sends it again when the service is busy or slow to answer, and hands back the service's answer for the service to read. `transcript.ts` puts the pieces back together: it keeps what each piece heard between its own cuts, matches speaker labels across cuts by the stretch two pieces both heard, and writes the lines. It imports nothing, so `just test` runs it under Bun.
+This computer's engine is `engine.py`, a Python script run by `engine.ts` as a process of its own for one job - describe a model, try its settings, download the engine, transcribe a dictation or a piece - which answers one JSON object a line, read by `engine-protocol.ts`. It is Python because the engine, [transcribe.cpp](https://github.com/handy-computer/transcribe.cpp), is a C library that Python's standard library can call and GJS cannot, and a process of its own because a model running in the compositor would stall the desktop. `engine.json` pins the engine's files and their checksums, for the download and for `flake.nix` alike. Murmur knows no model by name: what a model can do and which settings it takes come from the engine, and the preferences show exactly that, so a family the engine learns needs nothing from Murmur.
+
+A recording is `recording.ts`, the pill and the notifications, around `recording-files.ts`, which names the files and remembers which still owe a transcript. A recording goes to the service in pieces of at most ten minutes, one channel at a time, and its seam is a `RecordingTranscriber`, one channel of one piece in and what was said out, each utterance with its times and the service's speaker label. This computer's runs the engine on the piece as a WAV. Each cloud service's is a few lines over `upload.ts`, which streams the file up as a form or as JSON, sends it again when the service is busy or slow to answer, and hands back the service's answer for the service to read. `transcript.ts` puts the pieces back together: it keeps what each piece heard between its own cuts, matches speaker labels across cuts by the stretch two pieces both heard, and writes the lines. It imports nothing, so `just test` runs it under Bun.
 
 While a recording runs, `context.ts` notes what goes on around it - windows and focus, what plays and what holds the microphone through the shell's own mixer, `media.ts`'s MPRIS players, the camera, screen sharing, time away, the network - and appends each change, once it has held, to a log in the extension's state directory, in the format `context-log.ts` reads and writes. `transcript.ts` turns that log into the header and the bracketed lines among what was said. `context-log.ts` imports only types, so `just test` runs it under Bun too.
 
 A file picked under **Transcribe a file** goes through the same `Recordings`. The preferences cannot run it, since their process ends with the window, so they hand it to the shell over D-Bus: `bus.ts` puts a `Transcribe` method on the shell's own session-bus connection, under the path and interface `murmur-bus.ts` names for both halves.
 
-Adding a service means one module holding both halves, a row in `PROVIDERS`, and its keys in the schema. Nothing else in Murmur knows which one is selected.
+Adding a service means one module holding both halves, a row in `PROVIDERS`, its keys in the schema, and what it still needs before it can run in `setup.ts`. Nothing else in Murmur knows which one is selected.
 
-`just build` compiles the TypeScript into `dist/`, copies `src/stylesheet.css` and `schemas/` alongside it, and writes `metadata.json` with the `version-name` [`CHANGELOG.md`](CHANGELOG.md) declares. That is the layout GNOME Shell loads.
+`just build` compiles the TypeScript into `dist/`, copies `src/stylesheet.css`, the engine's `engine.py` and `engine.json`, and `schemas/` alongside it, and writes `metadata.json` with the `version-name` [`CHANGELOG.md`](CHANGELOG.md) declares. That is the layout GNOME Shell loads.
 
 The two halves run in **different processes** that load different libraries. Importing `Clutter`, `Meta`, `Shell` or `St` into the preferences, or `Adw`, `Gdk` or `Gtk` into the shell, fails at load time. `just lint` greps for it and fails the build, so the boundary is checked rather than remembered.
 
@@ -91,7 +93,7 @@ The two halves run in **different processes** that load different libraries. Imp
 
 ## Testing a change
 
-`just test` covers the changelog parser, because that one decides what gets published, and `transcript.ts` and `context-log.ts`, because what a transcript says about who spoke, when, and what was going on is decided there and nowhere a service could check it.
+`just test` covers the changelog parser, because that one decides what gets published, and `transcript.ts` and `context-log.ts`, because what a transcript says about who spoke, when, and what was going on is decided there and nowhere a service could check it. It also covers what Murmur makes of the engine's answers, and the parts of `engine.py` that need no engine: how speech and voices become timed lines, and what is left to download.
 
 `just test-shell` covers the panel, by building it inside a throwaway headless GNOME Shell and clicking it with a real pointer. Run it after anything under `src/lib/shell/`; [`scripts/shell-test/README.md`](scripts/shell-test/README.md) explains why it needs a whole compositor, and why a synthetic click that never lands makes for a test that cannot fail. It is not in CI, because a runner has no GNOME Shell.
 
@@ -107,7 +109,8 @@ Everything past that is the compositor, and the interesting failures are all in 
 - a password field, which must land in the field and **not** in the history page,
 - clicking anywhere outside the panel mid-dictation, which must collapse it and hand the keyboard back, whether or not you changed application,
 - a fullscreen window, which the panel has to be visible over,
-- **all three transcription services**, since each speaks its own protocol and only one of them is exercised by a dictation - and Mistral and OpenRouter are the ones that transcribe nothing until the microphone closes. `MURMUR_PROVIDER=openrouter just dev` switches the throwaway session over,
+- **all four transcription services**, since each speaks its own protocol and only one of them is exercised by a dictation - and Mistral and OpenRouter are the ones that transcribe nothing until the microphone closes. `MURMUR_PROVIDER=openrouter just dev` switches the throwaway session over,
+- **This computer** with a model that streams and one that does not, a dictation and a recording with each, **Words as you speak** off, a family setting the model refuses, **Download** cancelled partway and done again, the engine missing when the shortcut is pressed, a model file moved away, and a file that is not a speech model. `MURMUR_PROVIDER=local LOCAL_MODEL=~/Models/parakeet-tdt-0.6b-v3-Q8_0.gguf just dev` sets the throwaway session up with the engine you already downloaded,
 - a **recording** with each service, with something playing and something said, stopped both from the shortcut and from the pill's menu, then **Open** and **Copy path** on its notification, and **Discard…**; one longer than ten minutes, with two voices on the call speaking across a cut, to see them keep their numbers,
 - a **recording** through a call in a browser, a video and a few windows brought to the front, then the transcript's header and its bracketed lines; and again with **Note what is on screen and playing** off,
 - **Names and terms** with each service, in a dictation and in a recording,

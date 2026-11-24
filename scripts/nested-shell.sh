@@ -133,8 +133,17 @@ fi
 # text-input to the nested compositor directly.
 unset GTK_IM_MODULE QT_IM_MODULE QT_IM_MODULES XMODIFIERS
 
+engine="${XDG_DATA_HOME:-$HOME/.local/share}/$uuid/engine"
+
 export XDG_CACHE_HOME="$tmp/cache" XDG_CONFIG_HOME="$tmp/config" XDG_DATA_HOME="$tmp/data" \
     XDG_STATE_HOME="$tmp/state"
+
+# The engine This computer transcribes with is a download of its own, which a
+# throwaway profile would otherwise make again on every run.
+if [ -d "$engine" ]; then
+    mkdir --parents "$XDG_DATA_HOME/$uuid"
+    ln --symbolic "$engine" "$XDG_DATA_HOME/$uuid/engine"
+fi
 
 # dotool types through /dev/uinput into the machine's own seat, which a headless
 # session does not read: the keys would land in whatever the desktop, or its
@@ -183,6 +192,9 @@ gsettings set org.gnome.shell disable-user-extensions false
 gsettings set org.gnome.shell welcome-dialog-last-shown-version '99.0'
 gsettings set org.gnome.shell.extensions.murmur toggle-dictation "['$dictation_shortcut']"
 gsettings set org.gnome.shell.extensions.murmur toggle-recording "['$recording_shortcut']"
+if [ -n "\${LOCAL_MODEL:-}" ]; then
+    gsettings set org.gnome.shell.extensions.murmur local-model "\$LOCAL_MODEL"
+fi
 if [ -n "\${MISTRAL_API_KEY:-}" ]; then
     gsettings set org.gnome.shell.extensions.murmur mistral-api-key "\$MISTRAL_API_KEY"
 fi

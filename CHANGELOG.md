@@ -6,6 +6,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 Adding a version section here is what publishes a release, so this file is the one place a version is decided: see [Releasing](CONTRIBUTING.md#releasing). Versions that shipped before this file existed are on the [releases page](https://github.com/roman-16/murmur/releases).
 
+## [2.2.0] - 2026-11-24
+
+### Highlights
+
+- **Transcribe on your own computer** - pick **This computer** under **Service**, download its engine once and choose a speech model file: nothing you say leaves your computer and nothing is billed, and a model that streams shows the words as you speak. See [Configuration](docs/configuration.md#this-computer).
+
+### Added
+
+- **This computer** joins **Service**: it transcribes dictations, recordings and files on your own computer with a speech model file you choose under **Model** - any the engine runs, Whisper, Parakeet, Qwen3-ASR, Voxtral, Canary and more - on your graphics card, or on the processor without one.
+- **Download** on This computer's **Engine** row fetches the engine once, 163 MB from PyPI and Hugging Face. It needs Python 3.9 or later.
+- When the engine is missing, or an update of Murmur needs a newer one, the notification at the shortcut offers **Download**.
+- With This computer, a model that streams shows the words in the panel as you speak, and any other gives them when you stop.
+- The settings the chosen model takes appear under **Model**, kept for each model file: **Language**, **Words as you speak**, **Wait for settled words**, **Punctuation** and **Numbers as digits** where the model has them, and its family's own under **Model settings**.
+- A recording transcribed on This computer times every line and numbers the voices on the call, up to four in each ten-minute piece.
+- `local` selects This computer in the `transcription-provider` key and in the D-Bus `Transcribe` method, and `local-model` and `local-model-settings` hold the model file and its settings.
+
+### Changed
+
+- The Nix package brings This computer's engine along - Python, transcribe.cpp and its two helper models - so there is nothing to download, and its closure is about 400 MB larger.
+
 ## [2.1.2] - 2026-11-13
 
 ### Fixed

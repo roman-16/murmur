@@ -9,8 +9,8 @@ Push-to-talk dictation for GNOME on Wayland: TypeScript in `src/`, compiled to p
 | anything under `src/` | `just lint` | `oxlint`, `tsc --noEmit` against the GNOME Shell type definitions, the process boundary between the shell and the preferences, and the changelog |
 | anything under `src/`, or `metadata.json` | `just review` | Shexli, the checker extensions.gnome.org prints above every review, on the built extension. It fails on any notice but the ones `scripts/review.ts` expects |
 | anything under `src/lib/shell/` | `just test-shell` | The panel, built inside a throwaway headless GNOME Shell and clicked with a real pointer. Takes about half a minute and touches nothing in the session |
-| `CHANGELOG.md`, `src/lib/transcript.ts`, `src/lib/context-log.ts`, or anything under `scripts/` | `just test` | The parser that decides what gets published, over its rules and the repository's own changelog, how a recording's pieces become a transcript, and how what was around it is kept and written |
-| the packaging, or the files the extension ships | `nix build` | The extension builds from the flake and installs the layout GNOME Shell loads |
+| `CHANGELOG.md`, `src/lib/transcript.ts`, `src/lib/context-log.ts`, `src/lib/transcription/engine.py`, `src/lib/transcription/engine-protocol.ts`, or anything under `scripts/` | `just test` | The parser that decides what gets published, over its rules and the repository's own changelog, how a recording's pieces become a transcript, how what was around it is kept and written, and how the engine's speech, voices and downloads become what Murmur reads |
+| the packaging, `src/lib/transcription/engine.json`, or the files the extension ships | `nix build` | The extension builds from the flake, with the engine `engine.json` pins, and installs the layout GNOME Shell loads |
 
 Fix every finding before the work counts as done.
 
@@ -26,6 +26,12 @@ Every release is uploaded to extensions.gnome.org, where a reviewer reads the bu
 - Teardown runs unconditionally. No flag guards a `destroy()` or a `stop()`; a resource's own handle is the only check.
 - Teardown is called `destroy()`: the checker does not see cleanup under another name.
 - Nothing survives `disable()` in memory. What a recording needs across it is the `interrupted-recording` setting.
+- This computer's engine is never in the zip, and is downloaded only after someone presses **Download**, in the preferences or on a notification: the guidelines forbid bundled binaries and allow modules from PyPI only on an explicit user action.
+- `engine.py` is the one script, and it is Python because GJS cannot call the engine's C library, the case in which the guidelines allow a language other than GJS. Its process lives for one job and is ended through the cancellable of whoever started it.
+
+## This computer
+
+Murmur has no code for any particular speech model. What a model can do and which settings it takes come from the engine at run time, so a model family the engine learns works without a change here; a branch on a model's name or family undoes that. The speech finder and the speaker model in `engine.json` are Murmur's own tools, pinned with the engine, and are the exception.
 
 ## The demo
 

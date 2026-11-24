@@ -1,9 +1,13 @@
 import type Gio from 'gi://Gio';
+import GLib from 'gi://GLib';
 
+import type {ModelSettings} from './transcription/engine-protocol.js';
 import {isProviderId, PROVIDERS, type ProviderId} from './transcription/provider.js';
 
 export const Key = {
     interruptedRecording: 'interrupted-recording',
+    localModel: 'local-model',
+    localModelSettings: 'local-model-settings',
     maxDictationSeconds: 'max-dictation-seconds',
     mistralApiKey: 'mistral-api-key',
     namesAndTerms: 'names-and-terms',
@@ -23,7 +27,10 @@ export const Key = {
 
 export type ShortcutKey = typeof Key.toggleDictation | typeof Key.toggleRecording;
 
+export type LocalConfig = {kind: 'local'; model: string; settings: ModelSettings; terms: string[]};
+
 export type ProviderConfig =
+    | LocalConfig
     | {apiKey: string; kind: 'mistral'; terms: string[]}
     | {apiKey: string; kind: 'openrouter'; model: string; terms: string[]}
     | {apiKey: string; kind: 'xai'; terms: string[]};
@@ -58,6 +65,10 @@ export function readProviderConfig(
     settings: Gio.Settings, id: ProviderId = readProvider(settings)): ProviderConfig {
     const terms = readTerms(settings);
     switch (id) {
+        case 'local': {
+            const model = settings.get_string(Key.localModel);
+            return {kind: 'local', model, settings: readModelSettings(settings, model), terms};
+        }
         case 'mistral':
             return {apiKey: settings.get_string(Key.mistralApiKey), kind: 'mistral', terms};
         case 'openrouter':
@@ -70,6 +81,28 @@ export function readProviderConfig(
         case 'xai':
             return {apiKey: settings.get_string(Key.xaiApiKey), kind: 'xai', terms};
     }
+}
+
+export function readModelSettings(settings: Gio.Settings, model: string): ModelSettings {
+    const all = settings.get_value(Key.localModelSettings)
+        .recursiveUnpack<Record<string, ModelSettings>>();
+    return all[model] ?? {};
+}
+
+export function writeModelSetting(
+    settings: Gio.Settings, model: string, name: string, value: GLib.Variant | null): void {
+    const all = settings.get_value(Key.localModelSettings)
+        .deepUnpack<Record<string, Record<string, GLib.Variant>>>();
+    const own = {...all[model]};
+    if (value)
+        own[name] = value;
+    else
+        delete own[name];
+    if (Object.keys(own).length > 0)
+        all[model] = own;
+    else
+        delete all[model];
+    settings.set_value(Key.localModelSettings, new GLib.Variant('a{sa{sv}}', all));
 }
 
 export function readTerms(settings: Gio.Settings): string[] {

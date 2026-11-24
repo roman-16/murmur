@@ -19,7 +19,7 @@ Press `Super+Alt+Space` instead and Murmur records everything your computer play
 
 - **You keep working while it listens.** A panel the size of a notification appears at the bottom of the screen you are working on; it takes nothing over. Look anywhere else - another window, the overview, the window you were already in - and it collapses by itself, leaving an indicator with the countdown in the top bar. It is on screen exactly while it has your keyboard, so it is never in the way and never swallowing keys.
 - **It lands where you are looking.** Where there is a field, the transcription is typed into it, in any application, terminals included, with nothing pasted and your clipboard untouched. Which field is decided when you stop, so you can go and find it while you talk.
-- **You watch it happen.** A level that moves with your voice, a countdown, the destination named the whole time, and an optional hands-free stop after silence. With [Grok](https://docs.x.ai/developers/model-capabilities/audio/speech-to-text) your audio streams over a WebSocket as you speak and the words appear in the panel as they arrive; with [Mistral Voxtral](https://mistral.ai) and [OpenRouter](https://openrouter.ai/models?output_modalities=transcription) the dictation goes up when you stop, to models made for whole files, and every transcription model OpenRouter serves is one key away.
+- **You watch it happen.** A level that moves with your voice, a countdown, the destination named the whole time, and an optional hands-free stop after silence. With [Grok](https://docs.x.ai/developers/model-capabilities/audio/speech-to-text) your audio streams over a WebSocket as you speak and the words appear in the panel as they arrive; with [Mistral Voxtral](https://mistral.ai) and [OpenRouter](https://openrouter.ai/models?output_modalities=transcription) the dictation goes up when you stop, to models made for whole files, and every transcription model OpenRouter serves is one key away. Or none of it leaves your computer: **This computer** runs a speech model file you choose on your own graphics card, and one that streams writes the words into the panel as you speak.
 - **Nothing is ever lost.** If no text field is focused when you stop, Murmur copies the transcription to the clipboard instead of firing a sentence worth of keystrokes at whatever happens to be in front.
 - **You can go back to what you said.** Every dictation is kept on your machine and listed in the preferences, newest first: click one to copy it, search them, or clear the lot. A field the application reports as a password is never kept.
 - **A recording stays out of the way for hours.** It lives in the top bar alone, as a pill with how long it has run; its menu shows what the microphone and the desktop are hearing, and stops or discards it. It carries on while the screen is locked. When you stop it, a notification opens the transcript or copies its path, and a recording that could not be transcribed keeps its audio and asks again.
@@ -39,11 +39,11 @@ Then log out and back in, which Wayland requires for a new extension, and enable
 gnome-extensions enable murmur@roman-16.github.io
 ```
 
-You need **GNOME Shell 47 to 51 on Wayland**, **GStreamer** with its base and good plugins and PipeWire's GStreamer plugin, which GNOME's own screen recorder needs anyway, and an **API key** for one of the three transcription services. Installing with Nix, from source, from extensions.gnome.org once the listing is approved, updating and uninstalling: → [Installation](docs/installation.md)
+You need **GNOME Shell 47 to 51 on Wayland**, **GStreamer** with its base and good plugins and PipeWire's GStreamer plugin, which GNOME's own screen recorder needs anyway, and an **API key** for one of the three cloud services, or **Python 3** and a speech model file to transcribe on your own computer. Installing with Nix, from source, from extensions.gnome.org once the listing is approved, updating and uninstalling: → [Installation](docs/installation.md)
 
 ## Get started
 
-Open the preferences, choose the service that transcribes for you, and paste in its key:
+Open the preferences, choose the service that transcribes for you, and paste in its key, or choose a model to run on your own computer:
 
 ```bash
 gnome-extensions prefs murmur@roman-16.github.io
@@ -54,6 +54,8 @@ gnome-extensions prefs murmur@roman-16.github.io
 | **Grok** | [console.x.ai](https://console.x.ai), once the account holds credit | Dictation about $0.20 an hour of audio, recording about $0.20 an hour of a call where both sides talk. The words appear as you speak, a dictation runs as long as you set, and a recording as long as you like |
 | **Mistral Voxtral** (default) | [console.mistral.ai](https://console.mistral.ai) | Dictation about $0.24 an hour, recording about $0.50 an hour of a call where both sides talk, from the first minute. A dictation's words arrive when you stop; a dictation runs ten minutes at most |
 | **OpenRouter** | [openrouter.ai/settings/keys](https://openrouter.ai/settings/keys) | One key for every transcription model it serves - Whisper, Nova, Voxtral, Parakeet - at each one's own price. A dictation's words arrive when you stop rather than as you speak; a dictation runs ten minutes at most |
+
+| **This computer** | No key: **Download** the engine once, 163 MB, then choose a speech model file, such as one from [huggingface.co/handy-computer](https://huggingface.co/handy-computer) | Nothing, and nothing leaves your computer. Fast with a graphics card. Any model the engine runs - Whisper, Parakeet, Qwen3-ASR, Voxtral, Canary and more - with the settings it takes; one that streams shows the words as you speak. A dictation runs ten minutes at most |
 
 That is the whole setup. Put the cursor where the words belong, press `Super+Space`, and speak. Or press `Super+Alt+Space` to record.
 
@@ -87,16 +89,16 @@ Want to know whether an application is recognised? Turn on GNOME's on-screen key
 
 ## What leaves your machine
 
-Your voice, and while recording everything your computer plays, to the service you picked - `api.mistral.ai` by default, or `api.x.ai` or `openrouter.ai` - over a dictation or recording you started, along with the names and terms you listed. That is the only connection Murmur makes: no telemetry, no analytics, no update pings.
+Your voice, and while recording everything your computer plays, to the service you picked - `api.mistral.ai` by default, or `api.x.ai` or `openrouter.ai` - over a dictation or recording you started, along with the names and terms you listed. With **This computer**, nothing: the audio goes to an engine on your own computer, which is downloaded once from PyPI and Hugging Face when you press **Download**. That is the only connection Murmur makes: no telemetry, no analytics, no update pings.
 
-Dictation audio is never written to disk. The transcription is, on your machine only: the text of each dictation is kept in `~/.local/state/murmur@roman-16.github.io/history.jsonl` so you can read it back later, until you clear it or turn **Remember what I dictate** off. A recording is written to disk whole: its audio and its transcript are saved side by side in the recordings folder, `~/Documents/Murmur` unless you choose another, readable by you alone, and stay there until you delete them. The transcript notes the window titles on screen and what played during it, which **Note what is on screen and playing** turns off. Your API key is stored in dconf like every other GNOME setting, which means unencrypted, because extensions have no keyring access. If what you say must not reach a third party, Murmur is the wrong tool. → [Privacy](docs/privacy.md)
+Dictation audio is never written to disk. The transcription is, on your machine only: the text of each dictation is kept in `~/.local/state/murmur@roman-16.github.io/history.jsonl` so you can read it back later, until you clear it or turn **Remember what I dictate** off. A recording is written to disk whole: its audio and its transcript are saved side by side in the recordings folder, `~/Documents/Murmur` unless you choose another, readable by you alone, and stay there until you delete them. The transcript notes the window titles on screen and what played during it, which **Note what is on screen and playing** turns off. Your API key is stored in dconf like every other GNOME setting, which means unencrypted, because extensions have no keyring access. If what you say must not reach a third party, transcribe on **This computer**. → [Privacy](docs/privacy.md)
 
 ## Documentation
 
 | Page | What's in it |
 | --- | --- |
 | [Installation](docs/installation.md) | Every install route, requirements, updating, uninstalling |
-| [Getting started](docs/getting-started.md) | Your API key, your first dictation, the keys, your first recording |
+| [Getting started](docs/getting-started.md) | Your API key or your model, your first dictation, the keys, your first recording |
 | [Configuration](docs/configuration.md) | Every setting, what it changes, and its `gsettings` key |
 | [Where the text goes](docs/text-insertion.md) | The insertion ladder, which apps are recognised, dotool setup |
 | [Troubleshooting](docs/troubleshooting.md) | Symptom, cause, fix |
@@ -107,11 +109,12 @@ Dictation audio is never written to disk. The transcription is, on your machine 
 ## Good to know
 
 - **A terminal is one big text field.** It tells the compositor it accepts text whenever it is focused and nothing finer, so Murmur will happily deliver a sentence to vim in normal mode.
-- **Dictation and recording are billed to your key.** Murmur sends only what it records, and the ten-minute default keeps a forgotten dictation from running away. A recording runs until you stop it.
+- **Dictation and recording are billed to your key**, unless This computer transcribes them. Murmur sends only what it records, and the ten-minute default keeps a forgotten dictation from running away. A recording runs until you stop it.
 - **Tell people you are recording.** A recording holds everyone in the call, and their voices go to the service too.
 - **The voices on a call are told apart by the service.** Your lines are yours because they came in on your microphone; the others share the desktop's channel, and the service numbers them by how they sound. A long recording goes up in ten-minute pieces, and someone who says nothing in the half minute around a cut comes back with a new number.
 - **Over loudspeakers, the others are heard twice.** Your microphone hears them as well, so their words also turn up under your name a moment later. Headphones keep the two apart.
-- **Only Grok transcribes as you speak.** Mistral and OpenRouter transcribe a dictation in one go when you stop, so with them the panel shows the level and the countdown while you talk, and the words all arrive at the end. Mistral does it with the model it uses for recordings, which also takes your names and terms; OpenRouter gives you the choice of every transcription model it serves, behind one key.
+- **Grok, and a model on this computer that streams, transcribe as you speak.** Mistral, OpenRouter and the other models on this computer transcribe a dictation in one go when you stop, so with them the panel shows the level and the countdown while you talk, and the words all arrive at the end. Mistral does it with the model it uses for recordings, which also takes your names and terms; OpenRouter gives you the choice of every transcription model it serves, behind one key.
+- **This computer runs no program of its own until you ask.** The engine starts with a dictation, loads the model while you speak, and exits once the words are in, so nothing waits in memory or on the graphics card in between.
 - **A dictation always arrives as one line.** Line breaks are flattened to spaces before anything is typed, so a transcription can never press `Enter` in a chat box, a prompt or a shell. A tidied list keeps its bullets, inline.
 - **The panel is not a window.** It cannot be alt-tabbed or pushed behind an application, because a GNOME Shell extension draws inside the compositor rather than opening a window. Clicking anything else collapses it to the top bar instead, which a window behind a maximised application could not do.
 - **The panel shows the last four lines.** A long dictation scrolls past; the whole of it arrives in your field, and in the history, when you stop.

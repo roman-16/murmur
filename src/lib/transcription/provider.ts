@@ -5,33 +5,51 @@ import type {Transcribed} from '../transcript.js';
 
 export const SAMPLE_RATE = 16000;
 
-export type ProviderId = 'mistral' | 'openrouter' | 'xai';
+export type ProviderId = 'local' | 'mistral' | 'openrouter' | 'xai';
+
+export type PieceFormat = 'ogg' | 'wav';
 
 export type Provider = {
     dictationSeconds?: number;
-    keySource: string;
+    keySource: string | null;
     label: string;
+    pieceFormat: PieceFormat;
+    piecesAtOnce: number;
     vendor: string;
 };
 
-export const PROVIDER_IDS: ProviderId[] = ['mistral', 'openrouter', 'xai'];
+export const PROVIDER_IDS: ProviderId[] = ['local', 'mistral', 'openrouter', 'xai'];
 
 export const PROVIDERS: Record<ProviderId, Provider> = {
+    local: {
+        dictationSeconds: 600,
+        keySource: null,
+        label: 'This computer',
+        pieceFormat: 'wav',
+        piecesAtOnce: 1,
+        vendor: 'This computer',
+    },
     mistral: {
         dictationSeconds: 600,
         keySource: 'console.mistral.ai',
         label: 'Mistral Voxtral',
+        pieceFormat: 'ogg',
+        piecesAtOnce: 3,
         vendor: 'Mistral',
     },
     openrouter: {
         dictationSeconds: 600,
         keySource: 'openrouter.ai/settings/keys',
         label: 'OpenRouter',
+        pieceFormat: 'ogg',
+        piecesAtOnce: 3,
         vendor: 'OpenRouter',
     },
     xai: {
         keySource: 'console.x.ai',
         label: 'Grok',
+        pieceFormat: 'ogg',
+        piecesAtOnce: 3,
         vendor: 'xAI',
     },
 };
