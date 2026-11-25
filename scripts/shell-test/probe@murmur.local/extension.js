@@ -935,10 +935,12 @@ export default class Probe extends Extension {
         await this.#checkPieces(audio);
 
         const heard = new Set();
+        let streams;
         try {
             const recorder = await Recorder.open(file);
             recorder.onLevel = source => heard.add(source);
             await this.#settle(1500);
+            streams = await this.#murmurStreams().catch(error => error);
             await recorder.finish();
         } catch (error) {
             this.#fail('a recording opens', `${error}`);
@@ -946,6 +948,12 @@ export default class Probe extends Extension {
         }
         this.#ok('a recording hears the microphone', heard.has('microphone'));
         this.#ok('a recording hears the desktop', heard.has('desktop'));
+        this.#ok('a recording asks PipeWire to move its streams to the next device rather than end them',
+            Array.isArray(streams) && streams.length === 2 &&
+                streams.every(props => `${props['node.dont-reconnect']}`.toLowerCase() === 'false'),
+            Array.isArray(streams)
+                ? JSON.stringify(streams.map(props => props['node.dont-reconnect']))
+                : `${streams}`);
 
         const [, contents] = file.load_contents(null);
         const head = String.fromCharCode(...contents.slice(0, 40));
@@ -1063,6 +1071,24 @@ export default class Probe extends Extension {
             detail);
         this.#ok('a recording notes the screen locking and unlocking',
             JSON.stringify(of('lock').map(moment => moment.on)) === '[true,false]', detail);
+    }
+
+    async #murmurStreams() {
+        const process = Gio.Subprocess.new(['pw-dump'],
+            Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_SILENCE);
+        const stdout = await new Promise((resolve, reject) => {
+            process.communicate_utf8_async(null, null, (_process, result) => {
+                try {
+                    resolve(process.communicate_utf8_finish(result)[1]);
+                } catch (error) {
+                    reject(error);
+                }
+            });
+        });
+        return JSON.parse(stdout)
+            .map(object => object.info?.props ?? {})
+            .filter(props => props['media.class'] === 'Stream/Input/Audio' &&
+                props['node.name'] === 'Murmur');
     }
 
     #spawn(argv) {

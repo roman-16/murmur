@@ -54,13 +54,26 @@ const SPEECH_CAPS =
 // milliseconds at a short quantum, and drops what it captures while a source
 // that holds them all is waiting. Its converter allows 32 at most.
 const CAPTURE = `pipewiresrc client-name=${CLIENT_NAME} min-buffers=32`;
+// pipewiresrc has WirePlumber destroy a stream whose device goes away, as a
+// Bluetooth headset's output does the moment its microphone opens. A stream
+// that asks otherwise is moved to the next device, or waits for one.
+const MOVABLE = 'props,node.dont-reconnect=false';
 const MONO = 'audioconvert ! audio/x-raw,channels=1';
+// WirePlumber's words for a stream it found no device for, the only sign of it
+// that GStreamer passes on.
+const NO_DEVICE = 'no target node available';
+
 // WirePlumber links a capture stream that asks for a sink to the monitor of the
 // default output, and follows it when the default changes.
-const DESKTOP = `${CAPTURE} stream-properties="props,stream.capture.sink=true"`;
-const MICROPHONE = CAPTURE;
+const SOURCES: Record<Source, string> = {
+    desktop: capture('desktop', `${MOVABLE},stream.capture.sink=true`),
+    microphone: capture('microphone', MOVABLE),
+};
 
-const SOURCES: Record<Source, string> = {desktop: DESKTOP, microphone: MICROPHONE};
+const MISSING: Record<Source, string> = {
+    desktop: 'No sound output found',
+    microphone: 'No microphone found',
+};
 
 const PACKAGES: Record<string, string> = {
     appsink: "GStreamer's base plugins",
@@ -216,7 +229,7 @@ export class Microphone {
     static async open(): Promise<Microphone> {
         const handlers: Handlers = {onEnd: () => {}, onError: () => {}};
         const pipeline = await Pipeline.launch(
-            `${MICROPHONE} ! audioconvert ! audioresample ! ${SPEECH_CAPS} ! ` +
+            `${SOURCES.microphone} ! audioconvert ! audioresample ! ${SPEECH_CAPS} ! ` +
             'appsink name=sink sync=false',
             handlers);
         const microphone = new Microphone(pipeline);
@@ -535,9 +548,9 @@ class Pipeline {
     #enter(state: Gst.State): void {
         if (this.#bin.set_state(state) !== this.#gst.StateChangeReturn.FAILURE)
             return;
-        const reason = this.#bus.pop_filtered(this.#gst.MessageType.ERROR)?.parse_error()[0]?.message;
+        const error = this.#bus.pop_filtered(this.#gst.MessageType.ERROR);
         this.destroy();
-        throw new Error(reason ?? 'the audio could not be opened');
+        throw new Error(error ? reasonOf(error) : 'the audio could not be opened');
     }
 
     #onMessage(message: Gst.Message, handlers: Handlers): void {
@@ -578,13 +591,27 @@ class Pipeline {
                 }
                 break;
             }
-            case MessageType.ERROR: {
-                const [error, debug] = message.parse_error();
-                handlers.onError(error?.message ?? debug);
+            case MessageType.ERROR:
+                handlers.onError(reasonOf(message));
                 break;
-            }
         }
     }
+}
+
+function capture(source: Source, properties: string): string {
+    return `${CAPTURE} name=${captureName(source)} stream-properties="${properties}"`;
+}
+
+function captureName(source: Source): string {
+    return `${source}-capture`;
+}
+
+function reasonOf(error: Gst.Message): string {
+    const [cause, debug] = error.parse_error();
+    const reason = cause?.message ?? debug;
+    const element = error.src?.get_name();
+    const source = (Object.keys(MISSING) as Source[]).find(each => captureName(each) === element);
+    return source && reason.endsWith(NO_DEVICE) ? MISSING[source] : reason;
 }
 
 function branch(name: Source, index: number): string {

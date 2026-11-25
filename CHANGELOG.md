@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 Adding a version section here is what publishes a release, so this file is the one place a version is decided: see [Releasing](CONTRIBUTING.md#releasing). Versions that shipped before this file existed are on the [releases page](https://github.com/roman-16/murmur/releases).
 
+## [2.2.1] - 2026-11-25
+
+### Fixed
+
+- A recording with a Bluetooth headset carries on, instead of stopping with "stream error: target not found" a moment after it starts.
+- A recording or a dictation whose microphone or sound output goes away - unplugged, switched off, out of battery - carries on with the next one, or with silence until it is back, instead of stopping there.
+- A recording or a dictation that finds no microphone says **No microphone found**, and a recording with no sound output **No sound output found**, instead of "stream error: target not found".
+
 ## [2.2.0] - 2026-11-24
 
 ### Highlights
