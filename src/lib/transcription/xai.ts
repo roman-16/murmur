@@ -118,7 +118,7 @@ export class XaiProtocol implements StreamProtocol {
 }
 
 export function xaiRecording(options: Options): RecordingTranscriber {
-    return async (audio, {diarize}, cancellable) => transcribed(await transcribeUpload({
+    return async (audio, {diarize, seconds}, cancellable) => transcribed(await transcribeUpload({
         apiKey: options.apiKey,
         audio,
         body: {
@@ -131,6 +131,7 @@ export function xaiRecording(options: Options): RecordingTranscriber {
             kind: 'form',
         },
         cancellable,
+        seconds,
         url: RECORDING_URL,
     }));
 }

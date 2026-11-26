@@ -58,6 +58,12 @@
       <summary>Recordings folder</summary>
       <description>Folder a recording's audio and transcript are saved in, side by side. A leading ~ is the home folder. A recording stays in the folder it started in.</description>
     </key>
+    <key name="recording-piece-minutes" type="i">
+      <default>10</default>
+      <range min="0" max="1440"/>
+      <summary>Piece length</summary>
+      <description>Minutes of a recording, or of a file picked under Transcribe a file, that the service transcribes at a time. A longer recording is cut where it is quietest in the minute before each mark, and each piece also hears fifteen seconds of its neighbours. 0 transcribes it all at once. A service that takes less in one request than this refuses the piece, and the audio stays for a retry.</description>
+    </key>
     <key name="remember-dictations" type="b">
       <default>true</default>
       <summary>Remember what I dictate</summary>

@@ -409,7 +409,7 @@ def samples_of(data):
     samples.frombytes(data)
     if sys.byteorder == 'big':
         samples.byteswap()
-    return array.array('f', [sample / 32768 for sample in samples])
+    return array.array('f', (sample / 32768 for sample in samples))
 
 
 class Microphone:

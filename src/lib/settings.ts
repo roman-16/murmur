@@ -15,6 +15,7 @@ export const Key = {
     openrouterModel: 'openrouter-model',
     recordContext: 'record-context',
     recordingFolder: 'recording-folder',
+    recordingPieceMinutes: 'recording-piece-minutes',
     rememberDictations: 'remember-dictations',
     showPanelOnStart: 'show-panel-on-start',
     silenceSeconds: 'silence-timeout-seconds',
@@ -52,6 +53,11 @@ export function readDictationConfig(settings: Gio.Settings): DictationConfig {
         silenceSeconds: settings.get_int(Key.silenceSeconds),
         typingSpeed: settings.get_int(Key.typingSpeed),
     };
+}
+
+export function readPieceSeconds(settings: Gio.Settings): number {
+    const minutes = settings.get_int(Key.recordingPieceMinutes);
+    return minutes === 0 ? Infinity : minutes * 60;
 }
 
 export function readProvider(settings: Gio.Settings): ProviderId {

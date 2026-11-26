@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 Adding a version section here is what publishes a release, so this file is the one place a version is decided: see [Releasing](CONTRIBUTING.md#releasing). Versions that shipped before this file existed are on the [releases page](https://github.com/roman-16/murmur/releases).
 
+## [2.3.0] - 2026-11-26
+
+### Added
+
+- **Piece length** under **Recording** sets how many minutes of a recording or a file go to the service at a time, ten by default, or 0 for all of it at once. The `recording-piece-minutes` key holds it.
+
+### Changed
+
+- With This computer, Parakeet models take your **Names and terms**, and **Model** no longer says they ignore them. One that streams still leaves them out of the words it shows as you speak.
+- This computer's engine is transcribe.cpp 0.5.0. Outside Nix, **Download** on the **Engine** row, or on the notification at the shortcut, fetches 23 MB once and keeps the two helper models.
+
 ## [2.2.1] - 2026-11-25
 
 ### Fixed

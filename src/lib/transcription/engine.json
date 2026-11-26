@@ -15,28 +15,28 @@
       "url": "https://huggingface.co/handy-computer/silero-vad-v6.2-gguf/resolve/a9b2d61c20ae4ddf3644edb34969e8185a485448/silero-vad-v6.2-F32.gguf"
     },
     {
-      "name": "transcribe_cpp-0.4.2-py3-none-any.whl",
+      "name": "transcribe_cpp-0.5.0-py3-none-any.whl",
       "purpose": "engine",
-      "sha256": "dbbdef5febf1f786730ef1bb038f732cd2264b544aa1177ff335ef061741bb2e",
-      "size": 47640,
-      "url": "https://files.pythonhosted.org/packages/b3/fa/7bbe86d8d8ce396943615dfb649dbcc524442141241854ab7e904358cb15/transcribe_cpp-0.4.2-py3-none-any.whl"
+      "sha256": "79da9443957c07089a8e6c47306705e2e250b07e470448db588413faeadee33a",
+      "size": 50597,
+      "url": "https://files.pythonhosted.org/packages/1b/5d/5b5a093f8b03118182b06cc7fd6cefebefae9ed23e91ace6f197e9629432/transcribe_cpp-0.5.0-py3-none-any.whl"
     },
     {
       "machine": "aarch64",
-      "name": "transcribe_cpp_native-0.4.2-py3-none-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl",
+      "name": "transcribe_cpp_native-0.5.0-py3-none-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl",
       "purpose": "engine",
-      "sha256": "00d82f9bb0a4f9693a1348f9aa5a261ecea7b566f79e7a7019c7c7954f7cd073",
-      "size": 18349726,
-      "url": "https://files.pythonhosted.org/packages/c0/3d/8f9de51066a9b9d394c85ec7b8a3d14d1e35b9b7dcaaf1be5fc03d3bce7a/transcribe_cpp_native-0.4.2-py3-none-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl"
+      "sha256": "42e29f16a2ec694b9c1eb044ef667ce46cfe71b86f65d51586bffb32c47bde89",
+      "size": 18277475,
+      "url": "https://files.pythonhosted.org/packages/fa/24/539211705c795aa46e1121837ecd24091f93b4517ed450ca48c40862116f/transcribe_cpp_native-0.5.0-py3-none-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl"
     },
     {
       "machine": "x86_64",
-      "name": "transcribe_cpp_native-0.4.2-py3-none-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl",
+      "name": "transcribe_cpp_native-0.5.0-py3-none-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl",
       "purpose": "engine",
-      "sha256": "4010dba73291b92b9cb70ca2673ed7e9ea1d4f8a9029efb942d5de0cb0900785",
-      "size": 22806649,
-      "url": "https://files.pythonhosted.org/packages/66/0d/498b2594f28f6320c2397884e1a4376da7b5b297f97ea8895dc6659a6c2c/transcribe_cpp_native-0.4.2-py3-none-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl"
+      "sha256": "da43534422531004aaadb3c10e660650f45d3fdaf24b6e7b13414d1991dce73c",
+      "size": 22627495,
+      "url": "https://files.pythonhosted.org/packages/ef/24/a8925a4b37091923393b6daf56c26ba82dfadcd211a69336cccd3157b3d8/transcribe_cpp_native-0.5.0-py3-none-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl"
     }
   ],
-  "version": "0.4.2"
+  "version": "0.5.0"
 }

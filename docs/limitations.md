@@ -36,21 +36,21 @@ A dictation any of these fails is lost whole, since nothing had arrived before i
 
 ## A long recording goes up in pieces
 
-Every service takes only so much audio in one request, and how much depends on the model: Mistral's takes as much as fits in its context beside the names and terms, and OpenAI's newer models take no more than 23 minutes. A recording is therefore sent in pieces of at most ten minutes, cut where it is quietest in the minute before each mark, each with fifteen seconds of its neighbours, and what both heard is written once. That half minute costs a little more audio, about 5%.
+Every service takes only so much audio in one request, and how much depends on the model: Mistral's takes as much as fits in its context beside the names and terms, and OpenAI's newer models take no more than 23 minutes. A recording is therefore sent in pieces of at most the [**Piece length**](configuration.md#piece-length), ten minutes by default, cut where it is quietest in the minute before each mark, each with fifteen seconds of its neighbours, and what both heard is written once. That half minute costs a little more audio, about 5% at ten minutes. A longer piece is yours to set, and the service's to turn away.
 
-OpenRouter's providers give a request about a minute, so a model slow on ten minutes of audio can still fail a piece. The audio stays, for a **Retry** or another service.
+OpenRouter's providers give a request about a minute, so a model slow on ten minutes of audio can still fail a piece. The audio stays, for a **Retry** with a shorter **Piece length**, or another service.
 
 ## Who spoke is only as good as where it was heard
 
 Your lines are yours because they came in on your microphone, which makes them certain - and makes everything else the microphone hears yours too. Several people in one room share your microphone and your name.
 
-Everyone on a call shares the desktop's channel, and only the service can tell their voices apart. It numbers them within a piece, and a number carries over to the next piece only for someone who speaks in the half minute both pieces heard; whoever is silent there comes back with a new one. A voice from a game or a video is a speaker like any other. Grok labels each word on its own and sometimes changes its mind mid-sentence, which splits that sentence over two lines. With an OpenRouter model that cannot tell speakers apart, the call's lines all read `Others`, and with one that gives no times, a piece is one line at the moment it starts, the half minute it shares with the next written twice. This computer tells at most four voices apart in a ten-minute piece, and a fifth shares a number with one of them.
+Everyone on a call shares the desktop's channel, and only the service can tell their voices apart. It numbers them within a piece, and a number carries over to the next piece only for someone who speaks in the half minute both pieces heard; whoever is silent there comes back with a new one. A voice from a game or a video is a speaker like any other. Grok labels each word on its own and sometimes changes its mind mid-sentence, which splits that sentence over two lines. With an OpenRouter model that cannot tell speakers apart, the call's lines all read `Others`, and with one that gives no times, a piece is one line at the moment it starts, the half minute it shares with the next written twice. This computer tells at most four voices apart in a piece, and a fifth shares a number with one of them.
 
 Asking the same service again gets much the same transcript, mistakes included. Transcribing a file again is for trying another service or another model.
 
 ## A recording is billed for each side
 
-The microphone and the desktop go to a cloud service as separate requests, each billed for its full length, so an hour of a call where both sides talk throughout is billed as two. A channel with nothing on it for a whole ten-minute piece, a muted microphone or a call that has not started, is not sent. A piece the service has not answered after a minute and a half is sent a second time, and billed twice.
+The microphone and the desktop go to a cloud service as separate requests, each billed for its full length, so an hour of a call where both sides talk throughout is billed as two. A channel with nothing on it for a whole piece, a muted microphone or a call that has not started, is not sent. A piece the service has not answered after a minute and a half, or after 15% of its length for a piece longer than ten minutes, is sent a second time, and billed twice.
 
 ## Over loudspeakers, the others are heard twice
 

@@ -10,9 +10,9 @@ Murmur transcribes in the cloud, or on your own computer with **This computer**.
 
 | Service | Host | Key travels as | A dictation is sent | A recording or a file is sent |
 | --- | --- | --- | --- | --- |
-| Grok | `api.x.ai` | `Authorization: Bearer` | Streamed over a WebSocket while you speak | In pieces of at most ten minutes, one request each, when you stop |
-| Mistral Voxtral (default) | `api.mistral.ai` | `Authorization: Bearer` | Whole, in one request, when you stop | In pieces of at most ten minutes, one request each, when you stop |
-| OpenRouter | `openrouter.ai` | `Authorization: Bearer` | Whole, in one request, when you stop | In pieces of at most ten minutes, one request each, when you stop |
+| Grok | `api.x.ai` | `Authorization: Bearer` | Streamed over a WebSocket while you speak | In pieces of at most the **Piece length**, one request each, when you stop |
+| Mistral Voxtral (default) | `api.mistral.ai` | `Authorization: Bearer` | Whole, in one request, when you stop | In pieces of at most the **Piece length**, one request each, when you stop |
+| OpenRouter | `openrouter.ai` | `Authorization: Bearer` | Whole, in one request, when you stop | In pieces of at most the **Piece length**, one request each, when you stop |
 | This computer | None | There is no key | Nowhere | Nowhere |
 
 That is also everything. No usage statistics, no crash reports, no analytics, no update checks, and nothing that identifies Murmur as the client. Murmur contacts the host of the service you chose, or of the one you pick for a file, and only over a dictation, a recording or a file transcription you started.

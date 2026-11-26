@@ -40,13 +40,14 @@ export function openrouterDictation(options: Options): DictationSender {
 }
 
 export function openrouterRecording(options: Options): RecordingTranscriber {
-    return async (audio, {diarize}, cancellable) => transcribed(await degrading(options,
+    return async (audio, {diarize, seconds}, cancellable) => transcribed(await degrading(options,
         diarize ? ['diarize', 'terms', 'timed'] : ['terms', 'timed'],
         extras => transcribeUpload({
             apiKey: options.apiKey,
             audio,
             body: {fields: fields(options, extras), format: 'ogg', kind: 'json'},
             cancellable,
+            seconds,
             url: URL,
         })));
 }

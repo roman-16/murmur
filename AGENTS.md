@@ -33,6 +33,10 @@ Every release is uploaded to extensions.gnome.org, where a reviewer reads the bu
 
 Murmur has no code for any particular speech model. What a model can do and which settings it takes come from the engine at run time, so a model family the engine learns works without a change here; a branch on a model's name or family undoes that. The speech finder and the speaker model in `engine.json` are Murmur's own tools, pinned with the engine, and are the exception.
 
+## Recordings
+
+**Piece length** has no ceiling for any service, unlike **Maximum dictation time**: the user decides how long a piece to try, a service that refuses one says why in the failure notification, and **Retry** cuts the recording again at the length set by then.
+
 ## The demo
 
 `just demo` films a headless GNOME Shell and rewrites `assets/demo.webp`. Nothing has to stay visible and nobody has to be at the desktop, so run it when a change alters what a dictation looks like. Then check what came back: around 60 frames or more, the panel's countdown starting at the current **Maximum dictation time**, and a last frame with the sentence typed into the editor.

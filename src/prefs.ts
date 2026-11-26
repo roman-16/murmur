@@ -175,6 +175,11 @@ function recordingGroup(
     settings.connect(`changed::${Key.recordingFolder}`, sync);
     group.add(shortcut);
     group.add(makeRecordingFolderRow(window, settings));
+    group.add(makeSpinRow(settings, Key.recordingPieceMinutes, {
+        title: _('Piece length'),
+        subtitle: _('Minutes of a recording transcribed at a time, or 0 for all of it at once'),
+        step: 1,
+    }));
 
     const contextRow = new Adw.SwitchRow({
         title: _('Note what is on screen and playing'),

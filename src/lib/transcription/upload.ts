@@ -8,6 +8,7 @@ import {endpoint, errorText} from './provider.js';
 
 const DICTATION_TIMEOUT_SECONDS = 60;
 const HEDGE_SECONDS = 90;
+const HEDGE_SHARE = 0.15;
 const KEEPALIVE_IDLE_SECONDS = 30;
 const KEEPALIVE_INTERVAL_SECONDS = 10;
 const LINUX_TCP_KEEPIDLE = 4;
@@ -28,6 +29,7 @@ export type Upload = {
     audio: Gio.File;
     body: Body;
     cancellable: Gio.Cancellable;
+    seconds: number;
     url: string;
 };
 
@@ -48,6 +50,8 @@ type Outcome = {error: unknown} | {reply: Reply};
 
 type Parts = {head: string; tail: string; type: string};
 
+type Patience = {hedge: number; timeout: number};
+
 type Payload = {bytes: GLib.Bytes; type: string};
 
 export async function transcribeUpload(upload: Upload): Promise<Answer> {
@@ -55,8 +59,9 @@ export async function transcribeUpload(upload: Upload): Promise<Answer> {
     const payload = payloadOf(upload.body, await fromAsync(
         callback => audio.load_contents_async(cancellable, callback),
         result => audio.load_contents_finish(result)[1]));
+    const patience = patienceFor(upload.seconds);
     for (let attempt = 0; ; attempt++) {
-        const reply = await sendHedged(upload, payload);
+        const reply = await sendHedged(upload, payload, patience);
         if ('answer' in reply)
             return reply.answer;
         const delay = RETRY_DELAYS_SECONDS[attempt];
@@ -68,7 +73,7 @@ export async function transcribeUpload(upload: Upload): Promise<Answer> {
 }
 
 export async function transcribeDictation(
-    dictation: Omit<Upload, 'audio'> & {audio: Uint8Array}): Promise<Answer> {
+    dictation: Omit<Upload, 'audio' | 'seconds'> & {audio: Uint8Array}): Promise<Answer> {
     const reply = await send(dictation, payloadOf(dictation.body, dictation.audio),
         DICTATION_TIMEOUT_SECONDS);
     if ('answer' in reply)
@@ -76,16 +81,24 @@ export async function transcribeDictation(
     throw new Refusal(reply.status, reply.reason);
 }
 
-async function sendHedged(upload: Upload, payload: Payload): Promise<Reply> {
+function patienceFor(seconds: number): Patience {
+    const known = Number.isFinite(seconds) ? seconds : 0;
+    return {
+        hedge: Math.max(HEDGE_SECONDS, known * HEDGE_SHARE),
+        timeout: Math.max(PIECE_TIMEOUT_SECONDS, Math.ceil(known)),
+    };
+}
+
+async function sendHedged(upload: Upload, payload: Payload, patience: Patience): Promise<Reply> {
     const requests = new Gio.Cancellable();
     const release = whenCancelled(upload.cancellable, () => requests.cancel());
     const request = {...upload, cancellable: requests};
     try {
-        const first = outcomeOf(send(request, payload, PIECE_TIMEOUT_SECONDS));
-        const early = await Promise.race([first, wait(HEDGE_SECONDS, requests).then(() => null)]);
+        const first = outcomeOf(send(request, payload, patience.timeout));
+        const early = await Promise.race([first, wait(patience.hedge, requests).then(() => null)]);
         return replyOf(early ?? await firstAnswer([
             first,
-            outcomeOf(send(request, payload, PIECE_TIMEOUT_SECONDS)),
+            outcomeOf(send(request, payload, patience.timeout)),
         ]));
     } finally {
         release();

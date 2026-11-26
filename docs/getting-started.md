@@ -97,7 +97,7 @@ A dictation is you talking into a field. A recording is everything: whatever you
 
 1. Press **Super+Alt+Space**. A pill with a headset and a running time appears in the top bar, and nothing else: the keyboard stays with whatever you were doing.
 2. Carry on. Click the pill to see what the **Microphone** and the **Desktop audio** are hearing, which is the quick way to know the call is really being picked up.
-3. Press **Super+Alt+Space** again, or **Stop and transcribe** in the pill's menu. The pill says *Transcribing…* while the service works, counting the pieces done of a recording longer than ten minutes, and a notification says when it is done: **Open** shows the transcript, **Copy path** puts where it is saved on the clipboard. A recording in which no words were heard gets no transcript, and both go to its audio.
+3. Press **Super+Alt+Space** again, or **Stop and transcribe** in the pill's menu. The pill says *Transcribing…* while the service works, counting the pieces done of a recording longer than one [piece](configuration.md#piece-length), and a notification says when it is done: **Open** shows the transcript, **Copy path** puts where it is saved on the clipboard. A recording in which no words were heard gets no transcript, and both go to its audio.
 
 **Discard…** in the menu throws the recording away, after asking.
 
@@ -132,7 +132,7 @@ transcribed-by: Mistral Voxtral (voxtral-small-transcribe-3)
 
 The header says which computer it was made on, when, through which microphone and speakers, and which service wrote it down. A line in brackets is something that happened rather than something said: the window in front, what played, an application taking the microphone, the camera, a shared screen, the screen locking, five minutes without input. That is what tells a call from a video and one computer's recordings from another's, for you and for anything you hand the transcript to. It stays in the file and never goes to the service, and [**Note what is on screen and playing**](configuration.md#note-what-is-on-screen-and-playing) turns it off.
 
-Your lines carry your name, because they came in on your microphone. Everyone on the call shares the desktop's channel, so the service tells them apart by their voices and they are numbered in the order they first speak. A recording goes up in ten-minute pieces, and someone who says nothing around a cut comes back with a new number. Over loudspeakers your microphone hears the others too, and their words turn up under your name as well; headphones keep them apart.
+Your lines carry your name, because they came in on your microphone. Everyone on the call shares the desktop's channel, so the service tells them apart by their voices and they are numbered in the order they first speak. A recording goes up in pieces, ten minutes by default, and someone who says nothing around a cut comes back with a new number. Over loudspeakers your microphone hears the others too, and their words turn up under your name as well; headphones keep them apart.
 
 The recording carries on while the screen is locked, and the pill stays in the lock screen's top bar so it is plain that it does; its menu opens again once you unlock. A dictation, by contrast, ends when the screen locks.
 

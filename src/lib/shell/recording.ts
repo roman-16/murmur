@@ -6,7 +6,7 @@ import type {ContextLog} from '../context-log.js';
 import {errorMessage, isCancelled} from '../errors.js';
 import {deleteFile, exists} from '../files.js';
 import {type RecordingFile, RecordingFiles, recordingOf} from '../recording-files.js';
-import {Key, readProvider, readProviderConfig} from '../settings.js';
+import {Key, readPieceSeconds, readProvider, readProviderConfig} from '../settings.js';
 import type {Engine} from '../transcription/engine.js';
 import {
     isProviderId,
@@ -44,7 +44,6 @@ import type {SetupNotices} from './setup-notices.js';
 const AWAY_SECONDS = 300;
 const CARRY_ON_SECONDS = 10;
 const OVERLAP_SECONDS = 15;
-const PIECE_SECONDS = 600;
 const QUIET_MS = 1000;
 const SETTLE_SECONDS = 5;
 const STAMP = '%Y-%m-%dT%H:%M:%S';
@@ -321,6 +320,7 @@ export class Recordings {
         const indicator = shown ?? this.#indicator({transcribing: true});
         try {
             const provider = readProviderConfig(this.#settings, service);
+            const pieceSeconds = readPieceSeconds(this.#settings);
             const setup = await setupNeeded(provider, this.#engine);
             if (setup?.kind === 'engine') {
                 this.#notices.show(setup, () => void this.#transcribe(file, service));
@@ -337,7 +337,7 @@ export class Recordings {
                 file, (parts, whole) => joinParts(parts, whole, this.#cancellable));
             const layout = await layoutOf(file.audio, this.#cancellable);
             const pieces = await piecesOf(file.audio, layout.seconds,
-                {longest: PIECE_SECONDS, overlap: OVERLAP_SECONDS}, this.#cancellable);
+                {longest: pieceSeconds, overlap: OVERLAP_SECONDS}, this.#cancellable);
             const listening = listeningTo(layout);
             const heard = await this.#transcribePieces(
                 transcriber, file.audio, pieces, listening, indicator);
@@ -404,7 +404,8 @@ export class Recordings {
         if (!cut)
             return null;
         try {
-            return await transcriber.transcribe(cut, {diarize: track.diarize}, cancellable);
+            return await transcriber.transcribe(
+                cut, {diarize: track.diarize, seconds: piece.heard.end - piece.heard.start}, cancellable);
         } finally {
             await deleteFile(cut).catch(() => {});
         }

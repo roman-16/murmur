@@ -4,6 +4,7 @@ import json
 import os
 import tempfile
 import unittest
+import wave
 from unittest import mock
 
 HELPER = os.path.join(os.path.dirname(__file__), '..', 'src', 'lib', 'transcription', 'engine.py')
@@ -12,6 +13,33 @@ engine = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(engine)
 
 SECOND = engine.SAMPLE_RATE
+
+
+class AudioTest(unittest.TestCase):
+    def test_samples_become_the_engine_scale(self):
+        data = b''.join(value.to_bytes(2, 'little', signed=True) for value in (0, 16384, -32768, 32767))
+        self.assertEqual(list(engine.samples_of(data)), [0.0, 0.5, -1.0, 32767 / 32768])
+
+    def test_a_wave_file_is_read_whole(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = os.path.join(folder, 'piece.wav')
+            with wave.open(path, 'wb') as audio:
+                audio.setframerate(engine.SAMPLE_RATE)
+                audio.setnchannels(1)
+                audio.setsampwidth(2)
+                audio.writeframes(bytes(4 * SECOND))
+            self.assertEqual(len(engine.read_wave(path)), 2 * SECOND)
+
+    def test_a_wave_file_of_another_rate_is_refused(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = os.path.join(folder, 'piece.wav')
+            with wave.open(path, 'wb') as audio:
+                audio.setframerate(48000)
+                audio.setnchannels(1)
+                audio.setsampwidth(2)
+                audio.writeframes(bytes(4))
+            with self.assertRaises(engine.Refusal):
+                engine.read_wave(path)
 
 
 class SpeakersTest(unittest.TestCase):

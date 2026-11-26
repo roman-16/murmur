@@ -120,7 +120,7 @@ Transcribe it again from **Transcribe a file** in the preferences, with another 
 
 - **Names spelled wrong.** List them under **Names and terms**, spelled the way the transcript should spell them, and transcribe it again.
 - **Your words under someone else's number, or theirs under your name.** Your lines come from your microphone, so over loudspeakers it hears the call too; headphones keep the two apart.
-- **One person under two numbers.** Someone who says nothing around one of the ten-minute cuts comes back with a new number. A find and replace in the transcript puts them back together.
+- **One person under two numbers.** Someone who says nothing around one of the cuts between pieces comes back with a new number. A find and replace in the transcript puts them back together, and a longer [**Piece length**](configuration.md#piece-length) makes fewer cuts.
 
 ## "Murmur isn't running"
 

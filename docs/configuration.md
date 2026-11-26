@@ -22,7 +22,7 @@ Which service transcribes your dictations and your recordings. Only the chosen o
 | Dictated text appears | While you speak | When you stop | When you stop | While you speak with a model that streams, otherwise when you stop |
 | Longest dictation | As long as you set; xAI publishes no session limit | 10 minutes | 10 minutes | 10 minutes |
 | Longest recording | As long as you like | As long as you like | As long as you like | As long as you like |
-| Speakers in a recording | Told apart | Told apart | Told apart by the models that can | Told apart, up to four in each ten-minute piece |
+| Speakers in a recording | Told apart | Told apart | Told apart by the models that can | Told apart, up to four in each piece |
 | Names and terms | The first 100, of up to 50 characters | All of them | The first 1000, of up to 100 characters, by the models that take them | All of them, by the models that use them |
 | Own settings | None | None | **Model** | **Engine**, **Model**, and whatever the model takes |
 | Language | Detected by the model, and it follows a switch mid-dictation | Detected by the model | Detected by the model | Detected by the model, or set under **Language** |
@@ -31,9 +31,9 @@ Mistral Voxtral is the default. Grok is the most accurate of the three while you
 
 With Grok a dictation streams to its realtime model while you speak. With Mistral and OpenRouter it is sent when you stop, whole, and nothing appears in the panel until the words arrive a moment later; everything else - the level, the countdown, the destination, the keys - is the same. Mistral transcribes a dictation with Voxtral Small Transcribe 3, the model it uses for recordings, which is half the price of its realtime one and takes your names and terms. It is sent in one request, so it ends after ten minutes.
 
-A recording goes up when it stops, in pieces of at most ten minutes, to the service's model for files: Grok's own, Voxtral Small Transcribe 3 with Mistral, and the model you picked with OpenRouter. Your microphone and what the computer plays are sent as separate requests, each billed for its own length, so a call where both sides talk throughout costs about twice what its length alone would; a channel with nothing on it for a whole piece is not sent.
+A recording goes up when it stops, in pieces of at most the [**Piece length**](#piece-length), ten minutes by default, to the service's model for files: Grok's own, Voxtral Small Transcribe 3 with Mistral, and the model you picked with OpenRouter. Your microphone and what the computer plays are sent as separate requests, each billed for its own length, so a call where both sides talk throughout costs about twice what its length alone would; a channel with nothing on it for a whole piece is not sent.
 
-OpenRouter is one key for every transcription model it serves - Whisper, Deepgram Nova, Voxtral, Parakeet, and whatever it adds next. It does not say which of them can tell speakers apart, time what they heard or take names and terms, so Murmur asks for all of it and gives up what a model turns away, one thing at a time, for the rest of the session. The providers behind it give a request about a minute, so a model slow on ten minutes of audio can fail a recording; its audio stays, for a **Retry** or another service.
+OpenRouter is one key for every transcription model it serves - Whisper, Deepgram Nova, Voxtral, Parakeet, and whatever it adds next. It does not say which of them can tell speakers apart, time what they heard or take names and terms, so Murmur asks for all of it and gives up what a model turns away, one thing at a time, for the rest of the session. The providers behind it give a request about a minute, so a model slow on a ten-minute piece can fail a recording; its audio stays, for a **Retry** with a shorter [**Piece length**](#piece-length), or another service.
 
 This computer sends nothing anywhere: a speech model you choose, a GGUF file, runs on your own graphics card, or on the processor where there is none. See [This computer](#this-computer) below.
 
@@ -48,7 +48,7 @@ They go to the service with every dictation, recording and file, and the service
 | Grok | The first 100, each up to 50 characters; a longer one is left out |
 | Mistral | All of them, as written: `Ashlands boss` goes as `Ashlands boss` |
 | OpenRouter | The first 1000, each up to 100 characters, to a model that takes them. A model that does not is asked again without them |
-| This computer | All of them, to a model that uses them. Under **Model**, one that does not says it ignores names and terms |
+| This computer | All of them, to a model that uses them. Under **Model**, one that does not says it ignores names and terms. A model that streams may leave them out of the words it shows as you speak |
 
 Leave it empty and nothing is sent.
 
@@ -74,7 +74,7 @@ What each one costs is on its page at [openrouter.ai](https://openrouter.ai/mode
 
 The service that transcribes on your own computer. It runs an engine, [transcribe.cpp](https://github.com/handy-computer/transcribe.cpp), and a speech model you choose, and nothing you say leaves the machine.
 
-**Engine** says which engine is installed and what it runs on: `transcribe.cpp 0.4.2, on the NVIDIA GeForce RTX 4070 SUPER`, or `on the processor` without a graphics card it can use. The engine is not part of the extension, which extensions.gnome.org forbids, so the row offers **Download** the first time: 163 MB from PyPI and Hugging Face, once, into `~/.local/share/murmur@roman-16.github.io/engine/`. Closing the preferences stops a download, and **Download** starts it again. It needs Python 3.9 or later, which the row asks for when it is missing. Installed with Nix, the engine comes with the package and there is nothing to download.
+**Engine** says which engine is installed and what it runs on: `transcribe.cpp 0.5.0, on the NVIDIA GeForce RTX 4070 SUPER`, or `on the processor` without a graphics card it can use. The engine is not part of the extension, which extensions.gnome.org forbids, so the row offers **Download** the first time: 163 MB from PyPI and Hugging Face, once, into `~/.local/share/murmur@roman-16.github.io/engine/`. Closing the preferences stops a download, and **Download** starts it again. It needs Python 3.9 or later, which the row asks for when it is missing. Installed with Nix, the engine comes with the package and there is nothing to download.
 
 With the engine come two small models of its own, which Murmur uses on every recording whatever model you choose: one that finds where speech is, so every model's lines are timed, and one that tells the voices on a call apart.
 
@@ -167,6 +167,14 @@ Where a recording's audio and transcript are saved, `~/Documents/Murmur` by defa
 
 The folder is read as a recording starts, so a recording stays where it started even when the folder changes while it runs, and its notifications name the folder it is in. From the command line, a path starting with `~/` is in your home folder.
 
+### Piece length
+
+How many minutes of a recording the service transcribes at a time, ten by default. A longer recording is cut where it is quietest in the minute before each mark, so no word is split, and each piece also hears fifteen seconds of its neighbours. 0 transcribes the whole recording at once.
+
+Fewer cuts give a voice on the call fewer chances to come back under a new number. A longer piece is more for the service to take at once, though: Mistral turns away one whose audio and names and terms together outrun its model's context, OpenRouter's providers give a request about a minute, and This computer tells apart four voices in each piece. A recording the service refused keeps its audio, and **Retry** cuts it again at the length set by then. A shorter piece costs more with a cloud service, since its fifteen seconds either side are billed too: 5% more at ten minutes, half as much again at one.
+
+The length is read as a transcription starts, so changing it leaves one already under way alone. It holds for **Transcribe a file** too.
+
 ### Note what is on screen and playing
 
 On by default. A recording's transcript then notes what went on around it, each at the moment it changed, as a line in brackets among what was said:
@@ -255,6 +263,7 @@ gsettings set org.gnome.shell.extensions.murmur remember-dictations false
 gsettings set org.gnome.shell.extensions.murmur toggle-dictation "['<Super>space']"
 gsettings set org.gnome.shell.extensions.murmur toggle-recording "['<Super><Alt>space']"
 gsettings set org.gnome.shell.extensions.murmur recording-folder '~/Notes/Calls'
+gsettings set org.gnome.shell.extensions.murmur recording-piece-minutes 30
 gsettings set org.gnome.shell.extensions.murmur record-context false
 gsettings set org.gnome.shell.extensions.murmur show-panel-on-start false
 gsettings set org.gnome.shell.extensions.murmur max-dictation-seconds 120
@@ -272,6 +281,7 @@ gsettings set org.gnome.shell.extensions.murmur typing-speed 500
 | `openrouter-api-key` | string | empty | |
 | `openrouter-model` | string | `meta/muse-voice-transcribe-1.0` | Any model slug OpenRouter transcribes with |
 | `recording-folder` | string | `~/Documents/Murmur` | Any folder; a leading `~` is your home folder |
+| `recording-piece-minutes` | integer | 10 | 0 to 1440; 0 transcribes a recording at once |
 | `remember-dictations` | boolean | `true` | |
 | `show-panel-on-start` | boolean | `true` | |
 | `silence-timeout-seconds` | integer | 0 | 0 to 30 |

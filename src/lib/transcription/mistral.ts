@@ -22,7 +22,7 @@ export function mistralDictation(options: Options): DictationSender {
 }
 
 export function mistralRecording(options: Options): RecordingTranscriber {
-    return async (audio: Gio.File, {diarize}, cancellable) => transcribed(await transcribeUpload({
+    return async (audio: Gio.File, {diarize, seconds}, cancellable) => transcribed(await transcribeUpload({
         apiKey: options.apiKey,
         audio,
         body: {
@@ -35,6 +35,7 @@ export function mistralRecording(options: Options): RecordingTranscriber {
             kind: 'form',
         },
         cancellable,
+        seconds,
         url: URL,
     }));
 }
