@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 Adding a version section here is what publishes a release, so this file is the one place a version is decided: see [Releasing](CONTRIBUTING.md#releasing). Versions that shipped before this file existed are on the [releases page](https://github.com/roman-16/murmur/releases).
 
+## [2.3.1] - 2026-11-28
+
+### Fixed
+
+- After a cancelled or failed **Download**, or an update of This computer's engine, the **Engine** row offers **Download** again and a dictation says the engine needs downloading or updating, instead of both failing with "Not a directory".
+
 ## [2.3.0] - 2026-11-26
 
 ### Added
