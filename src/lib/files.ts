@@ -122,12 +122,20 @@ export async function sizeOf(file: Gio.File): Promise<number> {
     return info.get_size();
 }
 
+// A path below a plain file, such as `install.lock/ready`, is as absent as one
+// below a directory that is not there.
 export async function exists(file: Gio.File): Promise<boolean> {
-    const info = await ignoreMissing(fromAsync(
-        callback => file.query_info_async(Gio.FILE_ATTRIBUTE_STANDARD_TYPE,
-            Gio.FileQueryInfoFlags.NONE, GLib.PRIORITY_DEFAULT, null, callback),
-        result => file.query_info_finish(result)));
-    return info !== null;
+    try {
+        await fromAsync(
+            callback => file.query_info_async(Gio.FILE_ATTRIBUTE_STANDARD_TYPE,
+                Gio.FileQueryInfoFlags.NONE, GLib.PRIORITY_DEFAULT, null, callback),
+            result => file.query_info_finish(result));
+        return true;
+    } catch (error) {
+        if (isMissing(error) || matches(error, Gio.IOErrorEnum.NOT_DIRECTORY))
+            return false;
+        throw error;
+    }
 }
 
 export async function ignoreMissing<T>(operation: Promise<T>): Promise<T | null> {
