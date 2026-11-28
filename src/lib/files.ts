@@ -123,11 +123,17 @@ export async function sizeOf(file: Gio.File): Promise<number> {
 }
 
 export async function exists(file: Gio.File): Promise<boolean> {
-    const info = await ignoreMissing(fromAsync(
-        callback => file.query_info_async(Gio.FILE_ATTRIBUTE_STANDARD_TYPE,
-            Gio.FileQueryInfoFlags.NONE, GLib.PRIORITY_DEFAULT, null, callback),
-        result => file.query_info_finish(result)));
-    return info !== null;
+    try {
+        await fromAsync(
+            callback => file.query_info_async(Gio.FILE_ATTRIBUTE_STANDARD_TYPE,
+                Gio.FileQueryInfoFlags.NONE, GLib.PRIORITY_DEFAULT, null, callback),
+            result => file.query_info_finish(result));
+        return true;
+    } catch (error) {
+        if (isAbsent(error))
+            return false;
+        throw error;
+    }
 }
 
 export async function ignoreMissing<T>(operation: Promise<T>): Promise<T | null> {
@@ -178,6 +184,10 @@ async function makeDirectory(directory: Gio.File): Promise<void> {
         callback => directory.set_attributes_async(
             mode, Gio.FileQueryInfoFlags.NONE, GLib.PRIORITY_DEFAULT, null, callback),
         result => directory.set_attributes_finish(result));
+}
+
+function isAbsent(error: unknown): boolean {
+    return isMissing(error) || matches(error, Gio.IOErrorEnum.NOT_DIRECTORY);
 }
 
 function isMissing(error: unknown): boolean {
