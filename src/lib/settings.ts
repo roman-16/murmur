@@ -6,6 +6,7 @@ import {isProviderId, PROVIDERS, type ProviderId} from './transcription/provider
 
 export const Key = {
     interruptedRecording: 'interrupted-recording',
+    keptDictations: 'kept-dictations',
     localModel: 'local-model',
     localModelSettings: 'local-model-settings',
     maxDictationSeconds: 'max-dictation-seconds',

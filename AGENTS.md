@@ -37,6 +37,12 @@ Murmur has no code for any particular speech model. What a model can do and whic
 
 **Piece length** has no ceiling for any service, unlike **Maximum dictation time**: the user decides how long a piece to try, a service that refuses one says why in the failure notification, and **Retry** cuts the recording again at the length set by then.
 
+## The history
+
+- Dictations on the History page sit in a list of their own rather than in a preferences group: the window's search goes through every group's rows, with no way to leave one out, and it is for settings.
+- Lowering **Dictations kept** hides older dictations at once, and the shell deletes them when it saves the next one, so no click on **−** deletes anything.
+- The shell trims `history.jsonl` by its lines and never parses it: any number of dictations may be kept, and the shell process draws the screen.
+
 ## The demo
 
 `just demo` films a headless GNOME Shell and rewrites `assets/demo.webp`. Nothing has to stay visible and nobody has to be at the desktop, so run it when a change alters what a dictation looks like. Then check what came back: around 60 frames or more, the panel's countdown starting at the current **Maximum dictation time**, and a last frame with the sentence typed into the editor.

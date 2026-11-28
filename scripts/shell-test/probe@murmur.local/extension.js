@@ -38,6 +38,7 @@ export default class Probe extends Extension {
     #passes = 0;
     #pointer = null;
     #client = null;
+    #startupId = 0;
     #timeouts = [];
 
     enable() {
@@ -46,15 +47,25 @@ export default class Probe extends Extension {
         const seat = global.stage.context.get_backend().get_default_seat();
         this.#keyboard = seat.create_virtual_device(Clutter.InputDeviceType.KEYBOARD_DEVICE);
         this.#pointer = seat.create_virtual_device(Clutter.InputDeviceType.POINTER_DEVICE);
-        this.#after(SETTLE_MS, () => {
+        const start = () => this.#after(SETTLE_MS, () => {
             this.#run().catch(error => {
                 this.#fail('the probe itself', `${error}\n${error.stack}`);
                 this.#report();
             });
         });
+        // A shortcut pressed before the shell's startup animation has finished
+        // starts nothing.
+        if (Main.layoutManager._startingUp)
+            this.#startupId = Main.layoutManager.connect('startup-complete', start);
+        else
+            start();
     }
 
     disable() {
+        if (this.#startupId) {
+            Main.layoutManager.disconnect(this.#startupId);
+            this.#startupId = 0;
+        }
         for (const id of this.#timeouts)
             GLib.source_remove(id);
         this.#timeouts = [];
@@ -336,11 +347,11 @@ export default class Probe extends Extension {
         const history = new History('probe@murmur.local');
         await history.clear();
         this.#ok('a history nothing was said into is empty',
-            (await history.entries()).length === 0);
+            (await history.newestFirst()).length === 0);
 
-        await history.append('the first thing said');
-        await history.append('the second thing said');
-        const kept = await history.entries();
+        await history.append('the first thing said', 128);
+        await history.append('the second thing said', 128);
+        const kept = await history.newestFirst();
         this.#ok('a dictation is kept, newest first',
             kept[0]?.text === 'the second thing said' &&
                 kept[1]?.text === 'the first thing said',
@@ -360,25 +371,45 @@ export default class Probe extends Extension {
                 `directory ${modeOf(directory).toString(8)}`);
 
         let queued;
-        for (let index = 0; index < 501; index++)
-            queued = history.append(`dictation ${index}`);
+        for (let index = 0; index < 9; index++)
+            queued = history.append(`dictation ${index}`, 8);
         await queued;
 
-        const capped = await history.entries();
-        this.#ok('the history stops at 500 dictations', capped.length === 500,
+        const capped = await history.newestFirst();
+        this.#ok('the history stops at the number kept', capped.length === 8,
             `${capped.length} kept`);
         this.#ok('the oldest dictation is the one dropped',
             capped.at(-1)?.text === 'dictation 1', `oldest is ${capped.at(-1)?.text}`);
 
+        await history.append('dictation 9', 4);
+        const lowered = await history.newestFirst();
+        this.#ok('a lower number kept cuts the history at the next dictation',
+            lowered.length === 4 && lowered[0]?.text === 'dictation 9' &&
+                lowered.at(-1)?.text === 'dictation 6',
+            JSON.stringify(lowered.map(entry => entry.text)));
+
+        const forgotten = lowered[2];
+        await history.forget(forgotten);
+        const left = await history.newestFirst();
+        this.#ok('a deleted dictation is gone and the rest stay',
+            left.length === 3 && !left.some(entry => entry.text === forgotten.text),
+            JSON.stringify(left.map(entry => entry.text)));
+
+        await history.restore(forgotten);
+        const restored = await history.newestFirst();
+        this.#ok('undoing a deletion puts the dictation back in its place',
+            restored.map(entry => entry.text).join() === lowered.map(entry => entry.text).join(),
+            JSON.stringify(restored.map(entry => entry.text)));
+
         GLib.file_set_contents(history.path,
             '{"at":"2026-01-01T00:00:00Z","text":"kept"}\n{"at":"2026-01\n');
-        const survivors = await history.entries();
+        const survivors = await history.newestFirst();
         this.#ok('a damaged line is skipped rather than losing the file',
             survivors.length === 1 && survivors[0]?.text === 'kept', JSON.stringify(survivors));
 
         await history.clear();
         this.#ok('clearing leaves nothing behind',
-            (await history.entries()).length === 0 &&
+            (await history.newestFirst()).length === 0 &&
                 !GLib.file_test(history.path, GLib.FileTest.EXISTS));
     }
 
@@ -435,7 +466,7 @@ export default class Probe extends Extension {
         this.#ok('the dictation shortcut starts a dictation', card !== null);
         this.#ok('a dictation shortcut held down leaves its dictation listening',
             card !== null && this.#card() === card && this.#texts(card).includes('Listening…'),
-            this.#card() === card ? JSON.stringify(this.#texts(card)) : 'its panel is gone');
+            card !== null && this.#card() === card ? JSON.stringify(this.#texts(card)) : 'its panel is gone');
 
         await this.#hold(keys, 100);
         this.#ok('pressing the dictation shortcut again ends the dictation',

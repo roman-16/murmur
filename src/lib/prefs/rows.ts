@@ -69,9 +69,9 @@ export function makePresetRow(
 export function makeChoiceRow(
     settings: Gio.Settings,
     key: string,
-    options: {choices: Choice[]; subtitle: string; title: string},
+    options: {choices: Choice[]; subtitle?: string; title: string},
 ): Adw.ComboRow {
-    const {choices, subtitle, title} = options;
+    const {choices, subtitle = '', title} = options;
     const row = new Adw.ComboRow({
         title,
         subtitle,
@@ -97,9 +97,9 @@ export function makeChoiceRow(
 export function makeSpinRow(
     settings: Gio.Settings,
     key: string,
-    options: {step: number; subtitle: string; title: string},
+    options: {step: number; subtitle?: string; title: string},
 ): Adw.SpinRow {
-    const {step, subtitle, title} = options;
+    const {step, subtitle = '', title} = options;
     const {lower, upper} = readIntRange(settings, key);
     const row = new Adw.SpinRow({
         title,

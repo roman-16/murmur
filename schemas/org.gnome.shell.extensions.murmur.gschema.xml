@@ -12,6 +12,12 @@
       <summary>Interrupted recording</summary>
       <description>The recording that was running when Murmur was last switched off: its audio file, the microseconds recorded by then, and when that was in microseconds since the epoch. Murmur carries the recording on when it is switched back on within moments, as happens when GNOME Shell disables and re-enables extensions. Not a preference.</description>
     </key>
+    <key name="kept-dictations" type="i">
+      <default>128</default>
+      <range min="1" max="2147483647"/>
+      <summary>Dictations kept</summary>
+      <description>How many of the newest dictations the history keeps. Lowering it hides the older ones on the History page at once, and the next dictation saved deletes them from the file.</description>
+    </key>
     <key name="local-model" type="s">
       <default>''</default>
       <summary>Model file</summary>

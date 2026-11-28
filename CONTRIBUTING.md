@@ -57,7 +57,7 @@ src/prefs.ts           the preferences half
 src/stylesheet.css     geometry for the panel; its colours come from the shell theme
 src/lib/               shared by both, Gio and GLib only: settings, history, the recording files and their context log, the D-Bus contract, and the transcript
 src/lib/shell/         shell-only: dictation, recording, audio, what is around a recording, media players, panel, indicators, insertion, focus, notifications
-src/lib/prefs/         preferences-only: rows, shortcut capture, dotool diagnostics, history page
+src/lib/prefs/         preferences-only: rows, shortcut capture, dotool diagnostics, names and terms, history page
 src/lib/transcription/ the ways audio becomes text, the table of services, and This computer's engine
 ```
 

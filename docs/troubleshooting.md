@@ -83,7 +83,7 @@ Lower **Typing speed** in the preferences; some Electron and Java applications c
 
 You are on the virtual keyboard fallback, which can only produce characters from your current keyboard layout. Install dotool, which types arbitrary Unicode. See [dotool](text-insertion.md#dotool).
 
-## The preferences say dotool is not available
+## The preferences say "Typing with the virtual keyboard"
 
 The status row names the reason: not installed, `/dev/uinput` missing, your user not in the group that owns it, or a group membership this session has not picked up yet, which a log out and back in fixes. Follow [dotool](text-insertion.md#dotool), then press the refresh button.
 

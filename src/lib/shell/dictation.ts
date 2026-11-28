@@ -160,7 +160,7 @@ export class Dictation {
             return;
         if (destination.kind === 'field' && destination.password)
             return;
-        this.#history.append(transcript)
+        this.#history.append(transcript, this.#settings.get_int(Key.keptDictations))
             .catch(error => console.error(`murmur: history: ${errorMessage(error)}`));
     }
 

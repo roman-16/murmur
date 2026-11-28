@@ -71,10 +71,11 @@ Because the answer is read at the end rather than the start, you can press the s
 Every dictation is kept, so a transcription that landed in the wrong place is one click away rather than gone. Open the preferences and switch to the **History** page:
 
 - **Click a dictation** to copy it to the clipboard.
-- **Search** them from the magnifier in the header.
-- **Clear history** empties the lot, after asking.
+- **Search** them in the field above the list.
+- **The bin** beside one deletes it, and **Undo** on the toast puts it back.
+- **Clear history…** empties the lot, after asking.
 
-The newest 500 are kept, in plain text, in `~/.local/state/murmur@roman-16.github.io/history.jsonl`. **Remember what I dictate**, at the top of the page, turns it off; a password field and a dictation you cancelled are never kept either way. See [Privacy](privacy.md).
+The newest 128 are kept unless **Dictations kept** says otherwise, in plain text, in `~/.local/state/murmur@roman-16.github.io/history.jsonl`. **Remember what I dictate**, at the top of the page, turns it off; a password field and a dictation you cancelled are never kept either way. See [Privacy](privacy.md).
 
 ## Change the shortcuts
 

@@ -6,7 +6,7 @@ Open the preferences from the *Extensions* app, or with:
 gnome-extensions prefs murmur@roman-16.github.io
 ```
 
-Every setting takes effect on the next dictation or recording. Nothing needs a restart.
+The window has four pages - **Transcription**, **Dictation**, **Recording** and **History** - and the sections below follow them. Every setting takes effect on the next dictation or recording. Nothing needs a restart.
 
 ## Transcription
 
@@ -39,7 +39,9 @@ This computer sends nothing anywhere: a speech model you choose, a GGUF file, ru
 
 ### Names and terms
 
-The names and words the people you dictate and record use, separated by commas and spelled the way a transcript should spell them: `Lukas, Valheim, Ashlands, Voxtral`. **Apply** or `Enter` saves them.
+The names and words the people you dictate and record use, spelled the way a transcript should spell them. The row opens their list: type one into **Add a name or term** and press `Enter`, or several at once separated by commas, `Lukas, Valheim, Ashlands, Voxtral`. One already in the list is not added twice. The **−** button beside a term removes it, and **Undo** on the toast puts it back.
+
+They are sent in the order listed, which decides which of them a service that takes only so many receives.
 
 They go to the service with every dictation, recording and file, and the service leans towards them where it hears something close. That is a nudge, not a guarantee. Each service takes only so many:
 
@@ -50,7 +52,7 @@ They go to the service with every dictation, recording and file, and the service
 | OpenRouter | The first 1000, each up to 100 characters, to a model that takes them. A model that does not is asked again without them |
 | This computer | All of them, to a model that uses them. Under **Model**, one that does not says it ignores names and terms. A model that streams may leave them out of the words it shows as you speak |
 
-Leave it empty and nothing is sent.
+Leave the list empty and nothing is sent.
 
 ### API key
 
@@ -129,6 +131,18 @@ Switching to Mistral, OpenRouter or This computer with a longer time set lowers 
 Seconds of uninterrupted silence that end a dictation. 0 keeps it listening until you stop it yourself.
 
 Silence is measured in audio time rather than wall-clock time, so a slow network cannot be mistaken for a pause. Anything quieter than roughly 1% of full scale counts as silence, so a noisy room may need a longer setting, or none.
+
+### Text insertion
+
+Not a setting but a live check, at the top of the **Text insertion** group. **Typing with dotool** means Murmur types with dotool. **Typing with the virtual keyboard** means it cannot, and the row names the reason - dotool missing, `/dev/uinput` missing, your user not in the right group, or a group membership that needs a fresh login - beside a refresh button and a help button that opens [the dotool section](text-insertion.md#dotool) of Where the text goes.
+
+The virtual keyboard reaches every application too, but only with characters from your current keyboard layout.
+
+### Typing speed
+
+Characters per second, 2000 by default: a sentence lands in a few hundredths of a second. The choices are 10, 20, 50, 100, 200, 500, 1000, 2000 and 5000, and each is the speed the text really goes in at, with dotool and without it. Above a thousand a second no key is held at all.
+
+Lower it if characters get dropped or reordered in a particular application, which some Electron and Java applications do under fast synthetic input.
 
 ## Recording
 
@@ -219,12 +233,13 @@ It answers `()` once the transcription has started, or with the reason it refuse
 
 ### Remember what I dictate
 
-On by default. The text of every finished dictation is appended to `~/.local/state/murmur@roman-16.github.io/history.jsonl`, in plain text, and listed on the **History** page.
+On by default. The text of every finished dictation is appended to `~/.local/state/murmur@roman-16.github.io/history.jsonl`, in plain text, and listed on the **History** page, newest first.
 
 - **Click a dictation to copy it** to the clipboard.
-- **Search** them from the magnifier in the window's header.
-- **Clear history** deletes the file, after asking.
-- The newest **500** are kept; older ones fall off the end.
+- **Search** them in the field above the list, which goes through every dictation kept. The magnifier in the window's header searches the settings.
+- **The bin** beside a dictation deletes it, and **Undo** on the toast puts it back.
+- **Clear history…** deletes the file, after asking.
+- The list shows 128 at a time, and **Show older dictations** at its end the next 128.
 - A field the application reports as a password is never kept, nor is a dictation you cancelled with `Esc`. XWayland applications report nothing, so a password dictated into one would be kept.
 
 Turn the switch off and nothing further is written. What is already there stays until you clear it, and uninstalling does not remove it:
@@ -233,19 +248,9 @@ Turn the switch off and nothing further is written. What is already there stays 
 rm -r ~/.local/state/murmur@roman-16.github.io
 ```
 
-## Text insertion
+### Dictations kept
 
-### dotool status
-
-Not a setting but a live check, with a refresh button. It reports whether Murmur can type with dotool, and names the reason when it cannot: dotool missing, `/dev/uinput` missing, your user not in the right group, or a group membership that needs a fresh login. See [Where the text goes](text-insertion.md).
-
-Without it Murmur falls back to the shell's virtual keyboard, which reaches every application too but only with characters from your current keyboard layout.
-
-### Typing speed
-
-Characters per second, 2000 by default: a sentence lands in a few hundredths of a second. The choices are 10, 20, 50, 100, 200, 500, 1000, 2000 and 5000, and each is the speed the text really goes in at, with dotool and without it. Above a thousand a second no key is held at all.
-
-Lower it if characters get dropped or reordered in a particular application, which some Electron and Java applications do under fast synthetic input.
+How many of the newest dictations are kept: 128 by default, and any number from 1 up. Lowering it hides the older ones at once and deletes them from the file when the next dictation is saved, so raising it again before then brings them back.
 
 ## From the command line
 

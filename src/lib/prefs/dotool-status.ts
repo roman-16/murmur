@@ -7,7 +7,9 @@ import {gettext as _} from 'resource:///org/gnome/Shell/Extensions/js/extensions
 
 import {fromAsync} from '../async.js';
 import {dotoolTiers} from '../dotool.js';
+import {errorMessage} from '../errors.js';
 
+const GUIDE = 'https://github.com/roman-16/murmur/blob/main/docs/text-insertion.md#dotool';
 const PROBE_FLAGS = Gio.SubprocessFlags.STDIN_PIPE |
     Gio.SubprocessFlags.STDOUT_SILENCE |
     Gio.SubprocessFlags.STDERR_SILENCE;
@@ -30,7 +32,7 @@ type RowContent = {
     title: string;
 };
 
-export function makeDotoolStatusRow(): Adw.ActionRow {
+export function makeDotoolStatusRow(window: Adw.PreferencesWindow): Adw.ActionRow {
     const icon = new Gtk.Image({valign: Gtk.Align.CENTER});
     const row = new Adw.ActionRow({subtitle_lines: 0});
     row.add_prefix(icon);
@@ -43,6 +45,15 @@ export function makeDotoolStatusRow(): Adw.ActionRow {
     });
     row.add_suffix(recheck);
 
+    const help = new Gtk.Button({
+        has_frame: false,
+        icon_name: 'help-browser-symbolic',
+        tooltip_text: _('How to set up dotool'),
+        valign: Gtk.Align.CENTER,
+    });
+    help.connect('clicked', () => void openGuide(window));
+    row.add_suffix(help);
+
     const show = (status: DotoolStatus) => {
         const {cssClass, iconName, subtitle, title} = describe(status);
         icon.icon_name = iconName;
@@ -52,6 +63,8 @@ export function makeDotoolStatusRow(): Adw.ActionRow {
             icon.add_css_class(cssClass);
         row.title = title;
         row.subtitle = subtitle;
+        recheck.visible = status.kind !== 'active';
+        help.visible = status.kind !== 'active' && status.kind !== 'checking';
     };
 
     let generation = 0;
@@ -194,17 +207,15 @@ async function lookupGroup(gid: number): Promise<{members: string[]; name: strin
 }
 
 function describe(status: DotoolStatus): RowContent {
-    const fallback = _(
-        'Murmur is using the virtual keyboard, which types only characters from your current keyboard layout.');
+    const fallback = _('The virtual keyboard types only characters from your keyboard layout.');
 
     switch (status.kind) {
         case 'active':
             return {
                 cssClass: 'success',
-                iconName: 'emblem-ok-symbolic',
-                subtitle: _(
-                    'Dictation types via dotool: arbitrary Unicode into any app, including terminals.'),
-                title: _('dotool is active'),
+                iconName: 'object-select-symbolic',
+                subtitle: '',
+                title: _('Typing with dotool'),
             };
         case 'checking':
             return {
@@ -213,21 +224,19 @@ function describe(status: DotoolStatus): RowContent {
                 subtitle: '',
                 title: _('Checking dotool…'),
             };
-        case 'relogin': {
-            const pending = _('You are in the “%s” group, but this session has not picked it up yet. Log out and back in (or reboot) to finish enabling dotool.');
+        case 'relogin':
             return {
                 cssClass: 'warning',
                 iconName: 'dialog-warning-symbolic',
-                subtitle: `${pending.replace('%s', status.group)} ${fallback}`,
-                title: _('dotool needs a re-login'),
+                subtitle: `${_('Log out and back in to let this session use the “%s” group.').replace('%s', status.group)} ${fallback}`,
+                title: _('Typing with the virtual keyboard'),
             };
-        }
         default:
             return {
                 cssClass: 'error',
                 iconName: 'dialog-error-symbolic',
                 subtitle: `${unavailableReason(status)} ${fallback}`,
-                title: _('dotool is not available'),
+                title: _('Typing with the virtual keyboard'),
             };
     }
 }
@@ -237,14 +246,24 @@ function unavailableReason(
     {kind: 'unreachable'}): string {
     switch (status.kind) {
         case 'notinstalled':
-            return _('dotool is not installed. Install it for full-Unicode typing (see the README).');
+            return _('dotool is not installed.');
         case 'notmember':
-            return _('You are not in the “%s” group that grants access to /dev/uinput (see the README).')
-                .replace('%s', status.group);
+            return _('You are not in the “%s” group, which may use /dev/uinput.').replace('%s', status.group);
         case 'nouinput':
-            return _(
-                'The uinput device is unavailable (kernel module or udev rule missing; see the README).');
+            return _('/dev/uinput is missing.');
         default:
-            return _('dotool is installed but could not be reached (see the README).');
+            return _('dotool is installed but does not answer.');
+    }
+}
+
+async function openGuide(window: Adw.PreferencesWindow): Promise<void> {
+    const launcher = new Gtk.UriLauncher({uri: GUIDE});
+    try {
+        await fromAsync(
+            callback => launcher.launch(window, null, callback),
+            result => launcher.launch_finish(result));
+    } catch (error) {
+        if (!(error instanceof GLib.Error && error.matches(Gtk.DialogError, Gtk.DialogError.DISMISSED)))
+            console.error(`murmur: dotool guide: ${errorMessage(error)}`);
     }
 }

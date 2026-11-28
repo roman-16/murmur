@@ -9,8 +9,11 @@ import {gettext as _} from 'resource:///org/gnome/Shell/Extensions/js/extensions
 
 import {errorMessage} from '../errors.js';
 import type {Dictation, History} from '../history.js';
+import {placeOf} from '../recording-files.js';
 import {Key} from '../settings.js';
+import {makeSpinRow} from './rows.js';
 
+const BATCH = 128;
 const ENTRY_LINES = 3;
 // A write arrives as several events, so the list is rebuilt once they settle.
 const SETTLE_MS = 200;
@@ -19,96 +22,177 @@ export function makeHistoryPage(
     window: Adw.PreferencesWindow, settings: Gio.Settings, history: History): Adw.PreferencesPage {
     const page = new Adw.PreferencesPage({
         icon_name: 'document-open-recent-symbolic',
+        name: 'history',
         title: _('History'),
     });
+    const list = new DictationList(window, settings, history);
 
-    const group = new Adw.PreferencesGroup({
-        description: _('Kept in %s').replace('%s', history.path),
-        title: _('Dictation history'),
-    });
+    const keeping = new Adw.PreferencesGroup();
     const remember = new Adw.SwitchRow({
         title: _('Remember what I dictate'),
-        subtitle: _(
-            'The text of every dictation is written to that file, in plain text. A field the application reports as a password is never kept'),
+        subtitle: _('In plain text, in %s. A field the application reports as a password is never kept')
+            .replace('%s', placeOf(Gio.File.new_for_path(history.path))),
     });
     settings.bind(Key.rememberDictations, remember, 'active', Gio.SettingsBindFlags.DEFAULT);
-    group.add(remember);
-    page.add(group);
+    keeping.add(remember);
+    const kept = makeSpinRow(settings, Key.keptDictations, {step: 1, title: _('Dictations kept')});
+    remember.bind_property('active', kept, 'sensitive', GObject.BindingFlags.SYNC_CREATE);
+    keeping.add(kept);
+    keeping.add(list.clearRow);
+    page.add(keeping);
 
-    const list = new Adw.PreferencesGroup();
-    page.add(list);
+    const searching = new Adw.PreferencesGroup();
+    const search = new Gtk.SearchEntry({placeholder_text: _('Search dictations')});
+    search.connect('search-changed', () => list.search(search.text));
+    searching.add(search);
+    page.add(searching);
 
-    const rows: Gtk.Widget[] = [];
-    // The list is read from disk, so a rebuild that started earlier may answer
-    // later; only the newest one is allowed to fill the group.
-    let generation = 0;
-    const rebuild = async () => {
-        const current = ++generation;
-        const entries = await history.entries();
-        if (current !== generation)
-            return;
+    const listed = new Adw.PreferencesGroup();
+    listed.add(list.box);
+    page.add(listed);
 
-        for (const row of rows)
-            list.remove(row);
-        rows.length = 0;
-
-        if (entries.length === 0) {
-            rows.push(add(list, emptyRow(settings)));
-            return;
-        }
-        for (const entry of entries)
-            rows.push(add(list, dictationRow(window, entry)));
-        rows.push(add(list, clearRow(window, history, entries.length, rebuild)));
-    };
-    void rebuild();
-
-    watch(page, history, rebuild);
+    settings.connect(`changed::${Key.keptDictations}`, () => list.show());
+    settings.connect(`changed::${Key.rememberDictations}`, () => list.show());
+    void list.reload();
+    watch(page, history, () => list.reload());
     return page;
 }
 
-function add<T extends Gtk.Widget>(group: Adw.PreferencesGroup, row: T): T {
-    group.add(row);
-    return row;
-}
+class DictationList {
+    readonly box = new Gtk.ListBox({css_classes: ['boxed-list'], selection_mode: Gtk.SelectionMode.NONE});
+    readonly clearRow = new Adw.ButtonRow({title: _('Clear history…')});
 
-function dictationRow(window: Adw.PreferencesWindow, entry: Dictation): Adw.ActionRow {
-    const row = new Adw.ActionRow({
-        activatable: true,
-        subtitle: when(entry.at),
-        title: entry.text,
-        title_lines: ENTRY_LINES,
-        // A transcription is text, not markup: "R&D" is two words and an
-        // ampersand, and a row that parses it would drop half the sentence.
-        use_markup: false,
-    });
-    row.add_suffix(new Gtk.Image({
-        icon_name: 'edit-copy-symbolic',
-        valign: Gtk.Align.CENTER,
-    }));
-    row.connect('activated', () => copy(window, entry.text));
-    return row;
-}
+    readonly #history: History;
+    readonly #settings: Gio.Settings;
+    readonly #window: Adw.PreferencesWindow;
 
-function emptyRow(settings: Gio.Settings): Adw.ActionRow {
-    const kept = settings.get_boolean(Key.rememberDictations);
-    return new Adw.ActionRow({
-        subtitle_lines: 0,
-        title: kept
-            ? _('Nothing yet. What you dictate from now on shows up here.')
-            : _('Nothing is being kept. Turn the switch above on to start.'),
-        use_markup: false,
-    });
-}
+    #entries: Dictation[] = [];
+    #generation = 0;
+    #matching: Dictation[] = [];
+    #more: Adw.ButtonRow | null = null;
+    #query = '';
+    #shown = 0;
 
-function clearRow(
-    window: Adw.PreferencesWindow, history: History, count: number,
-    onCleared: () => Promise<void>): Adw.ButtonRow {
-    const row = new Adw.ButtonRow({title: _('Clear history')});
-    row.add_css_class('destructive-action');
-    row.connect('activated', () => {
+    constructor(window: Adw.PreferencesWindow, settings: Gio.Settings, history: History) {
+        this.#history = history;
+        this.#settings = settings;
+        this.#window = window;
+        this.clearRow.connect('activated', () => this.#confirmClear());
+    }
+
+    async reload(): Promise<void> {
+        const current = ++this.#generation;
+        const entries = await this.#history.newestFirst();
+        if (current !== this.#generation)
+            return;
+        this.#entries = entries;
+        this.show();
+    }
+
+    search(query: string): void {
+        this.#query = query;
+        this.#shown = 0;
+        this.show();
+    }
+
+    show(): void {
+        const query = this.#query.toLocaleLowerCase();
+        const kept = this.#entries.slice(0, this.#settings.get_int(Key.keptDictations));
+        this.#matching = query ? kept.filter(entry => entry.text.toLocaleLowerCase().includes(query)) : kept;
+        this.clearRow.sensitive = this.#entries.length > 0;
+
+        const count = Math.max(this.#shown, BATCH);
+        this.box.remove_all();
+        this.#more = null;
+        this.#shown = 0;
+        if (this.#matching.length === 0) {
+            this.box.append(this.#emptyRow());
+            return;
+        }
+        this.#showUpTo(count);
+    }
+
+    #showUpTo(count: number): void {
+        if (this.#more) {
+            this.box.remove(this.#more);
+            this.#more = null;
+        }
+        for (const entry of this.#matching.slice(this.#shown, count))
+            this.box.append(this.#row(entry));
+        this.#shown = Math.min(count, this.#matching.length);
+        if (this.#shown >= this.#matching.length)
+            return;
+
+        const more = new Adw.ButtonRow({title: _('Show older dictations')});
+        more.connect('activated', () => this.#showUpTo(this.#shown + BATCH));
+        this.box.append(more);
+        this.#more = more;
+    }
+
+    #row(entry: Dictation): Adw.ActionRow {
+        const row = new Adw.ActionRow({
+            activatable: true,
+            subtitle: when(entry.at),
+            title: entry.text,
+            title_lines: ENTRY_LINES,
+            // A transcription is text, not markup: "R&D" is two words and an
+            // ampersand, and a row that parses it would drop half the sentence.
+            use_markup: false,
+        });
+        row.add_suffix(new Gtk.Image({
+            icon_name: 'edit-copy-symbolic',
+            valign: Gtk.Align.CENTER,
+        }));
+        const remove = new Gtk.Button({
+            has_frame: false,
+            icon_name: 'user-trash-symbolic',
+            tooltip_text: _('Delete'),
+            valign: Gtk.Align.CENTER,
+        });
+        remove.connect('clicked', () => void this.#forget(entry, row));
+        row.add_suffix(remove);
+        row.connect('activated', () => copy(this.#window, entry.text));
+        return row;
+    }
+
+    #emptyRow(): Adw.ActionRow {
+        if (this.#query)
+            return new Adw.ActionRow({title: _('No dictations match')});
+        return new Adw.ActionRow({
+            subtitle_lines: 0,
+            title: this.#settings.get_boolean(Key.rememberDictations)
+                ? _('Nothing yet. What you dictate from now on shows up here.')
+                : _('Nothing is being kept. Turn the switch above on to start.'),
+            use_markup: false,
+        });
+    }
+
+    async #forget(entry: Dictation, row: Adw.ActionRow): Promise<void> {
+        this.#entries = this.#entries.filter(other => other !== entry);
+        this.#matching = this.#matching.filter(other => other !== entry);
+        this.#shown--;
+        this.box.remove(row);
+        if (this.#matching.length === 0)
+            this.show();
+
+        try {
+            await this.#history.forget(entry);
+        } catch (error) {
+            toast(this.#window, errorMessage(error));
+            void this.reload();
+            return;
+        }
+        const deleted = new Adw.Toast({button_label: _('Undo'), title: _('Dictation deleted')});
+        deleted.connect('button-clicked', () => {
+            this.#history.restore(entry).catch(error => toast(this.#window, errorMessage(error)));
+        });
+        this.#window.add_toast(deleted);
+    }
+
+    #confirmClear(): void {
         const dialog = new Adw.AlertDialog({
             body: _('The file is removed. This cannot be undone.'),
-            heading: _('Delete all %d dictations?').replace('%d', String(count)),
+            heading: _('Delete all %d dictations?').replace('%d', String(this.#entries.length)),
         });
         dialog.add_response('cancel', _('Cancel'));
         dialog.add_response('delete', _('Delete'));
@@ -116,13 +200,12 @@ function clearRow(
         dialog.connect('response', (_dialog: Adw.AlertDialog, response: string) => {
             if (response !== 'delete')
                 return;
-            void history.clear()
+            void this.#history.clear()
                 .catch(error => console.error(`murmur: history: ${errorMessage(error)}`))
-                .then(onCleared);
+                .then(() => this.reload());
         });
-        dialog.present(window);
-    });
-    return row;
+        dialog.present(this.#window);
+    }
 }
 
 // Typing it back is not on offer: this window holds the keyboard, so the
@@ -136,12 +219,14 @@ function copy(window: Adw.PreferencesWindow, text: string): void {
     if (!clipboard)
         return;
     clipboard.set_content(Gdk.ContentProvider.new_for_value(value));
-    window.add_toast(new Adw.Toast({title: _('Copied to the clipboard')}));
+    toast(window, _('Copied to the clipboard'));
 }
 
-// A dictation while this window is open belongs in the list without reopening it.
-function watch(
-    page: Adw.PreferencesPage, history: History, rebuild: () => Promise<void>): void {
+function toast(window: Adw.PreferencesWindow, title: string): void {
+    window.add_toast(new Adw.Toast({title, use_markup: false}));
+}
+
+function watch(page: Adw.PreferencesPage, history: History, reload: () => Promise<void>): void {
     const monitor = history.monitor();
     let settleId = 0;
 
@@ -156,7 +241,7 @@ function watch(
         clearSettle();
         settleId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, SETTLE_MS, () => {
             settleId = 0;
-            void rebuild();
+            void reload();
             return GLib.SOURCE_REMOVE;
         });
     });

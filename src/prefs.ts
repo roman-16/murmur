@@ -14,9 +14,9 @@ import {makeLocalGroup} from './lib/prefs/local.js';
 import {makeModelRow} from './lib/prefs/model.js';
 import {makeChoiceRow, makePresetRow, makeSpinRow, showWhileSelected} from './lib/prefs/rows.js';
 import {makeShortcutRow} from './lib/prefs/shortcut.js';
+import {makeTermsRow} from './lib/prefs/terms.js';
 import {makeTranscribeFileRow} from './lib/prefs/transcribe.js';
-import {recordingPlace} from './lib/recording-files.js';
-import {Key, readIntRange, readProvider, readTerms, termsOf} from './lib/settings.js';
+import {Key, readIntRange, readProvider} from './lib/settings.js';
 import {Engine} from './lib/transcription/engine.js';
 import {PROVIDER_IDS, PROVIDERS, type ProviderId} from './lib/transcription/provider.js';
 
@@ -26,53 +26,52 @@ export default class MurmurPreferences extends ExtensionPreferences {
     override async fillPreferencesWindow(window: Adw.PreferencesWindow): Promise<void> {
         const settings = this.getSettings();
         const engine = new Engine(this);
-        const page = new Adw.PreferencesPage({
-            icon_name: 'audio-input-microphone-symbolic',
-            title: _('General'),
+
+        const transcription = new Adw.PreferencesPage({
+            icon_name: 'insert-text-symbolic',
+            name: 'transcription',
+            title: _('Transcription'),
         });
-        page.add(transcriptionGroup(settings));
-        page.add(makeLocalGroup(window, settings, engine));
-        page.add(mistralGroup(settings));
-        page.add(openrouterGroup(settings));
-        page.add(xaiGroup(settings));
-        page.add(dictationGroup(window, settings));
-        page.add(recordingGroup(window, settings, engine));
-        page.add(insertionGroup(settings));
-        window.add(page);
+        transcription.add(serviceGroup(window, settings));
+        transcription.add(makeLocalGroup(window, settings, engine));
+        transcription.add(mistralGroup(settings));
+        transcription.add(openrouterGroup(settings));
+        transcription.add(xaiGroup(settings));
+
+        const dictation = new Adw.PreferencesPage({
+            icon_name: 'audio-input-microphone-symbolic',
+            name: 'dictation',
+            title: _('Dictation'),
+        });
+        dictation.add(dictationGroup(window, settings));
+        dictation.add(insertionGroup(window, settings));
+
+        const recording = new Adw.PreferencesPage({
+            icon_name: 'media-record-symbolic',
+            name: 'recording',
+            title: _('Recording'),
+        });
+        recording.add(recordingGroup(window, settings));
+        recording.add(transcribeFileGroup(window, settings, engine));
+
+        window.add(transcription);
+        window.add(dictation);
+        window.add(recording);
         window.add(makeHistoryPage(window, settings, new History(this.uuid)));
         window.search_enabled = true;
     }
 }
 
-function transcriptionGroup(settings: Gio.Settings): Adw.PreferencesGroup {
-    const group = new Adw.PreferencesGroup({title: _('Transcription')});
+function serviceGroup(window: Adw.PreferencesWindow, settings: Gio.Settings): Adw.PreferencesGroup {
+    const group = new Adw.PreferencesGroup();
     group.add(makeChoiceRow(settings, Key.transcriptionProvider, {
         title: _('Service'),
-        subtitle: _('What turns your dictations and recordings into text'),
         choices: PROVIDER_IDS
             .map(id => ({label: PROVIDERS[id].label, value: id}))
             .sort((first, second) => first.label.localeCompare(second.label)),
     }));
-    group.add(termsRow(settings));
+    group.add(makeTermsRow(window, settings));
     return group;
-}
-
-function termsRow(settings: Gio.Settings): Adw.EntryRow {
-    const row = new Adw.EntryRow({
-        show_apply_button: true,
-        title: _('Names and terms'),
-        tooltip_text: _('Separated by commas, and spelled the way a transcript should spell them. Every dictation, recording and file takes them along, to the services and the models that use them'),
-    });
-    const sync = () => {
-        row.text = readTerms(settings).join(', ');
-    };
-    sync();
-    settings.connect(`changed::${Key.namesAndTerms}`, sync);
-    row.connect('apply', () => {
-        settings.set_strv(Key.namesAndTerms, termsOf(row.text));
-        sync();
-    });
-    return row;
 }
 
 function mistralGroup(settings: Gio.Settings): Adw.PreferencesGroup {
@@ -112,7 +111,7 @@ function apiKeyRow(settings: Gio.Settings, key: string): Adw.PasswordEntryRow {
 
 function dictationGroup(
     window: Adw.PreferencesWindow, settings: Gio.Settings): Adw.PreferencesGroup {
-    const group = new Adw.PreferencesGroup({title: _('Dictation')});
+    const group = new Adw.PreferencesGroup();
 
     group.add(makeShortcutRow(window, settings, Key.toggleDictation, {
         title: _('Dictation shortcut'),
@@ -121,8 +120,7 @@ function dictationGroup(
 
     const panelRow = new Adw.SwitchRow({
         title: _('Show the panel when a dictation starts'),
-        subtitle: _(
-            'Turn this off to start with only the indicator in the top bar, over nothing. Click the indicator to open the panel'),
+        subtitle: _('Off, a dictation starts as the indicator in the top bar'),
     });
     settings.bind(Key.showPanelOnStart, panelRow, 'active', Gio.SettingsBindFlags.DEFAULT);
     group.add(panelRow);
@@ -139,7 +137,6 @@ function dictationGroup(
 function maxDictationRow(settings: Gio.Settings): Adw.SpinRow {
     const row = makeSpinRow(settings, Key.maxDictationSeconds, {
         title: _('Maximum dictation time'),
-        subtitle: '',
         step: 15,
     });
 
@@ -148,11 +145,10 @@ function maxDictationRow(settings: Gio.Settings): Adw.SpinRow {
         row.adjustment.upper =
             dictationSeconds ?? readIntRange(settings, Key.maxDictationSeconds).upper;
         row.subtitle = dictationSeconds === undefined
-            ? _('Seconds after which a dictation stops on its own. %s sets no limit of its own, so this is only a safety net for a dictation you walked away from')
-                .replace('%s', vendor)
-            : _('Seconds after which a dictation stops on its own. %s transcribes at most %d minutes at a stretch, which is as high as this goes')
-                .replace('%s', vendor)
-                .replace('%d', String(Math.floor(dictationSeconds / 60)));
+            ? _('Seconds after which a dictation stops on its own')
+            : _('Seconds after which a dictation stops on its own, at most %d minutes with %s')
+                .replace('%d', String(Math.floor(dictationSeconds / 60)))
+                .replace('%s', vendor);
     };
     sync();
 
@@ -160,20 +156,12 @@ function maxDictationRow(settings: Gio.Settings): Adw.SpinRow {
     return row;
 }
 
-function recordingGroup(
-    window: Adw.PreferencesWindow, settings: Gio.Settings, engine: Engine): Adw.PreferencesGroup {
-    const group = new Adw.PreferencesGroup({title: _('Recording')});
-    const shortcut = makeShortcutRow(window, settings, Key.toggleRecording, {
+function recordingGroup(window: Adw.PreferencesWindow, settings: Gio.Settings): Adw.PreferencesGroup {
+    const group = new Adw.PreferencesGroup();
+    group.add(makeShortcutRow(window, settings, Key.toggleRecording, {
         title: _('Recording shortcut'),
-        subtitle: '',
-    });
-    const sync = () => {
-        shortcut.subtitle = _('Records everything you hear and say, then transcribes it into %s')
-            .replace('%s', recordingPlace(settings));
-    };
-    sync();
-    settings.connect(`changed::${Key.recordingFolder}`, sync);
-    group.add(shortcut);
+        subtitle: _('Records everything you hear and say, then transcribes it'),
+    }));
     group.add(makeRecordingFolderRow(window, settings));
     group.add(makeSpinRow(settings, Key.recordingPieceMinutes, {
         title: _('Piece length'),
@@ -187,15 +175,20 @@ function recordingGroup(
     });
     settings.bind(Key.recordContext, contextRow, 'active', Gio.SettingsBindFlags.DEFAULT);
     group.add(contextRow);
+    return group;
+}
 
+function transcribeFileGroup(
+    window: Adw.PreferencesWindow, settings: Gio.Settings, engine: Engine): Adw.PreferencesGroup {
+    const group = new Adw.PreferencesGroup();
     group.add(makeTranscribeFileRow(window, settings, engine));
     return group;
 }
 
-function insertionGroup(settings: Gio.Settings): Adw.PreferencesGroup {
+function insertionGroup(window: Adw.PreferencesWindow, settings: Gio.Settings): Adw.PreferencesGroup {
     const group = new Adw.PreferencesGroup({title: _('Text insertion')});
 
-    group.add(makeDotoolStatusRow());
+    group.add(makeDotoolStatusRow(window));
     group.add(makePresetRow(settings, Key.typingSpeed, {
         title: _('Typing speed'),
         subtitle: _('Lower this if characters get dropped or reordered'),

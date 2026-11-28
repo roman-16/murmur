@@ -3,8 +3,6 @@ import GLib from 'gi://GLib';
 
 import {deleteFile, readText, writePrivately} from './files.js';
 
-const LIMIT = 500;
-
 export type Dictation = {
     at: string;
     text: string;
@@ -12,8 +10,7 @@ export type Dictation = {
 
 // One JSON object per line, oldest first, under the extension's own directory
 // in $XDG_STATE_HOME - where the base directory specification puts an actions
-// history. The file is capped, so a dictation costs a rewrite of at most the
-// newest LIMIT entries rather than of everything ever said.
+// history.
 export class History {
     readonly #file: Gio.File;
     readonly #path: string;
@@ -29,8 +26,7 @@ export class History {
         return this.#path;
     }
 
-    // Newest first, which is the order it is read in.
-    async entries(): Promise<Dictation[]> {
+    async newestFirst(): Promise<Dictation[]> {
         const kept: Dictation[] = [];
         for (const line of (await readText(this.#file)).split('\n')) {
             const entry = dictation(line);
@@ -40,19 +36,26 @@ export class History {
         return kept.reverse();
     }
 
-    // A dictation is read, capped and written back, and the caller does not
-    // wait for it, so two of them are kept apart: overlapping read-modify-writes
-    // would settle on whichever read first and lose the other.
-    append(text: string): Promise<void> {
-        const write = async () => {
-            const kept = (await this.entries()).reverse();
-            kept.push({at: GLib.DateTime.new_now_utc().format_iso8601() ?? '', text});
-            const lines = kept.slice(-LIMIT).map(entry => JSON.stringify(entry)).join('\n');
-            await writePrivately(this.#file, lines ? `${lines}\n` : '');
-        };
-        const done = this.#pending.catch(() => {}).then(write);
-        this.#pending = done;
-        return done;
+    append(text: string, kept: number): Promise<void> {
+        const entry: Dictation = {at: GLib.DateTime.new_now_utc().format_iso8601() ?? '', text};
+        return this.#rewrite(lines => [...lines, JSON.stringify(entry)].slice(-kept));
+    }
+
+    forget(entry: Dictation): Promise<void> {
+        return this.#rewrite(lines => {
+            const index = lines.findIndex(line => matches(dictation(line), entry));
+            return index < 0 ? lines : lines.toSpliced(index, 1);
+        });
+    }
+
+    restore(entry: Dictation): Promise<void> {
+        return this.#rewrite(lines => {
+            const later = lines.findIndex(line => {
+                const other = dictation(line);
+                return other !== null && other.at > entry.at;
+            });
+            return lines.toSpliced(later < 0 ? lines.length : later, 0, JSON.stringify(entry));
+        });
     }
 
     clear(): Promise<void> {
@@ -62,6 +65,23 @@ export class History {
     monitor(): Gio.FileMonitor {
         return this.#file.monitor_file(Gio.FileMonitorFlags.NONE, null);
     }
+
+    // Nobody waits for a save, so two of them are kept apart: overlapping
+    // read-modify-writes would settle on whichever read first and lose the other.
+    #rewrite(change: (lines: string[]) => string[]): Promise<void> {
+        const write = async () => {
+            const lines = (await readText(this.#file)).split('\n').filter(line => line.trim());
+            const changed = change(lines);
+            await writePrivately(this.#file, changed.length > 0 ? `${changed.join('\n')}\n` : '');
+        };
+        const done = this.#pending.catch(() => {}).then(write);
+        this.#pending = done;
+        return done;
+    }
+}
+
+function matches(entry: Dictation | null, other: Dictation): boolean {
+    return entry?.at === other.at && entry.text === other.text;
 }
 
 // A line that is not a dictation is dropped rather than taken as the end of the

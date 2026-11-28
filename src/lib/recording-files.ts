@@ -194,8 +194,8 @@ function folderAt(path: string): Gio.File {
     return Gio.File.new_for_path(path);
 }
 
-function placeOf(folder: Gio.File | null): string {
-    const path = folder?.get_path() ?? '';
+export function placeOf(file: Gio.File | null): string {
+    const path = file?.get_path() ?? '';
     const home = GLib.get_home_dir();
     if (path === home)
         return '~';

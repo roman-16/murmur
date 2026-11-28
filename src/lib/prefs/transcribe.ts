@@ -63,11 +63,11 @@ export function makeTranscribeFileRow(
         choose.sensitive = any;
         row.subtitle = any
             ? _('Any audio, or a recording again. The transcript goes beside it.')
-            : _('Add an API key or a model above first');
+            : _('Set up a service on the Transcription page first');
     };
     services.visible = false;
     choose.sensitive = false;
-    row.subtitle = _('Add an API key or a model above first');
+    row.subtitle = _('Set up a service on the Transcription page first');
     void sync();
     settings.connect('changed', () => void sync());
     settings.connect(`changed::${Key.transcriptionProvider}`, () => select(readProvider(settings)));

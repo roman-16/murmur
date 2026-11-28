@@ -38,7 +38,7 @@ If what you say must not reach a third party, pick **This computer**, and keep t
 | Your API keys | dconf, under `/org/gnome/shell/extensions/murmur/` | **Unencrypted**, like every GSettings value. Any process running as you can read it. Each service keeps its own, and the one you are not using stays there until you clear it |
 | Your other settings | The same place | Shortcuts, limits, your names and terms, the model file's path and its settings |
 | This computer's engine | `~/.local/share/murmur@roman-16.github.io/engine/` | transcribe.cpp and its two helper models, about 200 MB, kept until you delete them. A Nix install keeps them in the store instead |
-| A dictation's transcription | `~/.local/state/murmur@roman-16.github.io/history.jsonl` | **Unencrypted**, one line per dictation, oldest first, the newest 500 kept |
+| A dictation's transcription | `~/.local/state/murmur@roman-16.github.io/history.jsonl` | **Unencrypted**, one line per dictation, oldest first, the newest 128 kept unless **Dictations kept** says otherwise |
 | A dictation's audio | Nowhere | It goes from the microphone to the network, or to the engine, and is never written to disk. With Mistral, OpenRouter or a model on this computer that does not stream, it is held in memory until you stop, and released once it has been transcribed |
 | A recording's audio | The [recordings folder](configuration.md#recordings-folder), `~/Documents/Murmur/` unless you chose another, as `2026-03-26T22-02-34.opus` | Written as it is recorded, readable by you alone, and kept until you delete it |
 | A recording's transcript | Beside its audio, as `2026-03-26T22-02-34.md` | The service's words, with the times and the speakers Murmur puts to them, and what was around the recording: the computer's name, the devices, and with **Note what is on screen and playing** on, window titles, what played, which applications had the microphone, the camera, screen sharing, time away and the network. Readable by you alone, kept until you delete it |
@@ -50,7 +50,7 @@ The folder is the Documents folder your desktop names, `~/Documents` unless it i
 
 ## Your dictation history
 
-**Remember what I dictate** is on, so the text of every finished dictation is written to that file and listed on the **History** page of the preferences, where a click copies one and **Clear history** deletes the file. Turn the switch off and nothing further is written; what was written stays until you clear it.
+**Remember what I dictate** is on, so the text of every finished dictation is written to that file and listed on the **History** page of the preferences, where a click copies one, the bin beside it deletes it and **Clear history…** deletes the file. Turn the switch off and nothing further is written; what was written stays until you clear it.
 
 Three things are worth knowing about it:
 

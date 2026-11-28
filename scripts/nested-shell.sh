@@ -14,8 +14,8 @@ recording_shortcut=${RECORDING_SHORTCUT:-<Super>k}
 # desktop session's own value instead.
 session_data_dirs() {
     local pid
-    pid=$(pgrep --newest --uid "$(id --user)" gnome-shell 2>/dev/null) || return 0
-    tr '\0' '\n' <"/proc/$pid/environ" 2>/dev/null | sed --quiet 's/^XDG_DATA_DIRS=//p' | head -1
+    pid=$(pgrep --oldest --uid "$(id --user)" gnome-shell 2>/dev/null) || return 0
+    { tr '\0' '\n' <"/proc/$pid/environ"; } 2>/dev/null | sed --quiet 's/^XDG_DATA_DIRS=//p' | head -1 || true
 }
 
 inherited=$(session_data_dirs)

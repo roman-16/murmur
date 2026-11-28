@@ -6,6 +6,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 Adding a version section here is what publishes a release, so this file is the one place a version is decided: see [Releasing](CONTRIBUTING.md#releasing). Versions that shipped before this file existed are on the [releases page](https://github.com/roman-16/murmur/releases).
 
+## [2.4.0] - 2026-11-28
+
+### Highlights
+
+- **Preferences in four pages** - **Transcription**, **Dictation**, **Recording** and **History** replace one long page, and **Names and terms** opens a list you add to and remove from one by one.
+- **A history you control** - **Dictations kept** decides how many are kept, 128 by default: raise it before your next dictation to keep more. Search them and delete one at a time on the History page.
+
+### Added
+
+- **Dictations kept** on the History page sets how many dictations the history keeps, 128 by default and any number from 1 up. The `kept-dictations` key holds it.
+- A search field on the History page finds dictations, and the bin beside one deletes it, with **Undo**.
+- **Names and terms** opens their list: **Add a name or term** takes one or several separated by commas, and **−** removes one, with **Undo**.
+- The dotool row's help button opens the guide to setting dotool up.
+
+### Changed
+
+- The preferences have four pages - **Transcription**, **Dictation**, **Recording** and **History** - in place of **General**, with **Text insertion** on **Dictation**.
+- The history keeps the newest 128 dictations unless **Dictations kept** says otherwise, not 500. The first dictation after updating deletes older ones, so raise it first to keep them.
+- The magnifier in the window's header searches settings only.
+- The History page lists 128 dictations at a time, with **Show older dictations** below them and **Clear history…** above.
+- The dotool row reads **Typing with dotool** when Murmur types with it, and **Typing with the virtual keyboard** with the reason when it cannot.
+
+### Fixed
+
+- The dotool row's check mark shows on stock GNOME, where its icon was missing.
+
 ## [2.3.1] - 2026-11-28
 
 ### Fixed
